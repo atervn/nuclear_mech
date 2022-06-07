@@ -53,6 +53,6 @@ for t = 1:10
 
 end
 plot_sphere!(nucleus)
-a = 1;
+
 end
 
