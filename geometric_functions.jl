@@ -221,3 +221,20 @@ function cross_product(p1,p2,p3)
             ((p2[1] - p1[1]) * (p3[2] - p1[2])) - ((p2[2] - p1[2]) * (p3[1] - p1[1]))];
 
 end
+
+function get_triangle_angles(nucleus)
+
+    angles = zeros(Float64,size(nucleus.edges,1),1);
+    
+    for i = 1:size(nucleus.edges,1)
+
+        normalVector1 = nucleus.triangleNormalUnitVectors[nucleus.edgesTri[i,1],:];
+        normalVector2 = nucleus.triangleNormalUnitVectors[nucleus.edgesTri[i,2],:];
+
+        dotProduct = normalVector1[1]*normalVector2[1] + normalVector1[2]*normalVector2[2] + normalVector1[3]*normalVector2[3];
+        angles[i] = acosd(dotProduct);
+    end
+
+    return angles
+
+end

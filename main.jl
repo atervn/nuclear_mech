@@ -1,4 +1,6 @@
 using Plots
+using Statistics
+
 include("sphere_creation.jl")
 include("plotting.jl")
 include("geometric_functions.jl")
@@ -22,6 +24,7 @@ mutable struct nucleusType
     areaUnitVectors::Vector{Array{Float64}}
     normalVolume::Float64
     normalArea::Float64
+    normalAngle::Float64
 end
 
 struct parameters
@@ -29,18 +32,20 @@ struct parameters
     areaCompressionStiffness::Float64
 end
 
-nucleus = nucleusType([],[],[],Array{Int64}[],Array{Int64}[],[],[],[],Array{Int64}[],Array{Int64}[],[],[],Array{Float64}[],Array{Float64}[],[],0,0);
+nucleus = nucleusType([],[],[],Array{Int64}[],Array{Int64}[],[],[],[],Array{Int64}[],Array{Int64}[],[],[],Array{Float64}[],Array{Float64}[],[],0,0,0);
 
 radius = 1;
-nSubdivisions = 5;
+nSubdivisions = 2;
 
 nucleus = create_icosahedron!(nucleus,radius);
 nucleus = get_edges!(nucleus);
 nucleus = subdivide_mesh!(nucleus,radius,nSubdivisions)
+get_triangle_normals!(nucleus);
 
 @time begin
 nucleus.normalVolume = get_volume!(nucleus);
 nucleus.normalArea = get_area!(nucleus);
+nucleus.normalAngle = mean(get_triangle_angles(nucleus));
 #println("the volume of the sphere is $nucleus.normalVolume")
 #println("the area of the sphere is $nucleus.normalArea")
 
@@ -49,12 +54,12 @@ nucleus.normalArea = get_area!(nucleus);
     get_voronoi_areas!(nucleus);
     get_local_curvatures!(nucleus);
     get_area_unit_vectors!(nucleus);
-    get_triangle_normals!(nucleus)
+    get_triangle_normals!(nucleus);
 
     volumeForces = get_volume_forces(nucleus);
     areaForces = get_area_forces(nucleus);
-    angles = get_bending_forces(nucleus);
-    histogram(angles)
+    bendingForces = get_bending_forces(nucleus);
+
 
 #end
 
