@@ -93,7 +93,7 @@ function get_local_curvatures!(nucleus)
     end
 
     curvatures = zeros(length(nucleus.x));
-    surfaceNormalUnitVectors = zeros(length(nucleus.x),3);
+    vertexNormalUnitVectors = zeros(length(nucleus.x),3);
 
     for i = 1:length(nucleus.x)
 
@@ -110,12 +110,12 @@ function get_local_curvatures!(nucleus)
         LaplaceBeltramiNorm = sqrt(sum(LaplaceBeltrami.^2));
 
         curvatures[i] = LaplaceBeltramiNorm./2;
-        surfaceNormalUnitVectors[i,:] = LaplaceBeltrami./LaplaceBeltramiNorm;
+        vertexNormalUnitVectors[i,:] = LaplaceBeltrami./LaplaceBeltramiNorm;
 
     end
 
     nucleus.curvatures = curvatures;
-    nucleus.surfaceNormalUnitVectors = surfaceNormalUnitVectors;
+    nucleus.vertexNormalUnitVectors = vertexNormalUnitVectors;
 
 end
 
@@ -190,5 +190,34 @@ function get_area_unit_vectors!(nucleus)
         nucleus.areaUnitVectors[i] = areaUnitVectors;
 
     end
+
+end
+
+function get_triangle_normals!(nucleus)
+
+    triangleNormalUnitVectors = zeros(Float64,size(nucleus.tri,1),3);
+
+    for i = 1:size(nucleus.tri,1)
+
+        tri = nucleus.tri[i,:];
+        p1 = [nucleus.x[tri[1]], nucleus.y[tri[1]], nucleus.z[tri[1]]];
+        p2 = [nucleus.x[tri[2]], nucleus.y[tri[2]], nucleus.z[tri[2]]];
+        p3 = [nucleus.x[tri[3]], nucleus.y[tri[3]], nucleus.z[tri[3]]];
+
+        normalVector = cross_product(p1,p2,p3);
+
+        triangleNormalUnitVectors[i,:] = normalVector./sqrt(sum(normalVector.^2));
+
+    end
+
+    nucleus.triangleNormalUnitVectors = triangleNormalUnitVectors;
+
+end
+
+function cross_product(p1,p2,p3)
+
+    return [((p2[2] - p1[2]) * (p3[3] - p1[3])) - ((p2[3] - p1[3]) * (p3[2] - p1[2]))
+            ((p2[3] - p1[3]) * (p3[1] - p1[1])) - ((p2[1] - p1[1]) * (p3[3] - p1[3]))
+            ((p2[1] - p1[1]) * (p3[2] - p1[2])) - ((p2[2] - p1[2]) * (p3[1] - p1[1]))];
 
 end

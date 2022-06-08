@@ -79,6 +79,12 @@ function get_edges!(nucleus)
         nucleus.vertexEdges[i] = findall(nucleus.edges[:,1] .== i);
     end
 
+    nucleus.edgesTri = zeros(Int64,size(nucleus.edges,1),2);
+
+    for i = 1:size(nucleus.edges,1)
+        neighboringTriangles = findall(sum(nucleus.tri .== nucleus.edges[i,1],dims=2) .> 0 .&& sum(nucleus.tri .== nucleus.edges[i,2],dims=2) .> 0);
+        nucleus.edgesTri[i,:] = [j[1] for j in neighboringTriangles];
+    end
     return nucleus
         
 end
