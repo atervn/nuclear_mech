@@ -55,6 +55,8 @@ function get_local_curvatures!(nucleus)
     angles1 = zeros(Float64,size(nucleus.edges,1));
     angles2 = zeros(Float64,size(nucleus.edges,1));
 
+    nucleus.edges3vertex = zeros(Int64,size(nucleus.edges,1),2);
+
     for i = 1:size(nucleus.edges,1)
         
         neighboringTriangles = findall(sum(nucleus.tri .== nucleus.edges[i,1],dims=2) .> 0 .&& sum(nucleus.tri .== nucleus.edges[i,2],dims=2) .> 0);
@@ -62,6 +64,9 @@ function get_local_curvatures!(nucleus)
 
         thirdVertex1 = nucleus.tri[neighboringTriangles[1],.!(nucleus.tri[neighboringTriangles[1],:] .== nucleus.edges[i,1] .|| nucleus.tri[neighboringTriangles[1],:] .== nucleus.edges[i,2])][1];
         thirdVertex2 = nucleus.tri[neighboringTriangles[2],.!(nucleus.tri[neighboringTriangles[2],:] .== nucleus.edges[i,1] .|| nucleus.tri[neighboringTriangles[2],:] .== nucleus.edges[i,2])][1];
+
+        nucleus.edges3vertex[i,1] = thirdVertex1;
+        nucleus.edges3vertex[i,2] = thirdVertex2; 
 
         ABx = nucleus.x[nucleus.edges[i,1]] - nucleus.x[thirdVertex1];
         ABy = nucleus.y[nucleus.edges[i,1]] - nucleus.y[thirdVertex1];
@@ -185,6 +190,7 @@ function get_area_unit_vectors!(nucleus)
 
             areaUnitVectors[j2,:] = vectorTemp./vectorNorm;
             
+            j2 += 1
         end
 
         nucleus.areaUnitVectors[i] = areaUnitVectors;
@@ -226,8 +232,8 @@ function get_triangle_angles(nucleus)
 
     angles = zeros(Float64,size(nucleus.edges,1),1);
     
-    for i = 1:size(nucleus.edges,1)
 
+    for i = 1:size(nucleus.edges,1)
         normalVector1 = nucleus.triangleNormalUnitVectors[nucleus.edgesTri[i,1],:];
         normalVector2 = nucleus.triangleNormalUnitVectors[nucleus.edgesTri[i,2],:];
 
@@ -236,5 +242,11 @@ function get_triangle_angles(nucleus)
     end
 
     return angles
+
+end
+
+function line_point_distance(p1,p2,p3)
+
+    return sqrt(sum(cross_product(p1,p2,p3).^2))/sqrt((p2[1] - p1[1])^2 + (p2[2] - p1[2])^2 + (p2[3] - p1[3])^2)
 
 end

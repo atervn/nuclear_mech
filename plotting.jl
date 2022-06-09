@@ -1,4 +1,4 @@
-function plot_sphere!(nucleus)
+function plot_sphere!(nucleus,elasticForces)
 
     P = plot(legend = false; aspect_ratio=:equal);
 
@@ -16,8 +16,8 @@ function plot_sphere!(nucleus)
         triCenters[i,:] = [sum(nucleus.x[nucleus.tri[i,:]]) sum(nucleus.y[nucleus.tri[i,:]]) sum(nucleus.z[nucleus.tri[i,:]])]./3;
     end
 
-    quiver!(P,triCenters[:,1],triCenters[:,2],triCenters[:,3],quiver=(nucleus.triangleNormalUnitVectors[:,1],nucleus.triangleNormalUnitVectors[:,2],nucleus.triangleNormalUnitVectors[:,3]))
-    quiver!(P,nucleus.x,nucleus.y,nucleus.z,quiver=(nucleus.vertexNormalUnitVectors[:,1],nucleus.vertexNormalUnitVectors[:,2],nucleus.vertexNormalUnitVectors[:,3]))
+    #quiver!(P,triCenters[:,1],triCenters[:,2],triCenters[:,3],quiver=(nucleus.triangleNormalUnitVectors[:,1],nucleus.triangleNormalUnitVectors[:,2],nucleus.triangleNormalUnitVectors[:,3]))
+    quiver!(P,nucleus.x,nucleus.y,nucleus.z,quiver=(elasticForces[:,1],elasticForces[:,2],elasticForces[:,3]))
     P
 
 end

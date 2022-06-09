@@ -141,7 +141,7 @@ function subdivide_triangles!(nucleus,radius)
     nucleus.vertexTri = fill(Int[], length(nucleus.x), 2);
 
     for i = 1:length(nucleus.x)
-        aa = findall(newTriangles .== i);
+        aa = findall(nucleus.tri  .== i);
         nucleus.vertexTri[i,1] = [i[1] for i in aa];
         nucleus.vertexTri[i,2] = [i[2]-1 for i in aa];
     end
