@@ -25,7 +25,7 @@ function get_area_forces(nucleus)
 
     for i = 1:length(nucleus.x)
 
-        areaForces[i,:] = forceMagnitude.*sum(nucleus.areaUnitVectors[i],dims=1);
+        areaForces[i,:] = -forceMagnitude.*sum(nucleus.areaUnitVectors[i],dims=1);
 
     end
 
@@ -95,4 +95,54 @@ function get_elastic_forces(nucleus)
         end
     end
     return elasticForces
+end
+
+function get_repulsion_forces(nucleus)
+
+    repulsionForces = zeros(Float64,length(nucleus.x),3);
+
+    idx = collect(1:length(nucleus.x));
+
+    for i = 1:length(nucleus.x)
+
+        idxTemp = copy(idx);
+
+        sqrtDistances = (nucleus.x[i] .- nucleus.x).^2 .+ (nucleus.y[i] .- nucleus.y).^2 .+ (nucleus.z[i] .- nucleus.z).^2;
+
+        selfAndNeighbors = sort([i; nucleus.neighbors[i]])
+
+        deleteat!(sqrtDistances,selfAndNeighbors);
+        deleteat!(idxTemp,selfAndNeighbors);
+
+        closest = findmin(sqrtDistances);
+        closest = idxTemp[closest[2]];
+
+        nTri = length(nucleus.vertexTri[closest,1]);
+
+        closePointDistances = Vector{Float64}(undef,nTri);
+        closePointCoordinates = Vector{Any}(undef,nTri);
+
+        for j = 1:nTri
+
+            tri = nucleus.vertexTri[closest,1][j];
+
+            closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nucleus, i, tri)
+        end
+
+        closestPoint = findmin(closePointDistances);
+        closestDistance = closestPoint[1];
+
+        if closestDistance < 0.5
+
+            closeCoords = closePointCoordinates[closestPoint[2]];
+
+            unitVector = [nucleus.x[i] - closeCoords[1], nucleus.y[i] - closeCoords[2], nucleus.z[i] - closeCoords[3]]./closestDistance;
+            
+            repulsionForces[i,:] = (0.5 - closestDistance)^(3/2).*unitVector;
+
+        end
+    end
+
+    return repulsionForces
+
 end

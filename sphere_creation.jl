@@ -29,6 +29,8 @@ function get_edges!(nucleus)
     # initialize a vector for the pairs
     nucleus.edges = zeros(0,2);
     
+    nucleus.neighbors = fill(Int[], length(nucleus.x));
+
     # go through the vertices
     @inbounds for i = 1:length(nucleus.x)
         
@@ -52,6 +54,8 @@ function get_edges!(nucleus)
         # get the unique neighbors
         unique!(neighbors);
         
+        nucleus.neighbors[i] = neighbors;
+
         # add the connections to the edges matrix
         nucleus.edges = [nucleus.edges ; [i.*Int.(ones(length(neighbors),1)) neighbors]]  ;  
     end
