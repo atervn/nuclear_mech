@@ -55,15 +55,21 @@ Base.@kwdef mutable struct nucleusType
     forces = forcesType()
 end
 
-Base.@kwdef mutable struct parametersType
+Base.@kwdef mutable struct inputParametersType
+    
+    freeNucleusRadius::Float64 = 0;
+    laminaYoung::Float64 = 0;
+    laminaThickness::Float64 = 0;
+    laminaFriction::Float64 = 0;
+    areaCompressionModulus::Float64 = 0;
+    poissonsRatio::Float64 = 0;
     bulkModulus::Float64 = 0;
-    areaCompressionStiffness::Float64 = 0;
-    bendingStiffness::Float64 = 0;
-    laminaStiffness::Float64 = 0;
+    viscosity::Float64 = 0;
     repulsionConstant::Float64 = 0;
     repulsionDistance::Float64 = 0;
-    laminaFriction::Float64 = 0;
-    viscosity::Float64 = 0;
+    scalingLength::Float64 = 0;
+    scalingTime::Float64 = 0;
+
 end
 
 Base.@kwdef mutable struct scaledParametersType
@@ -75,18 +81,14 @@ Base.@kwdef mutable struct scaledParametersType
     repulsionConstant::Float64 = 0;
     repulsionDistance::Float64 = 0;
     laminaFriction::Float64 = 0;
-    viscosity::Float64 = 0;
 end
 
 nuc = nucleusType();
 
-par = parametersType();
+ipar = inputParametersType();
+ipar = read_parameters(ipar,"./parameters.txt");
 
-ipar = read_parameters("./parameters.txt");
-
-mpar = calculate_model_parameters(ipar);
-
-radius = 1;
+radius = ipar.freeNucleusRadius/ipar.scalingLength;
 nSubdivisions = 3;
 
 nuc = create_icosahedron!(nuc,radius);
@@ -113,26 +115,15 @@ for i = 1:size(nuc.edges,1)
 end
 nuc.normalLengths = lengths;
 
-frictionMatrix = get_friction_matrix(nuc,par);
+spar = scaledParametersType();
+spar = get_model_parameters(ipar,spar,nuc);
 
-#println("the volume of the sphere is $nuc.normalVolume")
-#println("the area of the sphere is $nuc.normalArea")
+frictionMatrix = get_friction_matrix(nuc,spar);
 
-maxT = 666;
+maxT = 600;
 
 p = Progress(maxT)
 anim = Animation();
-
-# trace = PlotlyJS.mesh3d(
-#     x=nuc.x,
-#     y=nuc.z,
-#     z=nuc.y,
-#     i=nuc.tri[:,1] .- 1,
-#     j=nuc.tri[:,2] .- 1,
-#     k=nuc.tri[:,3] .- 1
-# );
-# data = [trace];
-# pl = PlotlyJS.plot(data,layout)
 
 for t = 1:maxT
     
@@ -141,15 +132,15 @@ for t = 1:maxT
     get_area_unit_vectors!(nuc);
     get_triangle_normals!(nuc);
 
-    get_volume_forces!(nuc,par);
-    get_area_forces!(nuc,par);
-    get_bending_forces!(nuc,par);
-    get_elastic_forces!(nuc,par);
-    get_repulsion_forces!(nuc,par);
+    get_volume_forces!(nuc,spar);
+    get_area_forces!(nuc,spar);
+    get_bending_forces!(nuc,spar);
+    get_elastic_forces!(nuc,spar);
+    get_repulsion_forces!(nuc,spar);
 
-    flatRepulsion = flat_repulsion_forces(nuc);
+    flatRepulsion = flat_repulsion_forces(nuc,spar);
     if t >= 0
-        flatRepulsion2 = flat_repulsion_forces2(nuc,t);
+        flatRepulsion2 = flat_repulsion_forces2(nuc,spar,t);
     else
         flatRepulsion2 = zeros(Float64,length(nuc.x),3);
     end

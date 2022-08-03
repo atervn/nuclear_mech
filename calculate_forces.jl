@@ -1,115 +1,150 @@
-function get_volume_forces(nucleus)
+function get_volume_forces!(nuc,spar)
 
-    nucleusVolume = get_volume!(nucleus);
+    nucleusVolume = get_volume!(nuc);
 
-    pressure = -log10(nucleusVolume/nucleus.normalVolume);
+    pressure = -spar.bulkModulus*log10(nucleusVolume/nuc.normalVolume);
 
-    volumeForces = zeros(Float64,length(nucleus.x),3);
-
-    for i = 1:length(nucleus.x)
-        forceMagnitude = pressure*sum(nucleus.voronoiAreas[i]);
-        volumeForces[i,:] = forceMagnitude.*nucleus.vertexNormalUnitVectors[i,:];
+    if length(nuc.forces.volumeX) == 0
+        nuc.forces.volumeX = zeros(Float64,length(nuc.x));
+        nuc.forces.volumeY = zeros(Float64,length(nuc.x));
+        nuc.forces.volumeZ = zeros(Float64,length(nuc.x));
     end
 
-    return volumeForces
+    for i = 1:length(nuc.x)
+        forceMagnitude = pressure*sum(nuc.voronoiAreas[i]);
+        nuc.forces.volumeX[i] = forceMagnitude.*nuc.vertexNormalUnitVectors[i,1];
+        nuc.forces.volumeY[i] = forceMagnitude.*nuc.vertexNormalUnitVectors[i,2];
+        nuc.forces.volumeZ[i] = forceMagnitude.*nuc.vertexNormalUnitVectors[i,3];
+    end
 
 end
 
-function get_area_forces(nucleus)
+function get_area_forces!(nuc,spar)
 
-    nucleusArea = get_area!(nucleus);
+    nucleusArea = get_area!(nuc);
 
-    forceMagnitude = (nucleusArea - nucleus.normalArea)/nucleus.normalArea;
+    forceMagnitude = spar.areaCompressionStiffness*(nucleusArea - nuc.normalArea)/nuc.normalArea;
 
-    areaForces = zeros(Float64,length(nucleus.x),3);
+    if length(nuc.forces.areaX) == 0
+        nuc.forces.areaX = zeros(Float64,length(nuc.x));
+        nuc.forces.areaY = zeros(Float64,length(nuc.x));
+        nuc.forces.areaZ = zeros(Float64,length(nuc.x));
+    end
 
-    for i = 1:length(nucleus.x)
+    for i = 1:length(nuc.x)
 
-        areaForces[i,:] = -forceMagnitude.*sum(nucleus.areaUnitVectors[i],dims=1);
+        nuc.forces.areaX[i] = -forceMagnitude.*sum(nuc.areaUnitVectors[i][:,1]);
+        nuc.forces.areaY[i] = -forceMagnitude.*sum(nuc.areaUnitVectors[i][:,2]);
+        nuc.forces.areaZ[i] = -forceMagnitude.*sum(nuc.areaUnitVectors[i][:,3]);
 
     end
 
-    return areaForces
-
 end
 
-function get_bending_forces(nucleus)
+function get_bending_forces!(nuc,spar)
 
-    bendingForces = zeros(Float64,length(nucleus.x),3);
+    if length(nuc.forces.bendingX) == 0
+        nuc.forces.bendingX = zeros(Float64,length(nuc.x));
+        nuc.forces.bendingY = zeros(Float64,length(nuc.x));
+        nuc.forces.bendingZ = zeros(Float64,length(nuc.x));
+    end
+
+    angles = get_triangle_angles(nuc);
+
+    for i = 1:size(nuc.edges,1)
     
-    angles = get_triangle_angles(nucleus);
+        if nuc.firstEdges[i] == 1
+            moment = spar.bendingStiffness*sind(angles[i] - nuc.normalAngle);
 
-    for i = 1:size(nucleus.edges,1)
-    
-        if nucleus.firstEdges[i] == 1
-            moment = sind(angles[i] - nucleus.normalAngle);
-
-            p1 = [nucleus.x[nucleus.edges[i,1]] nucleus.y[nucleus.edges[i,1]] nucleus.z[nucleus.edges[i,1]]];
-            p2 = [nucleus.x[nucleus.edges[i,2]] nucleus.y[nucleus.edges[i,2]] nucleus.z[nucleus.edges[i,2]]];
-            p3 = [nucleus.x[nucleus.edges3vertex[i,1]] nucleus.y[nucleus.edges3vertex[i,1]] nucleus.z[nucleus.edges3vertex[i,1]]];
+            p1 = [nuc.x[nuc.edges[i,1]], nuc.y[nuc.edges[i,1]], nuc.z[nuc.edges[i,1]]];
+            p2 = [nuc.x[nuc.edges[i,2]], nuc.y[nuc.edges[i,2]], nuc.z[nuc.edges[i,2]]];
+            p3 = [nuc.x[nuc.edges3vertex[i,1]], nuc.y[nuc.edges3vertex[i,1]], nuc.z[nuc.edges3vertex[i,1]]];
 
             distance1 = line_point_distance(p1,p2,p3)
             
-            force = moment*distance1.*nucleus.triangleNormalUnitVectors[nucleus.edgesTri[i,1],:]
+            force = moment*distance1.*nuc.triangleNormalUnitVectors[nuc.edgesTri[i,1],:]
 
-            bendingForces[nucleus.edges3vertex[i,1],:] += force;
-            bendingForces[nucleus.edges[i,1],:] += -0.5.*force;
-            bendingForces[nucleus.edges[i,2],:] += -0.5.*force;
+            nuc.forces.bendingX[nuc.edges3vertex[i,1]] += force[1];
+            nuc.forces.bendingY[nuc.edges3vertex[i,1]] += force[2];
+            nuc.forces.bendingZ[nuc.edges3vertex[i,1]] += force[3];
+            
+            nuc.forces.bendingX[nuc.edges[i,1]] += -0.5.*force[1];
+            nuc.forces.bendingY[nuc.edges[i,1]] += -0.5.*force[2];
+            nuc.forces.bendingZ[nuc.edges[i,1]] += -0.5.*force[3];
+            
+            nuc.forces.bendingX[nuc.edges[i,2]] += -0.5.*force[1];
+            nuc.forces.bendingY[nuc.edges[i,2]] += -0.5.*force[2];
+            nuc.forces.bendingZ[nuc.edges[i,2]] += -0.5.*force[3];
 
-            p3 = [nucleus.x[nucleus.edges3vertex[i,2]] nucleus.y[nucleus.edges3vertex[i,2]] nucleus.z[nucleus.edges3vertex[i,2]]];
+            p3 = [nuc.x[nuc.edges3vertex[i,2]], nuc.y[nuc.edges3vertex[i,2]], nuc.z[nuc.edges3vertex[i,2]]];
 
             distance2 = line_point_distance(p1,p2,p3)
 
-            force = moment*distance2.*nucleus.triangleNormalUnitVectors[nucleus.edgesTri[i,2],:]
+            force = moment*distance2.*nuc.triangleNormalUnitVectors[nuc.edgesTri[i,2],:]
 
-            bendingForces[nucleus.edges3vertex[i,2],:] += force;
-            bendingForces[nucleus.edges[i,1],:] += -0.5.*force;
-            bendingForces[nucleus.edges[i,2],:] += -0.5.*force;
+            nuc.forces.bendingX[nuc.edges3vertex[i,2]] += force[1];
+            nuc.forces.bendingY[nuc.edges3vertex[i,2]] += force[2];
+            nuc.forces.bendingZ[nuc.edges3vertex[i,2]] += force[3];
+            
+            nuc.forces.bendingX[nuc.edges[i,1]] += -0.5.*force[1];
+            nuc.forces.bendingY[nuc.edges[i,1]] += -0.5.*force[2];
+            nuc.forces.bendingZ[nuc.edges[i,1]] += -0.5.*force[3];
+            
+            nuc.forces.bendingX[nuc.edges[i,2]] += -0.5.*force[1];
+            nuc.forces.bendingY[nuc.edges[i,2]] += -0.5.*force[2];
+            nuc.forces.bendingZ[nuc.edges[i,2]] += -0.5.*force[3];
+
         end
     end
-
-    return bendingForces
-
 end
 
-function get_elastic_forces(nucleus)
+function get_elastic_forces!(nuc,spar)
 
-    elasticForces = zeros(Float64,length(nucleus.x),3);
+    nuc.forces.elasticX = zeros(Float64,length(nuc.x));
+    nuc.forces.elasticY = zeros(Float64,length(nuc.x));
+    nuc.forces.elasticZ = zeros(Float64,length(nuc.x));
 
-    for i = 1:size(nucleus.edges,1)
-        if nucleus.firstEdges[i] == 1
+    for i = 1:size(nuc.edges,1)
+        if nuc.firstEdges[i] == 1
 
-            vector = [nucleus.x[nucleus.edges[i,2]] - nucleus.x[nucleus.edges[i,1]],
-                      nucleus.y[nucleus.edges[i,2]] - nucleus.y[nucleus.edges[i,1]],
-                      nucleus.z[nucleus.edges[i,2]] - nucleus.z[nucleus.edges[i,1]]];
+            vector = [nuc.x[nuc.edges[i,2]] - nuc.x[nuc.edges[i,1]],
+                      nuc.y[nuc.edges[i,2]] - nuc.y[nuc.edges[i,1]],
+                      nuc.z[nuc.edges[i,2]] - nuc.z[nuc.edges[i,1]]];
                       
             vectorNorm = norm(vector);
 
             unitVector = vector./vectorNorm;
 
-            force = -(vectorNorm - nucleus.normalLength).*unitVector;
+            force = spar.laminaStiffness*(vectorNorm - nuc.normalLengths[i]).*unitVector;
 
-            elasticForces[nucleus.edges[i,1],:] += force;
-            elasticForces[nucleus.edges[i,2],:] += -force;
-
+            nuc.forces.elasticX[nuc.edges[i,1]] += force[1];
+            nuc.forces.elasticY[nuc.edges[i,1]] += force[2];
+            nuc.forces.elasticZ[nuc.edges[i,1]] += force[3];
+            
+            nuc.forces.elasticX[nuc.edges[i,2]] -= force[1];
+            nuc.forces.elasticY[nuc.edges[i,2]] -= force[2];
+            nuc.forces.elasticZ[nuc.edges[i,2]] -= force[3];
         end
     end
-    return elasticForces
 end
 
-function get_repulsion_forces(nucleus)
+function get_repulsion_forces!(nuc,spar)
 
-    repulsionForces = zeros(Float64,length(nucleus.x),3);
+    if length(nuc.forces.repulsionX) == 0
+        nuc.forces.repulsionX = zeros(Float64,length(nuc.x));
+        nuc.forces.repulsionY = zeros(Float64,length(nuc.x));
+        nuc.forces.repulsionZ = zeros(Float64,length(nuc.x));
+    end
 
-    idx = collect(1:length(nucleus.x));
+    idx = collect(1:length(nuc.x));
 
-    for i = 1:length(nucleus.x)
+    for i = 1:length(nuc.x)
 
         idxTemp = copy(idx);
 
-        sqrtDistances = (nucleus.x[i] .- nucleus.x).^2 .+ (nucleus.y[i] .- nucleus.y).^2 .+ (nucleus.z[i] .- nucleus.z).^2;
+        sqrtDistances = (nuc.x[i] .- nuc.x).^2 .+ (nuc.y[i] .- nuc.y).^2 .+ (nuc.z[i] .- nuc.z).^2;
 
-        selfAndNeighbors = sort([i; nucleus.neighbors[i]])
+        selfAndNeighbors = sort([i; nuc.neighbors[i]])
 
         deleteat!(sqrtDistances,selfAndNeighbors);
         deleteat!(idxTemp,selfAndNeighbors);
@@ -117,30 +152,72 @@ function get_repulsion_forces(nucleus)
         closest = findmin(sqrtDistances);
         closest = idxTemp[closest[2]];
 
-        nTri = length(nucleus.vertexTri[closest,1]);
+        nTri = length(nuc.vertexTri[closest,1]);
 
         closePointDistances = Vector{Float64}(undef,nTri);
         closePointCoordinates = Vector{Any}(undef,nTri);
 
         for j = 1:nTri
 
-            tri = nucleus.vertexTri[closest,1][j];
+            tri = nuc.vertexTri[closest,1][j];
 
-            closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nucleus, i, tri)
+            closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, i, tri)
         end
 
         closestPoint = findmin(closePointDistances);
         closestDistance = closestPoint[1];
 
-        if closestDistance < 0.5
+        if closestDistance < spar.repulsionDistance
 
             closeCoords = closePointCoordinates[closestPoint[2]];
 
-            unitVector = [nucleus.x[i] - closeCoords[1], nucleus.y[i] - closeCoords[2], nucleus.z[i] - closeCoords[3]]./closestDistance;
+            unitVector = [nuc.x[i] - closeCoords[1], nuc.y[i] - closeCoords[2], nuc.z[i] - closeCoords[3]]./closestDistance;
             
-            repulsionForces[i,:] = (0.5 - closestDistance)^(3/2).*unitVector;
+            forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closestDistance)^(3/2)
+
+            nuc.forces.repulsionX[i] = forceMagnitude*unitVector[1];
+            nuc.forces.repulsionY[i] = forceMagnitude*unitVector[2];
+            nuc.forces.repulsionZ[i] = forceMagnitude*unitVector[3];
 
         end
+    end
+end
+
+function flat_repulsion_forces(nuc,spar)
+
+    repulsionForces = zeros(Float64,length(nuc.x),3);
+
+    for i = 1:length(nuc.x)
+
+        if nuc.z[i] < spar.repulsionDistance
+
+            distance = nuc.z[i];
+            repulsionForces[i,3] = spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2);
+
+        end
+    end
+end
+
+function flat_repulsion_forces2(nuc,spar,t)
+
+    repulsionForces = zeros(Float64,length(nuc.x),3);
+
+    planePos = -0.002*(t) + 1.5;
+    if planePos < 0.2
+        planePos = 0.2;
+    end
+
+    for i = 1:length(nuc.x)
+
+        if nuc.z[i] > planePos - spar.repulsionDistance
+
+            distance = abs(planePos - nuc.z[i]);
+            repulsionForces[i,3] = -spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2);
+        elseif nuc.z[i] < -planePos + spar.repulsionDistance
+            distance = abs(-planePos - nuc.z[i]);
+            repulsionForces[i,3] = spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2);
+        end
+
     end
 
     return repulsionForces
