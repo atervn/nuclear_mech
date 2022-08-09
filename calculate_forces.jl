@@ -56,6 +56,8 @@ function get_bending_forces!(nuc,spar)
         if nuc.firstEdges[i] == 1
             moment = spar.bendingStiffness*sind(angles[i] - nuc.normalAngle);
 
+            
+
             p1 = [nuc.x[nuc.edges[i,1]], nuc.y[nuc.edges[i,1]], nuc.z[nuc.edges[i,1]]];
             p2 = [nuc.x[nuc.edges[i,2]], nuc.y[nuc.edges[i,2]], nuc.z[nuc.edges[i,2]]];
             p3 = [nuc.x[nuc.edges3vertex[i,1]], nuc.y[nuc.edges3vertex[i,1]], nuc.z[nuc.edges3vertex[i,1]]];
@@ -203,8 +205,8 @@ function flat_repulsion_forces2(nuc,spar,t)
     repulsionForces = zeros(Float64,length(nuc.x),3);
 
     planePos = -0.002*(t) + 1.5;
-    if planePos < 0.2
-        planePos = 0.2;
+    if planePos < 0.4
+        planePos = 0.4;
     end
 
     for i = 1:length(nuc.x)

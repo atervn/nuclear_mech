@@ -1,36 +1,45 @@
-using LinearAlgebra
 
 n = 10000;
-a = rand(n,3);
-b = rand(n,3);
-d1 = zeros(Float64,n,1);
-d2 = zeros(Float64,n,1);
-@time begin
+x1 = rand(n);
+y1 = rand(n);
+z1 = rand(n);
+x2 = rand(n);
+y2 = rand(n);
+z2 = rand(n);
+A = Array{Point{3,Float64}}(undef,n)
+B = Array{Point{3,Float64}}(undef,n)
 
-
-    for i = 1:n
-
-        d1[i] = norm(a[i,:] .- b[i,:],2);
-
-    end
-
+for i = 1:n
+    A[i] = Point(x1[i],y1[i],z1[i])
+    B[i] = Point(x2[i],y2[i],z2[i])
 end
-x = a[:,1];
-y = a[:,2];
-z = a[:,3];
-x2 = b[:,1];
-y2 = b[:,2];
-z2 = b[:,3];
+
 @time begin
 
-
-    
     for i = 1:n
 
-        d2[i] = norm([x[i] - x2[i], y[i] - y2[i], z[i] - z2[i]],2);
+        norm(A[i]-B[i]);
 
     end
 
 end
 
-d1 == d2
+@time begin
+
+    for i = 1:n
+
+        norm([x1[i]-x2[i],y1[i]-y2[i],z1[i]-z2[i]]);
+
+    end
+
+end
+
+@time begin
+
+    for i = 1:n
+
+        sqrt((x1[i]-x2[i])^2+(y1[i]-y2[i])^2+(z1[i]-z2[i])^2);
+
+    end
+
+end

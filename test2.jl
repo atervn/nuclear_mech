@@ -28,3 +28,17 @@ end
     end
 
 end
+
+xyz = [x y z];
+
+@time begin
+
+
+    
+    @inbounds for i = 1:n
+        sqrt.((xyz[i,1].-xyz[:,1]).^2 .+ (xyz[i,2].-xyz[:,2]).^2 .+ (xyz[i,3].-xyz[:,3]).^2);
+    end
+
+end
+
+notify("Task completed")

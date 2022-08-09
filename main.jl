@@ -120,10 +120,14 @@ spar = get_model_parameters(ipar,spar,nuc);
 
 frictionMatrix = get_friction_matrix(nuc,spar);
 
-maxT = 600;
+maxT = 500;
 
 p = Progress(maxT)
 anim = Animation();
+
+ax = zeros(maxT)
+az = zeros(maxT)
+
 
 for t = 1:maxT
     
@@ -138,21 +142,28 @@ for t = 1:maxT
     get_elastic_forces!(nuc,spar);
     get_repulsion_forces!(nuc,spar);
 
+    #=
     flatRepulsion = flat_repulsion_forces(nuc,spar);
     if t >= 0
         flatRepulsion2 = flat_repulsion_forces2(nuc,spar,t);
     else
         flatRepulsion2 = zeros(Float64,length(nuc.x),3);
     end
+    =#
 
     local totalForcesX = nuc.forces.volumeX .+ nuc.forces.areaX .+ nuc.forces.bendingX .+ nuc.forces.elasticX .+ nuc.forces.repulsionX;
     local totalForcesY = nuc.forces.volumeY .+ nuc.forces.areaY .+ nuc.forces.bendingY .+ nuc.forces.elasticY .+ nuc.forces.repulsionY;
-    local totalForcesZ = nuc.forces.volumeZ .+ nuc.forces.areaZ .+ nuc.forces.bendingZ .+ nuc.forces.elasticZ .+ nuc.forces.repulsionZ .+ flatRepulsion2[:,3];
+    local totalForcesZ = nuc.forces.volumeZ .+ nuc.forces.areaZ .+ nuc.forces.bendingZ .+ nuc.forces.elasticZ .+ nuc.forces.repulsionZ;# .+ flatRepulsion2[:,3];
     
+    local totalForcesX[41] += 5
+
     local vX = cg(frictionMatrix,totalForcesX);
     local vY = cg(frictionMatrix,totalForcesY);
     local vZ = cg(frictionMatrix,totalForcesZ);
     
+    ax[t] = nuc.forces.bendingX[10]
+    az[t] = nuc.forces.bendingZ[10]
+
     nuc.x = nuc.x .+ vX.*0.01;
     nuc.y = nuc.y .+ vY.*0.01;
     nuc.z = nuc.z .+ vZ.*0.01;
