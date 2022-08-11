@@ -1,5 +1,6 @@
 
-n = 10000;
+n = 1000;
+k = 1000;
 x1 = rand(n);
 y1 = rand(n);
 z1 = rand(n);
@@ -15,31 +16,31 @@ for i = 1:n
 end
 
 @time begin
-
+for j = 1:k
     for i = 1:n
 
         norm(A[i]-B[i]);
 
     end
-
+end
 end
 
 @time begin
-
+    for j = 1:k
     for i = 1:n
 
         norm([x1[i]-x2[i],y1[i]-y2[i],z1[i]-z2[i]]);
 
     end
-
+end
 end
 
 @time begin
-
+    for j = 1:k
     for i = 1:n
 
         sqrt((x1[i]-x2[i])^2+(y1[i]-y2[i])^2+(z1[i]-z2[i])^2);
 
     end
-
+end
 end

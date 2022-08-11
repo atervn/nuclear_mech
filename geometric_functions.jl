@@ -251,15 +251,21 @@ function line_point_distance(p1,p2,p3)
 
 end
 
-function vertex_triangle_distance(nuc, p, tri)
+function vertex_triangle_distance(nuc, p, tri, pip = nothing)
 
-    tri = nuc.tri[tri,:];
+    if pip === nothing
+        tri = nuc.tri[tri,:];
+        B = [nuc.x[tri[1]], nuc.y[tri[1]], nuc.z[tri[1]]];
+        E0 = [nuc.x[tri[2]], nuc.y[tri[2]], nuc.z[tri[2]]] .- B;
+        E1 = [nuc.x[tri[3]], nuc.y[tri[3]], nuc.z[tri[3]]] .- B;   
+    else
+        tri = pip.tri[tri,:];
+        B = [pip.x[tri[1]], pip.y[tri[1]], pip.z[tri[1]]];
+        E0 = [pip.x[tri[2]], pip.y[tri[2]], pip.z[tri[2]]] .- B;
+        E1 = [pip.x[tri[3]], pip.y[tri[3]], pip.z[tri[3]]] .- B;  
+    end
 
-    B = [nuc.x[tri[1]], nuc.y[tri[1]], nuc.z[tri[1]]];
-    E0 = [nuc.x[tri[2]], nuc.y[tri[2]], nuc.z[tri[2]]] .- B;
-    E1 = [nuc.x[tri[3]], nuc.y[tri[3]], nuc.z[tri[3]]] .- B;
     D = B .- [nuc.x[p], nuc.y[p], nuc.z[p]];
-    
     
     a = E0[1]^2 + E0[2]^2 + E0[3]^2;
     b = E0[1]*E1[1] + E0[2]*E1[2] + E0[3]*E1[3];

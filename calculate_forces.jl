@@ -11,11 +11,15 @@ function get_volume_forces!(nuc,spar)
     end
 
     for i = 1:length(nuc.x)
-        forceMagnitude = pressure*sum(nuc.voronoiAreas[i]);
+        if nuc.x[i]>0 && sqrt(nuc.y[i]^2 + nuc.z[i]^2) < 0.3
+            forceMagnitude = 50*sum(nuc.voronoiAreas[i]);
+        else
+            forceMagnitude = pressure*sum(nuc.voronoiAreas[i]);
+        end
         nuc.forces.volumeX[i] = forceMagnitude.*nuc.vertexNormalUnitVectors[i,1];
         nuc.forces.volumeY[i] = forceMagnitude.*nuc.vertexNormalUnitVectors[i,2];
         nuc.forces.volumeZ[i] = forceMagnitude.*nuc.vertexNormalUnitVectors[i,3];
-    end
+    end  
 
 end
 
@@ -223,5 +227,50 @@ function flat_repulsion_forces2(nuc,spar,t)
     end
 
     return repulsionForces
+
+end
+
+function get_aspiration_repulsion_forces(nuc,pip,spar)
+
+    repulsionX = zeros(Float64,length(nuc.x));
+    repulsionY = zeros(Float64,length(nuc.x));
+    repulsionZ = zeros(Float64,length(nuc.x));
+
+    for i = 1:length(nuc.x)
+
+        sqrtDistances = (nuc.x[i] .- pip.x).^2 .+ (nuc.y[i] .- pip.y).^2 .+ (nuc.z[i] .- pip.z).^2;
+
+        closest = findmin(sqrtDistances)[2];
+        nTri = length(pip.vertexTri[closest]);
+
+        closePointDistances = Vector{Float64}(undef,nTri);
+        closePointCoordinates = Vector{Any}(undef,nTri);
+
+        for j = 1:nTri
+
+            tri = pip.vertexTri[closest,1][j];
+
+            closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, i, tri, pip);
+        end
+
+        closestPoint = findmin(closePointDistances);
+        closestDistance = closestPoint[1];
+
+        if closestDistance < spar.repulsionDistance*0.5
+
+            closeCoords = closePointCoordinates[closestPoint[2]];
+
+            unitVector = [nuc.x[i] - closeCoords[1], nuc.y[i] - closeCoords[2], nuc.z[i] - closeCoords[3]]./closestDistance;
+            
+            forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closestDistance)^(3/2);
+
+            repulsionX[i] = forceMagnitude*unitVector[1];
+            repulsionY[i] = forceMagnitude*unitVector[2];
+            repulsionZ[i] = forceMagnitude*unitVector[3];
+
+        end
+    end
+
+    return repulsionX, repulsionY, repulsionZ
 
 end

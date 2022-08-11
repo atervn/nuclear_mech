@@ -4,6 +4,9 @@ using LinearAlgebra
 using IterativeSolvers
 using SparseArrays
 using ProgressMeter
+using Meshes
+using FileIO
+using MeshIO
 # using PlotlyJS
 
 include("sphere_creation.jl")
@@ -11,6 +14,7 @@ include("plotting.jl")
 include("geometric_functions.jl")
 include("calculate_forces.jl")
 include("misc_functions.jl")
+include("mesh_generation.jl")
 
 Base.@kwdef mutable struct forcesType
     volumeX::Vector{Float64} = []
@@ -83,6 +87,14 @@ Base.@kwdef mutable struct scaledParametersType
     laminaFriction::Float64 = 0;
 end
 
+Base.@kwdef mutable struct pipetteType
+    x::Vector{Float64} = []
+    y::Vector{Float64} = []
+    z::Vector{Float64} = []
+    tri::Array{Int64} = Array{Int64}[]
+    vertexTri::Array{Vector{Int64}} = Array{Int64}[]
+end
+
 nuc = nucleusType();
 
 ipar = inputParametersType();
@@ -120,7 +132,7 @@ spar = get_model_parameters(ipar,spar,nuc);
 
 frictionMatrix = get_friction_matrix(nuc,spar);
 
-maxT = 500;
+maxT = 1000;
 
 p = Progress(maxT)
 anim = Animation();
@@ -128,8 +140,9 @@ anim = Animation();
 ax = zeros(maxT)
 az = zeros(maxT)
 
+pip = generate_pipette_mesh();
 
-for t = 1:maxT
+for t = 0:maxT
     
     get_voronoi_areas!(nuc);
     get_local_curvatures!(nuc);
@@ -141,7 +154,7 @@ for t = 1:maxT
     get_bending_forces!(nuc,spar);
     get_elastic_forces!(nuc,spar);
     get_repulsion_forces!(nuc,spar);
-
+    repulsionX, repulsionY, repulsionZ = get_aspiration_repulsion_forces(nuc,pip,spar);
     #=
     flatRepulsion = flat_repulsion_forces(nuc,spar);
     if t >= 0
@@ -151,25 +164,22 @@ for t = 1:maxT
     end
     =#
 
-    local totalForcesX = nuc.forces.volumeX .+ nuc.forces.areaX .+ nuc.forces.bendingX .+ nuc.forces.elasticX .+ nuc.forces.repulsionX;
-    local totalForcesY = nuc.forces.volumeY .+ nuc.forces.areaY .+ nuc.forces.bendingY .+ nuc.forces.elasticY .+ nuc.forces.repulsionY;
-    local totalForcesZ = nuc.forces.volumeZ .+ nuc.forces.areaZ .+ nuc.forces.bendingZ .+ nuc.forces.elasticZ .+ nuc.forces.repulsionZ;# .+ flatRepulsion2[:,3];
+    local totalForcesX = nuc.forces.volumeX .+ nuc.forces.areaX .+ nuc.forces.bendingX .+ nuc.forces.elasticX .+ nuc.forces.repulsionX + repulsionX;
+    local totalForcesY = nuc.forces.volumeY .+ nuc.forces.areaY .+ nuc.forces.bendingY .+ nuc.forces.elasticY .+ nuc.forces.repulsionY + repulsionY;
+    local totalForcesZ = nuc.forces.volumeZ .+ nuc.forces.areaZ .+ nuc.forces.bendingZ .+ nuc.forces.elasticZ .+ nuc.forces.repulsionZ + repulsionZ;# .+ flatRepulsion2[:,3];
     
-    local totalForcesX[41] += 5
+    #local totalForcesX[41] += 10
 
     local vX = cg(frictionMatrix,totalForcesX);
     local vY = cg(frictionMatrix,totalForcesY);
     local vZ = cg(frictionMatrix,totalForcesZ);
     
-    ax[t] = nuc.forces.bendingX[10]
-    az[t] = nuc.forces.bendingZ[10]
-
     nuc.x = nuc.x .+ vX.*0.01;
     nuc.y = nuc.y .+ vY.*0.01;
     nuc.z = nuc.z .+ vZ.*0.01;
 
     if mod(t,5) == 0
-        plot_sphere!(nuc,[vX vY vZ],t)
+        plot_sphere!(nuc,pip,[repulsionX repulsionY repulsionZ],t)
         Plots.frame(anim)
     end
     next!(p)

@@ -1,11 +1,11 @@
 freeNucleusRadius,3e-6
-laminaYoung,10000
+laminaYoung,1000
 laminaThickness,80e-9
 laminaFriction,5e-5
-areaCompressionModulus,0.8e-3
+areaCompressionModulus,0.8e-4
 poissonsRatio,0.5
 bulkModulus,1000
-repulsionConstant,1e-8
+repulsionConstant,5e-8
 viscosity,0.00005
 repulsionDistance,0.3e-6
 scalingLength,3e-6
