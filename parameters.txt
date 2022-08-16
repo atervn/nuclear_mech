@@ -7,6 +7,6 @@ poissonsRatio,0.5
 bulkModulus,1000
 repulsionConstant,5e-8
 viscosity,0.00005
-repulsionDistance,0.3e-6
+repulsionDistance,0.2e-6
 scalingLength,3e-6
 scalingTime,1

@@ -1,99 +1,4 @@
-using Plots
-using Statistics
-using LinearAlgebra
-using IterativeSolvers
-using SparseArrays
-using ProgressMeter
-using Meshes
-using FileIO
-using MeshIO
-# using PlotlyJS
-
-include("sphere_creation.jl")
-include("plotting.jl")
-include("geometric_functions.jl")
-include("calculate_forces.jl")
-include("misc_functions.jl")
-include("mesh_generation.jl")
-
-Base.@kwdef mutable struct forcesType
-    volumeX::Vector{Float64} = []
-    volumeY::Vector{Float64} = []
-    volumeZ::Vector{Float64} = []
-    areaX::Vector{Float64} = []
-    areaY::Vector{Float64} = []
-    areaZ::Vector{Float64} = []
-    bendingX::Vector{Float64} = []
-    bendingY::Vector{Float64} = []
-    bendingZ::Vector{Float64} = []
-    elasticX::Vector{Float64} = []
-    elasticY::Vector{Float64} = []
-    elasticZ::Vector{Float64} = []
-    repulsionX::Vector{Float64} = []
-    repulsionY::Vector{Float64} = []
-    repulsionZ::Vector{Float64} = []
-end
-
-Base.@kwdef mutable struct nucleusType
-    x::Vector{Float64} = []
-    y::Vector{Float64} = []
-    z::Vector{Float64} = []
-    neighbors::Vector{Vector{Int64}} = []
-    tri::Array{Int64} = Array{Int64}[]
-    edges::Array{Int64} = Array{Int64}[]
-    mirrorEdges::Vector{Int64} = []
-    firstEdges::Vector{Int64} = []
-    vertexEdges::Vector{Vector{Int64}} = []
-    vertexTri::Array{Vector{Int64}} = Array{Int64}[]
-    edgesTri::Array{Int64} = Array{Int64}[]
-    edges3vertex::Array{Int64} = Array{Int64}[]
-    voronoiAreas::Vector{Vector{Float64}} = []
-    curvatures::Vector{Float64} = []
-    vertexNormalUnitVectors::Array{Float64} = Array{Int64}[]
-    triangleNormalUnitVectors::Array{Float64} = Array{Int64}[]
-    areaUnitVectors::Vector{Array{Float64}} = []
-    normalVolume::Float64 = 0
-    normalArea::Float64 = 0
-    normalAngle::Float64 = 0
-    normalLengths::Vector{Float64} = []
-    forces = forcesType()
-end
-
-Base.@kwdef mutable struct inputParametersType
-    
-    freeNucleusRadius::Float64 = 0;
-    laminaYoung::Float64 = 0;
-    laminaThickness::Float64 = 0;
-    laminaFriction::Float64 = 0;
-    areaCompressionModulus::Float64 = 0;
-    poissonsRatio::Float64 = 0;
-    bulkModulus::Float64 = 0;
-    viscosity::Float64 = 0;
-    repulsionConstant::Float64 = 0;
-    repulsionDistance::Float64 = 0;
-    scalingLength::Float64 = 0;
-    scalingTime::Float64 = 0;
-
-end
-
-Base.@kwdef mutable struct scaledParametersType
-    
-    bulkModulus::Float64 = 0;
-    areaCompressionStiffness::Float64 = 0;
-    bendingStiffness::Float64 = 0;
-    laminaStiffness::Float64 = 0;
-    repulsionConstant::Float64 = 0;
-    repulsionDistance::Float64 = 0;
-    laminaFriction::Float64 = 0;
-end
-
-Base.@kwdef mutable struct pipetteType
-    x::Vector{Float64} = []
-    y::Vector{Float64} = []
-    z::Vector{Float64} = []
-    tri::Array{Int64} = Array{Int64}[]
-    vertexTri::Array{Vector{Int64}} = Array{Int64}[]
-end
+function main(maxT)
 
 nuc = nucleusType();
 
@@ -101,29 +6,60 @@ ipar = inputParametersType();
 ipar = read_parameters(ipar,"./parameters.txt");
 
 radius = ipar.freeNucleusRadius/ipar.scalingLength;
-nSubdivisions = 3;
+nSubdivisions = 4;
 
 nuc = create_icosahedron!(nuc,radius);
 nuc = get_edges!(nuc);
 nuc = subdivide_mesh!(nuc,radius,nSubdivisions)
 get_triangle_normals!(nuc);
 
+nuc.neighboringTriangles = zeros(Int64,size(nuc.edges,1),2)
+nuc.edges3vertex = zeros(Int64,size(nuc.edges,1),2);
+for i = 1:size(nuc.edges,1)
+    temp = findall(sum(nuc.tri .== nuc.edges[i,1],dims=2) .> 0 .&& sum(nuc.tri .== nuc.edges[i,2],dims=2) .> 0);
+    nuc.neighboringTriangles[i,:] = [j[1] for j in temp];
+    thirdVertex1 = nuc.tri[nuc.neighboringTriangles[i,1],.!(nuc.tri[nuc.neighboringTriangles[i,1],:] .== nuc.edges[i,1] .|| nuc.tri[nuc.neighboringTriangles[i,1],:] .== nuc.edges[i,2])][1];
+    thirdVertex2 = nuc.tri[nuc.neighboringTriangles[i,2],.!(nuc.tri[nuc.neighboringTriangles[i,2],:] .== nuc.edges[i,1] .|| nuc.tri[nuc.neighboringTriangles[i,2],:] .== nuc.edges[i,2])][1];
+
+    nuc.edges3vertex[i,1] = thirdVertex1;
+    nuc.edges3vertex[i,2] = thirdVertex2; 
+end
+
+
+get_triangle_normals!(nuc);
+nuc.testview = Array{Any}(undef,length(nuc.edges))
+nuc.p1 = Array{Any}(undef,length(nuc.tri))
+nuc.p2 = Array{Any}(undef,length(nuc.tri))
+nuc.p3 = Array{Any}(undef,length(nuc.tri))
+nuc.trii = Array{Any}(undef,length(nuc.tri))
+nuc.ep1 = Array{Any}(undef,length(nuc.edges))
+nuc.ep2 = Array{Any}(undef,length(nuc.edges))
+nuc.ep31 = Array{Any}(undef,length(nuc.edges))
+nuc.ep32 = Array{Any}(undef,length(nuc.edges))
+for i = 1:size(nuc.edges,1)
+    nuc.testview[i] = @view nuc.triangleNormalUnitVectors[nuc.edgesTri[i,:]];
+    nuc.ep1[i] = @view nuc.vert[nuc.edges[i,1]];
+    nuc.ep2[i] = @view nuc.vert[nuc.edges[i,2]];
+    nuc.ep31[i] = @view nuc.vert[nuc.edges3vertex[i,1]];
+    nuc.ep32[i] = @view nuc.vert[nuc.edges3vertex[i,2]];
+end
+for i = 1:size(nuc.tri,1)
+    nuc.p1[i] = @view nuc.vert[nuc.tri[i,1]];
+    nuc.p2[i] = @view nuc.vert[nuc.tri[i,2]];
+    nuc.p3[i] = @view nuc.vert[nuc.tri[i,3]];
+    nuc.trii[i] = @view nuc.vert[nuc.tri[i,:]];
+end
 
 nuc.normalVolume = get_volume!(nuc);
-nuc.normalArea = get_area!(nuc);
+nuc.normalTriangleAreas = get_area!(nuc);
+nuc.normalArea = sum(nuc.normalTriangleAreas);
 nuc.normalAngle = mean(get_triangle_angles(nuc));
 lengths = zeros(Float64,Int64(size(nuc.edges,1)));
 
 nuc.z .+= 0
 
-for i = 1:size(nuc.edges,1)
-
-        vector = [nuc.x[nuc.edges[i,2]] - nuc.x[nuc.edges[i,1]],
-                  nuc.y[nuc.edges[i,2]] - nuc.y[nuc.edges[i,1]],
-                  nuc.z[nuc.edges[i,2]] - nuc.z[nuc.edges[i,1]]];
-                      
-        lengths[i] = norm(vector);
-
+for i = 1:size(nuc.edges,1)  
+        lengths[i] = norm(nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges[i,1]]);
 end
 nuc.normalLengths = lengths;
 
@@ -132,13 +68,14 @@ spar = get_model_parameters(ipar,spar,nuc);
 
 frictionMatrix = get_friction_matrix(nuc,spar);
 
-maxT = 1000;
+# maxT = 1000;
 
 p = Progress(maxT)
 anim = Animation();
 
-ax = zeros(maxT)
-az = zeros(maxT)
+
+
+
 
 pip = generate_pipette_mesh();
 
@@ -153,8 +90,9 @@ for t = 0:maxT
     get_area_forces!(nuc,spar);
     get_bending_forces!(nuc,spar);
     get_elastic_forces!(nuc,spar);
-    get_repulsion_forces!(nuc,spar);
-    repulsionX, repulsionY, repulsionZ = get_aspiration_repulsion_forces(nuc,pip,spar);
+
+    # get_repulsion_forces!(nuc,spar);
+    repulsion = get_aspiration_repulsion_forces(nuc,pip,spar);
     #=
     flatRepulsion = flat_repulsion_forces(nuc,spar);
     if t >= 0
@@ -164,25 +102,33 @@ for t = 0:maxT
     end
     =#
 
-    local totalForcesX = nuc.forces.volumeX .+ nuc.forces.areaX .+ nuc.forces.bendingX .+ nuc.forces.elasticX .+ nuc.forces.repulsionX + repulsionX;
-    local totalForcesY = nuc.forces.volumeY .+ nuc.forces.areaY .+ nuc.forces.bendingY .+ nuc.forces.elasticY .+ nuc.forces.repulsionY + repulsionY;
-    local totalForcesZ = nuc.forces.volumeZ .+ nuc.forces.areaZ .+ nuc.forces.bendingZ .+ nuc.forces.elasticZ .+ nuc.forces.repulsionZ + repulsionZ;# .+ flatRepulsion2[:,3];
+    local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ repulsion;# .+ nuc.forces.repulsion# + repulsionX .+ nuc.forces.bending  ;# .+ nuc.forces.elastic .+ nuc.forces.repulsion# + repulsionX;
+    # local totalForcesY = nuc.forces.volumeY .+ nuc.forces.areaY .+ nuc.forces.bendingY .+ nuc.forces.elasticY .+ nuc.forces.repulsionY + repulsionY;
+    # local totalForcesZ = nuc.forces.volumeZ .+ nuc.forces.areaZ .+ nuc.forces.bendingZ .+ nuc.forces.elasticZ .+ nuc.forces.repulsionZ + repulsionZ;# .+ flatRepulsion2[:,3];
     
-    #local totalForcesX[41] += 10
+    # local totalForces[41] = totalForces[41] + Vec(1.,0.,0.);
 
-    local vX = cg(frictionMatrix,totalForcesX);
-    local vY = cg(frictionMatrix,totalForcesY);
-    local vZ = cg(frictionMatrix,totalForcesZ);
-    
-    nuc.x = nuc.x .+ vX.*0.01;
-    nuc.y = nuc.y .+ vY.*0.01;
-    nuc.z = nuc.z .+ vZ.*0.01;
+    local vX = cg(frictionMatrix,getindex.(totalForces,1));
+    local vY = cg(frictionMatrix,getindex.(totalForces,2));
+    local vZ = cg(frictionMatrix,getindex.(totalForces,3));
 
-    if mod(t,5) == 0
-        plot_sphere!(nuc,pip,[repulsionX repulsionY repulsionZ],t)
+    for i = 1:length(nuc.vert)
+        nuc.vert[i] += Vec(vX[i],vY[i],vZ[i])*0.01
+    end
+
+    # nuc.x = nuc.x .+ vX.*0.01;
+    # nuc.y = nuc.y .+ vY.*0.01;
+    # nuc.z = nuc.z .+ vZ.*0.01;
+
+    if mod(t,10) == 0
+        plot_sphere!(nuc,t)
         Plots.frame(anim)
     end
+
     next!(p)
+
 end
 
-gif(anim, "test.gif", fps = 30)
+gif(anim, "test2.gif", fps = 30)
+
+end

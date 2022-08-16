@@ -5,7 +5,24 @@ function create_icosahedron!(nuc,radius)
     nuc.y = [a, a, -a, -a, -1, 1, -1, 1, 0, 0, 0, 0];
     nuc.z = [0, 0, 0, 0, a, a, -a, -a, -1, 1, -1, 1];
 
+    push!(nuc.vert,Vec(-1, a, 0))
+    push!(nuc.vert,Vec( 1, a, 0))
+    push!(nuc.vert,Vec(-1,-a, 0))
+    push!(nuc.vert,Vec( 1,-a, 0))
+    push!(nuc.vert,Vec( 0,-1, a))
+    push!(nuc.vert,Vec( 0, 1, a))
+    push!(nuc.vert,Vec( 0,-1,-a))
+    push!(nuc.vert,Vec( 0, 1,-a))
+    push!(nuc.vert,Vec( a, 0,-1))
+    push!(nuc.vert,Vec( a, 0, 1))
+    push!(nuc.vert,Vec(-a, 0,-1))
+    push!(nuc.vert,Vec(-a, 0, 1))
+    
     currentRadius = sqrt(nuc.x[1]^2 + nuc.y[1]^2 + nuc.z[1]^2);
+
+    for i = eachindex(nuc.vert)
+        nuc.vert[i] = nuc.vert[i]./norm(nuc.vert[i]).*radius
+    end
 
     nuc.x = nuc.x./currentRadius.*radius;
     nuc.y = nuc.y./currentRadius.*radius;
@@ -100,6 +117,10 @@ function add_middle_vertices!(nuc,i,radius)
     newY = (nuc.y[p1] + nuc.y[p2])/2;
     newZ = (nuc.z[p1] + nuc.z[p2])/2;
     
+    newVertex = (nuc.vert[p1] + nuc.vert[p2])./2;
+
+    push!(nuc.vert,newVertex.*radius/norm(newVertex));
+
     vertexNorm = sqrt(newX^2 + newY^2 + newZ^2);
 
     nuc.x = cat(nuc.x, newX*radius/vertexNorm,dims=1);
