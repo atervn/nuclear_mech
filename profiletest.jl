@@ -9,6 +9,7 @@ using FileIO
 using MeshIO
 using NearestNeighbors
 using ProfileView
+using WriteVTK
 
 include("sphere_creation.jl")
 include("plotting.jl")
@@ -101,6 +102,6 @@ end
 
 include("main.jl")
 
-# ProfileView.@profview main(100)
+# main(10)
 
-ProfileView.@profview main(1000)
+# main(2000)

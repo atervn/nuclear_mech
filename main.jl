@@ -1,4 +1,4 @@
-function main(maxT)
+# function main(maxT)
 
 nuc = nucleusType();
 
@@ -68,16 +68,26 @@ spar = get_model_parameters(ipar,spar,nuc);
 
 frictionMatrix = get_friction_matrix(nuc,spar);
 
-# maxT = 1000;
+maxT = 1500;
 
 p = Progress(maxT)
-anim = Animation();
 
+cells = MeshCell[]
+for i = 1:size(nuc.tri,1)
+    push!(cells,MeshCell(VTKCellTypes.VTK_TRIANGLE, nuc.tri[i,:]))
+end
 
-
+pvd = paraview_collection("test_4\\outputfile", append=true)
 
 
 pip = generate_pipette_mesh();
+
+pipCells = MeshCell[]
+for i = 1:size(pip.tri,1)
+    push!(pipCells,MeshCell(VTKCellTypes.VTK_TRIANGLE, pip.tri[i,:]))
+end
+
+vtk_save(vtk_grid("test_4\\pipette", [getindex.(pip.vert,1) getindex.(pip.vert,2) getindex.(pip.vert,3)]', pipCells))
 
 for t = 0:maxT
     
@@ -91,8 +101,9 @@ for t = 0:maxT
     get_bending_forces!(nuc,spar);
     get_elastic_forces!(nuc,spar);
 
-    # get_repulsion_forces!(nuc,spar);
-    repulsion = get_aspiration_repulsion_forces(nuc,pip,spar);
+    get_repulsion_forces!(nuc,spar);
+    # repulsion = get_aspiration_repulsion_forces(nuc,pip,spar);
+    
     #=
     flatRepulsion = flat_repulsion_forces(nuc,spar);
     if t >= 0
@@ -102,9 +113,7 @@ for t = 0:maxT
     end
     =#
 
-    local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ repulsion;# .+ nuc.forces.repulsion# + repulsionX .+ nuc.forces.bending  ;# .+ nuc.forces.elastic .+ nuc.forces.repulsion# + repulsionX;
-    # local totalForcesY = nuc.forces.volumeY .+ nuc.forces.areaY .+ nuc.forces.bendingY .+ nuc.forces.elasticY .+ nuc.forces.repulsionY + repulsionY;
-    # local totalForcesZ = nuc.forces.volumeZ .+ nuc.forces.areaZ .+ nuc.forces.bendingZ .+ nuc.forces.elasticZ .+ nuc.forces.repulsionZ + repulsionZ;# .+ flatRepulsion2[:,3];
+    local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic;# .+ repulsion;
     
     # local totalForces[41] = totalForces[41] + Vec(1.,0.,0.);
 
@@ -116,19 +125,15 @@ for t = 0:maxT
         nuc.vert[i] += Vec(vX[i],vY[i],vZ[i])*0.01
     end
 
-    # nuc.x = nuc.x .+ vX.*0.01;
-    # nuc.y = nuc.y .+ vY.*0.01;
-    # nuc.z = nuc.z .+ vZ.*0.01;
-
-    if mod(t,10) == 0
-        plot_sphere!(nuc,t)
-        Plots.frame(anim)
+    if mod(t,20) == 0
+        pvd[t+1] = vtk_grid("test_4\\VTK_" * lpad(t,4,"0"), [getindex.(nuc.vert,1) getindex.(nuc.vert,2) getindex.(nuc.vert,3)]', cells)
     end
 
     next!(p)
 
 end
 
-gif(anim, "test2.gif", fps = 30)
+vtk_save(pvd)
 
-end
+
+# end

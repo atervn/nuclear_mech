@@ -1,6 +1,6 @@
 function plot_sphere!(nuc,i)
 
-    P = Plots.plot(legend = false, size = (600,600); aspect_ratio=1,xlim = (-1.5, 3),ylim = (-1.5, 1.5),zlim = (-1.5, 1.5), camera = (0, 0));
+    P = Plots.plot(legend = false, size = (600,600); aspect_ratio=1,xlim = (-5, 5),ylim = (-5, 5),zlim = (-5, 5), camera = (0, 0));
 
     for i = 1:length(nuc.edges[:,1])
         if nuc.firstEdges[i] == 1
@@ -12,8 +12,8 @@ function plot_sphere!(nuc,i)
 
     rectangle(w, h, x, y) = Shape(x .+ [0,w,w,0], y .+ [0,0,h,h])
 
-    Plots.plot!(rectangle(5,-0.2,1.0583,-0.3), color="black", opacity=.5)
-    Plots.plot!(rectangle(5,0.2,1.0583,0.3), color="black",opacity=.5)
+    # Plots.plot!(rectangle(5,-0.2,1.0583,-0.3), color="black", opacity=.5)
+    # Plots.plot!(rectangle(5,0.2,1.0583,0.3), color="black",opacity=.5)
     #Plots.scatter!(P,nuc.x,nuc.y,nuc.z,markercolor="black")
     #Plots.scatter!(P,nuc.x[a],nuc.y[a],nuc.z[a],markercolor="red")
 

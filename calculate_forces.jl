@@ -9,8 +9,8 @@ function get_volume_forces!(nuc,spar)
     end
 
     for i = eachindex(nuc.vert)
-        if nuc.vert[i][1]>0 && sqrt(nuc.vert[i][2]^2 + nuc.vert[i][3]^2) < 0.3
-            forceMagnitude = 20*sum(nuc.voronoiAreas[i]);
+        if nuc.vert[i][1]>0 && sqrt(nuc.vert[i][2]^2 + nuc.vert[i][3]^2) < 3
+            forceMagnitude = 5*sum(nuc.voronoiAreas[i]);
         else
             forceMagnitude = pressure*sum(nuc.voronoiAreas[i]);
         end

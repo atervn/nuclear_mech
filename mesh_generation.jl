@@ -43,12 +43,12 @@ function generate_pipette_mesh()
 
     # pip.z,pip.x = pip.x,pip.z
 
-    xOffset = 1.0583;
-    radius = 0.3; 
+    xOffset = 3.08;
+    radius = 3; 
 
     for i = eachindex(pip.vert)
+        pip.vert[i] = pip.vert[i] .* Vec(radius,radius,radius)
         pip.vert[i] = pip.vert[i] + Vec(xOffset,0.,0.)
-        pip.vert[i] = pip.vert[i] .* Vec(1.,radius,radius)
     end
 
 # pip.x .+= 1.0583;
