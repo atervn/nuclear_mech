@@ -2,7 +2,7 @@ function generate_pipette_mesh()
 
     pip = pipetteType();
 
-    mesh = load("./test.stl")
+    mesh = load("./test2.stl")
     pip.tri = zeros(Int64, length(mesh), 3);
 
     for i = eachindex(mesh)
@@ -24,9 +24,6 @@ function generate_pipette_mesh()
             else
                 temptri[j] = length(pip.vert) + 1;
                 push!(pip.vert,Vec(coords[3], coords[2], coords[1]))
-                # append!(pip.x,coords[1]);
-                # append!(pip.y,coords[2]);
-                # append!(pip.z,coords[3]);
             end
         end
 
@@ -41,20 +38,13 @@ function generate_pipette_mesh()
         pip.vertexTri[i] = [i[1] for i in aa];
     end
 
-    # pip.z,pip.x = pip.x,pip.z
-
-    xOffset = 3.08;
+    xOffset = 5.99;
     radius = 3; 
 
     for i = eachindex(pip.vert)
         pip.vert[i] = pip.vert[i] .* Vec(radius,radius,radius)
         pip.vert[i] = pip.vert[i] + Vec(xOffset,0.,0.)
     end
-
-# pip.x .+= 1.0583;
-
-#     pip.y = 0.3.*pip.y;
-#     pip.z = 0.3.*pip.z;
 
     return pip
 end

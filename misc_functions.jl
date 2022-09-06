@@ -1,10 +1,14 @@
 function get_friction_matrix(nuc,spar)
 
-    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.x),length(nuc.x));
+    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.vert)+spar.chromatinLength*spar.chromatinNumber,length(nuc.vert)+spar.chromatinLength*spar.chromatinNumber);
 
-    for j = 1:length(nuc.x)
+    for j = 1:length(nuc.vert)
         frictionMatrix[j,j] = 1 + spar.laminaFriction*length(nuc.neighbors[j]);
         frictionMatrix[j,nuc.neighbors[j]] .= -spar.laminaFriction;
+    end
+
+    for j = length(nuc.vert)+1:length(nuc.vert)+spar.chromatinLength*spar.chromatinNumber
+        frictionMatrix[j,j] = 1
     end
 
     return frictionMatrix
@@ -42,6 +46,51 @@ function get_model_parameters(ipar,spar,nuc)
 
     spar.repulsionDistance = ipar.repulsionDistance/ipar.scalingLength;
 
+    spar.freeNucleusRadius = ipar.freeNucleusRadius/ipar.scalingLength;
+
+    spar.chroVertexDistance = ipar.chroVertexDistance/ipar.scalingLength;
+
+    spar.chromatinNumber = ipar.chromatinNumber
+    spar.chromatinLength = ipar.chromatinLength
+
     return spar
+
+end
+
+function setup_export(folderName,nuc,chro,spar)
+
+    mkdir(".\\results\\"*folderName)
+
+    triCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,size(nuc.tri,1))
+    for i = 1:size(nuc.tri,1)
+        triCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, nuc.tri[i,:]);
+    end
+
+    lineCells = Vector{MeshCell{PolyData.Lines, Vector{Int64}}}(undef,spar.chromatinNumber)
+    for i = 1:spar.chromatinNumber
+        lineCells[i] = MeshCell(PolyData.Lines(), chro.strandIdx[i]);
+    end
+
+    return triCells, lineCells
+
+end
+
+function export_pipette_mesh(folderName, pip)
+
+    triCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,size(pip.tri,1))
+    for i = 1:size(pip.tri,1)
+        triCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, pip.tri[i,:])
+    end
+
+    vtk_save(vtk_grid(".\\results\\"*folderName*"\\pipette", [getindex.(pip.vert,1) getindex.(pip.vert,2) getindex.(pip.vert,3)]', triCells))
+
+end
+
+function get_strand_vectors!(chro,spar)
+
+    for i = 1:spar.chromatinNumber
+        chro.vectors[i] = chro.strandVert[i][2:end] .- chro.strandVert[i][1:end-1];
+        chro.vectorNorms[i] = norm.(chro.vectors[i])
+    end
 
 end

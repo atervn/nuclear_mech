@@ -12,15 +12,6 @@ function get_volume!(nuc)
         p2 = nuc.p2[i];
         p3 = nuc.p3[i];
 
-        # v321 = p3[1][1]*p2[1][2]*p1[1][3];
-        # v231 = p2[1][1]*p3[1][2]*p1[1][3];
-        # v312 = p3[1][1]*p1[1][2]*p2[1][3];
-        # v132 = p1[1][1]*p3[1][2]*p2[1][3];
-        # v213 = p2[1][1]*p1[1][2]*p3[1][3];
-        # v123 = p1[1][1]*p2[1][2]*p3[1][3];
-                
-        # volumes[i] = 1/6*(-v321 + v231 + v312 - v132 - v213 + v123);
-
         volumes[i] = 1/6*dot(p1[1],cross(p2[1],p3[1]))
     end
 
@@ -34,9 +25,9 @@ function get_area!(nuc)
 
     for i = 1:size(nuc.tri,1)
 
-        AB = nuc.trii[i][1] - nuc.trii[i][2]
+        AB = nuc.tri21[i]
         
-        AC = nuc.trii[i][1] - nuc.trii[i][3]
+        AC = nuc.tri31[i]
 
         ABnorm = norm(AB);
         ACnorm = norm(AC)
@@ -81,7 +72,8 @@ function get_local_curvatures!(nuc)
     end
 
     curvatures = zeros(length(nuc.vert));
-    vertexNormalUnitVectors = Vector{Vec{3,Float64}}(undef, size(nuc.tri,1));
+
+    # https://computergraphics.stackexchange.com/a/1721
 
     for i = 1:length(nuc.vert)
 
@@ -89,7 +81,7 @@ function get_local_curvatures!(nuc)
 
         for j = nuc.vertexEdges[i]
 
-            cotangentSum .+= (cotd(angles1[j]) + cotd(angles2[j])).*(nuc.vert[nuc.edges[j,1]] - nuc.vert[nuc.edges[j,2]])
+            cotangentSum .+= (cotd(angles1[j]) + cotd(angles2[j])).*nuc.edgeVectors[j]
 
         end
 
@@ -98,18 +90,15 @@ function get_local_curvatures!(nuc)
         LaplaceBeltramiNorm = norm(LaplaceBeltrami)
 
         curvatures[i] = LaplaceBeltramiNorm/2;
-        vertexNormalUnitVectors[i] = LaplaceBeltrami/LaplaceBeltramiNorm;
-
     end
 
     nuc.curvatures = curvatures;
-    nuc.vertexNormalUnitVectors = vertexNormalUnitVectors;
 
 end
 
 function get_voronoi_areas!(nuc)
 
-    voronoiAreas = fill(Float64[], length(nuc.x));
+    voronoiAreas = fill(Float64[], length(nuc.vert));
 
     for i = 1:length(nuc.vert)
 
@@ -156,7 +145,7 @@ function get_area_unit_vectors!(nuc)
 
     nuc.areaUnitVectors = Vector{Vector{Vec{3,Float64}}}(undef, length(nuc.vert))
 
-    for i = 1:length(nuc.x)
+    for i = 1:length(nuc.vert)
 
         areaUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.vertexTri[i,1]))
         j2 = 1;
@@ -184,9 +173,9 @@ function get_triangle_normals!(nuc)
 
     for i = 1:size(nuc.tri,1)
 
-        tri = @view nuc.tri[i,:];
+        # tri = @view nuc.tri[i,:];
 
-        normalVector = cross(nuc.vert[tri[2]] - nuc.vert[tri[1]],nuc.vert[tri[3]] - nuc.vert[tri[1]])
+        normalVector = cross(nuc.tri12[i][1],nuc.tri13[i][1])
 
         #normalVector = cross_product(p1,p2,p3);
 
@@ -195,6 +184,18 @@ function get_triangle_normals!(nuc)
     end
 
     nuc.triangleNormalUnitVectors = triangleNormalUnitVectors;
+
+    vertexNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+    
+    for i = 1:length(nuc.vert)
+
+        vector = mean(nuc.triangleNormalUnitVectors[nuc.vertexTri[i]],dims=1)[1];
+
+        vertexNormalUnitVectors[i] = vector./norm(vector);
+
+    end
+
+    nuc.vertexNormalUnitVectors = vertexNormalUnitVectors;
 
 end
 
@@ -218,6 +219,20 @@ function get_triangle_angles(nuc)
     end
 
     return angles
+
+end
+
+function get_edge_vectors!(nuc)
+
+    edgeVectors = Vector{Vec{3,Float64}}(undef, size(nuc.edges,1));
+
+    for i = 1:size(nuc.edges,1)
+
+        edgeVectors[i] = nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges[i,1]];
+
+    end
+
+    nuc.edgeVectors = edgeVectors;
 
 end
 

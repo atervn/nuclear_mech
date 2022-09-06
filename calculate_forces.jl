@@ -9,11 +9,9 @@ function get_volume_forces!(nuc,spar)
     end
 
     for i = eachindex(nuc.vert)
-        if nuc.vert[i][1]>0 && sqrt(nuc.vert[i][2]^2 + nuc.vert[i][3]^2) < 3
-            forceMagnitude = 5*sum(nuc.voronoiAreas[i]);
-        else
-            forceMagnitude = pressure*sum(nuc.voronoiAreas[i]);
-        end
+
+        forceMagnitude = pressure*sum(nuc.voronoiAreas[i]);
+
         nuc.forces.volume[i] = forceMagnitude*nuc.vertexNormalUnitVectors[i]
     end
 end
@@ -99,7 +97,7 @@ function get_elastic_forces!(nuc,spar)
     for i = 1:size(nuc.edges,1)
         if nuc.firstEdges[i] == 1
 
-            vector = nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges[i,1]]
+            vector = nuc.edgeVectors[i]; #nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges[i,1]]
             vectorNorm = norm(vector);
 
             unitVector = vector/vectorNorm;
@@ -125,18 +123,6 @@ function get_repulsion_forces!(nuc,spar)
     tree = KDTree(nuc.vert);
 
     for i = 1:length(nuc.vert)
-
-        #idxTemp = copy(idx);
-
-#        sqrtDistances = (nuc.x[i] .- nuc.x).^2 .+ (nuc.y[i] .- nuc.y).^2 .+ (nuc.z[i] .- nuc.z).^2;
-
- #       selfAndNeighbors = sort([i; nuc.neighbors[i]])
-
-  #      deleteat!(sqrtDistances,selfAndNeighbors);
-   #     deleteat!(idxTemp,selfAndNeighbors);
-
-    #    closest = findmin(sqrtDistances);
-     #   closest = idxTemp[closest[2]];
 
         closest = knn(tree, nuc.vert[i],1,true,j -> any(j .== [i; nuc.neighbors[i]]))
 
@@ -251,4 +237,96 @@ function get_aspiration_repulsion_forces(nuc,pip,spar)
 
     return repulsion
 
+end
+
+function get_aspiration_forces(nuc,pip,spar)
+
+    force = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+
+    for i = eachindex(nuc.vert)
+        if nuc.vert[i][1]>0 && sqrt(nuc.vert[i][2]^2 + nuc.vert[i][3]^2) < 3
+            forceMagnitude = 1*sum(nuc.voronoiAreas[i]);
+            force[i] = forceMagnitude*nuc.vertexNormalUnitVectors[i]
+        else
+            force[i] = Vec(0.,0.,0.);
+        end
+    end
+
+    return force
+
+end
+
+function get_linear_chromatin_forces!(chro,spar)
+
+    for i = 1:spar.chromatinNumber
+        chro.forces.strandLinear[i][1:end-1] += 10*(chro.vectorNorms[i] .- spar.chroVertexDistance).*chro.vectors[i]./chro.vectorNorms[i];
+        chro.forces.strandLinear[i][2:end] -= chro.forces.strandLinear[i][1:end-1];
+    end
+end
+
+function get_bending_chromatin_forces!(chro,spar,normAngle)
+    
+    for i = 1:spar.chromatinNumber
+
+        vectors1 = -chro.vectors[i][1:end-1]
+        vectors2 = chro.vectors[i][2:end]
+
+        angles = dot.(vectors1, vectors2)./(chro.vectorNorms[i][1:end-1].*chro.vectorNorms[i][2:end]);
+
+        angles[angles .>= 1] .= 1.; 
+
+        angles = acosd.(angles);
+        
+        unitVectors1 = cross.(vectors1,cross.(vectors1,vectors2));
+        unitVectors2 = cross.(vectors2,cross.(vectors2,vectors1));
+
+        unitVectors1 = unitVectors1./norm.(unitVectors1);
+        unitVectors2 = unitVectors2./norm.(unitVectors2);
+        
+        chro.forces.strandBending[i][1:end-2] += -1e-2.*(angles .- normAngle).*unitVectors1;
+        chro.forces.strandBending[i][3:end] += -1e-2.*(angles .- normAngle).*unitVectors2;
+    end
+end
+
+function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
+
+    for i = 1:spar.chromatinNumber
+
+        closeVertices = inrange(chromatinTree, chro.vert[chro.strandIdx[i]], spar.repulsionDistance, false)
+
+        for j = 1:spar.chromatinLength
+            for k = eachindex(closeVertices[j])
+                if chro.strandIdx[i][j] != closeVertices[j][k]
+                    vector = chro.strandVert[i][j] - chro.vert[closeVertices[j][k]]
+                    vectorNorm = norm(vector)
+                    chro.forces.strandChroRepulsion[i][j] += -(vectorNorm - spar.repulsionDistance)*vector/vectorNorm ;#24*0.01/vectorNorm^2*(2*0.12^12/vectorNorm^12 - 0.12^6/vectorNorm^6)*vector;
+                end
+            end
+        end
+    end
+end
+
+function get_random_fluctuations(spar)
+
+    strength = 0.5;
+
+    fluctuationForces = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
+    for i = 1:spar.chromatinLength*spar.chromatinNumber
+        fluctuationForces[i] = strength.*Vec(randn(),randn(),randn())
+    end
+
+    return fluctuationForces
+
+end
+
+function initialize_chromatin_forces!(chro)
+
+    for i = 1:length(chro.vert)
+
+        chro.forces.linear[i] = Vec(0.,0.,0.)
+        chro.forces.bending[i] = Vec(0.,0.,0.)
+        chro.forces.chroRepulsion[i] = Vec(0.,0.,0.)
+        chro.forces.enveRepulsion[i] = Vec(0.,0.,0.)
+
+    end
 end

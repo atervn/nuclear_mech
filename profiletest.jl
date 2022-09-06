@@ -8,15 +8,17 @@ using Meshes
 using FileIO
 using MeshIO
 using NearestNeighbors
-using ProfileView
+# using ProfileView
 using WriteVTK
+using DelimitedFiles
 
-include("sphere_creation.jl")
+include("create_nucleus.jl")
 include("plotting.jl")
 include("geometric_functions.jl")
 include("calculate_forces.jl")
 include("misc_functions.jl")
 include("mesh_generation.jl")
+include("create_chromatin.jl")
 
 Base.@kwdef mutable struct forcesType
     volume::Vector{Vec{3,Float64}} = []
@@ -28,12 +30,10 @@ end
 
 Base.@kwdef mutable struct nucleusType
     vert::Vector{Vec{3,Float64}} = []
-    x::Vector{Float64} = []
-    y::Vector{Float64} = []
-    z::Vector{Float64} = []
     neighbors::Vector{Vector{Int64}} = []
     tri::Array{Int64} = Array{Int64}[]
     edges::Array{Int64} = Array{Int64}[]
+    edgeVectors::Vector{Vec{3,Float64}} = []
     mirrorEdges::Vector{Int64} = []
     firstEdges::Vector{Int64} = []
     vertexEdges::Vector{Vector{Int64}} = []
@@ -61,6 +61,10 @@ Base.@kwdef mutable struct nucleusType
     ep31::Array{Any} = [];
     ep32::Array{Any} = [];
     trii::Array{Any} = [];
+    tri21::Array{Any} = [];
+    tri31::Array{Any} = [];
+    tri12::Array{Any} = [];
+    tri13::Array{Any} = [];
 end
 
 Base.@kwdef mutable struct inputParametersType
@@ -75,6 +79,9 @@ Base.@kwdef mutable struct inputParametersType
     viscosity::Float64 = 0;
     repulsionConstant::Float64 = 0;
     repulsionDistance::Float64 = 0;
+    chroVertexDistance::Float64 = 0;
+    chromatinNumber::UInt64 = 0;
+    chromatinLength::UInt64 = 0;
     scalingLength::Float64 = 0;
     scalingTime::Float64 = 0;
 
@@ -89,19 +96,40 @@ Base.@kwdef mutable struct scaledParametersType
     repulsionConstant::Float64 = 0;
     repulsionDistance::Float64 = 0;
     laminaFriction::Float64 = 0;
+    freeNucleusRadius::Float64 = 0;
+    chroVertexDistance::Float64 = 0;
+    chromatinNumber::UInt64 = 0;
+    chromatinLength::UInt64 = 0;
+end
+
+Base.@kwdef mutable struct chromatinForceType
+    linear::Vector{Vec{3,Float64}} = []
+    bending::Vector{Vec{3,Float64}} = []
+    chroRepulsion::Vector{Vec{3,Float64}} = []
+    enveRepulsion::Vector{Vec{3,Float64}} = []
+    strandLinear::Vector{Any} = []
+    strandBending::Vector{Any} = []
+    strandChroRepulsion::Vector{Any} = []
+    strandEnveRepulsion::Vector{Any} = []
+end
+
+Base.@kwdef mutable struct chromatinType
+    vert::Vector{Vec{3,Float64}} = []
+    strandIdx::Vector{Vector{Int64}} = []
+    strandVert::Vector{Any} = []
+    forces = chromatinForceType()
+    vectors::Vector{Vector{Vec{3,Float64}}} = []
+    vectorNorms::Vector{Vector{Float64}} = []
 end
 
 Base.@kwdef mutable struct pipetteType
     vert::Vector{Vec{3,Float64}} = []
-    x::Vector{Float64} = []
-    y::Vector{Float64} = []
-    z::Vector{Float64} = []
     tri::Array{Int64} = Array{Int64}[]
     vertexTri::Array{Vector{Int64}} = Array{Int64}[]
 end
 
 include("main.jl")
 
-# main(10)
+# main(50,"cvjmnmjgsdaad111")
 
-# main(2000)
+main(1000,"test_12")
