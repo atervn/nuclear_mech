@@ -97,14 +97,12 @@ function get_elastic_forces!(nuc,spar)
     for i = 1:size(nuc.edges,1)
         if nuc.firstEdges[i] == 1
 
-            vector = nuc.edgeVectors[i]; #nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges[i,1]]
+            vector = nuc.edgeVectors[i];
             vectorNorm = norm(vector);
 
             unitVector = vector/vectorNorm;
 
             force = spar.laminaStiffness*(vectorNorm - nuc.normalLengths[i])*unitVector;
-
-            
 
             nuc.forces.elastic[nuc.edges[i,1]] += force
             nuc.forces.elastic[nuc.edges[i,2]] -= force
@@ -112,45 +110,46 @@ function get_elastic_forces!(nuc,spar)
     end
 end
 
-function get_repulsion_forces!(nuc,spar)
+function get_repulsion_forces!(nuc,spar,envelopeTree)
 
-    if length(nuc.forces.repulsion) == 0
-        nuc.forces.repulsion = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+    if length(nuc.forces.envelopeRepulsion) == 0
+        nuc.forces.envelopeRepulsion = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
     end
-
-    #idx = collect(1:length(nuc.x));
-
-    tree = KDTree(nuc.vert);
 
     for i = 1:length(nuc.vert)
 
-        closest = knn(tree, nuc.vert[i],1,true,j -> any(j .== [i; nuc.neighbors[i]]))
+        closest,distance = knn(envelopeTree, nuc.vert[i],1,true,j -> any(j .== [i; nuc.neighbors[i]]))
 
-        nTri = length(nuc.vertexTri[closest[1],1]);
+        if distance[1] < mean(nuc.normalLengths)*2
 
-        closePointDistances = Vector{Float64}(undef,nTri);
-        closePointCoordinates = Vector{Vec{3,Float64}}(undef, nTri);
+            nTri = length(nuc.vertexTri[closest[1],1]);
 
-        for j = 1:nTri
+            closePointDistances = Vector{Float64}(undef,nTri);
+            closePointCoordinates = Vector{Vec{3,Float64}}(undef, nTri);
 
-            tri = nuc.vertexTri[closest[1],1][j];
+            for j = 1:nTri
 
-            closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, i, tri)
-        end
-        
-        closestPoint = findmin(closePointDistances);
-        closestDistance = closestPoint[1];
+                tri = nuc.vertexTri[closest[1],1][j];
 
-        if closestDistance < spar.repulsionDistance
-
-            closeCoords = closePointCoordinates[closestPoint[2]];
-
-            unitVector = (nuc.vert[i] - closeCoords)/closestDistance;
+                closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, i, tri)
+            end
             
-            forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closestDistance)^(3/2)
+            closestPoint = findmin(closePointDistances);
+            closestDistance = closestPoint[1];
 
-            nuc.forces.repulsion[i] = forceMagnitude*unitVector;
+            if closestDistance < spar.repulsionDistance
 
+                closeCoords = closePointCoordinates[closestPoint[2]];
+
+                unitVector = (nuc.vert[i] - closeCoords)/closestDistance;
+                
+                forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closestDistance)^(3/2)
+                nuc.forces.envelopeRepulsion[i] = forceMagnitude*unitVector;
+            else
+                nuc.forces.envelopeRepulsion[i] = Vec(0.,0.,0.)
+            end
+        else
+            nuc.forces.envelopeRepulsion[i] = Vec(0.,0.,0.)
         end
     end
 end
@@ -329,4 +328,22 @@ function initialize_chromatin_forces!(chro)
         chro.forces.enveRepulsion[i] = Vec(0.,0.,0.)
 
     end
+end
+
+function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
+
+    for i = 1:length(chro.vert)
+
+    end
+
+    for i = 1:spar.chromatinLength*spar.chromatinNumber
+
+    nuc.forces.chromationRepulsion = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+
+    for i = eachindex(nuc.vert)
+        nuc.forces.chromationRepulsion[i] = Vec(0.,0.,0.);
+    end
+
+    end
+
 end

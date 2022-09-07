@@ -19,13 +19,15 @@ include("calculate_forces.jl")
 include("misc_functions.jl")
 include("mesh_generation.jl")
 include("create_chromatin.jl")
+include("simulation.jl")
 
 Base.@kwdef mutable struct forcesType
     volume::Vector{Vec{3,Float64}} = []
     area::Vector{Vec{3,Float64}} = []
     bending::Vector{Vec{3,Float64}} = []
     elastic::Vector{Vec{3,Float64}} = []
-    repulsion::Vector{Vec{3,Float64}} = []
+    envelopeRepulsion::Vector{Vec{3,Float64}} = []
+    chromationRepulsion::Vector{Vec{3,Float64}} = []
 end
 
 Base.@kwdef mutable struct nucleusType
@@ -128,8 +130,7 @@ Base.@kwdef mutable struct pipetteType
     vertexTri::Array{Vector{Int64}} = Array{Int64}[]
 end
 
-include("main.jl")
 
-# main(50,"cvjmnmjgsdaad111")
+# simulation(50,"misc15")
 
-main(1000,"test_12")
+simulation(2000,"example_sim3")

@@ -1,4 +1,4 @@
-function main(maxT,folderName)
+function simulation(maxT,folderName)
 
     # number of subdivisions when creating the geometry
     nSubdivisions = 4;
@@ -47,6 +47,7 @@ function main(maxT,folderName)
         
         maxX[t+1] = maximum(getindex.(nuc.vert,1));
     
+        envelopeTree = KDTree(nuc.vert);
         chromatinTree = KDTree(chro.vert);
         get_strand_vectors!(chro,spar)
         initialize_chromatin_forces!(chro)
@@ -61,16 +62,19 @@ function main(maxT,folderName)
         get_area_forces!(nuc,spar);
         get_bending_forces!(nuc,spar);
         get_elastic_forces!(nuc,spar);
-        get_repulsion_forces!(nuc,spar);
+        get_repulsion_forces!(nuc,spar,envelopeTree);
         repulsion = get_aspiration_repulsion_forces(nuc,pip,spar);
         aspiration = get_aspiration_forces(nuc,pip,spar);
     
-        local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic + repulsion + aspiration;
-
         get_linear_chromatin_forces!(chro,spar);
         get_bending_chromatin_forces!(chro,spar,130)
         get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
         fluctuationForces = get_random_fluctuations(spar)
+        # get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
+
+
+        local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.envelopeRepulsion .+ repulsion .+ aspiration;
+
 
         totalChromatinForces = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion + fluctuationForces;
         
@@ -97,12 +101,6 @@ function main(maxT,folderName)
         for k = 1:spar.chromatinLength*spar.chromatinNumber
             chro.vert[k] += Vec(vX[length(nuc.vert)+k],vY[length(nuc.vert)+k],vZ[length(nuc.vert)+k])*0.01
         end
-
-        # vX = cg(cfrictionMatrix,getindex.(totalChromatinForces,1))
-        # vY = cg(cfrictionMatrix,getindex.(totalChromatinForces,2));
-        # vZ = cg(cfrictionMatrix,getindex.(totalChromatinForces,3));
-
-        
 
         next!(p)
     
