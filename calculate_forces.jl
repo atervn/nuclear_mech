@@ -115,7 +115,7 @@ function get_repulsion_forces!(nuc,spar,envelopeTree)
     if length(nuc.forces.envelopeRepulsion) == 0
         nuc.forces.envelopeRepulsion = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
     end
-
+    
     for i = 1:length(nuc.vert)
 
         closest,distance = knn(envelopeTree, nuc.vert[i],1,true,j -> any(j .== [i; nuc.neighbors[i]]))
@@ -131,7 +131,7 @@ function get_repulsion_forces!(nuc,spar,envelopeTree)
 
                 tri = nuc.vertexTri[closest[1],1][j];
 
-                closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, i, tri)
+                closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, nuc.vert[i], tri)
             end
             
             closestPoint = findmin(closePointDistances);
@@ -214,7 +214,7 @@ function get_aspiration_repulsion_forces(nuc,pip,spar)
 
             tri = pip.vertexTri[closest[1]][1][j];
 
-            closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, i, tri, pip);
+            closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, nuc.vert[i], tri, pip);
         end
 
         closestPoint = findmin(closePointDistances);
@@ -332,18 +332,80 @@ end
 
 function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
 
-    for i = 1:length(chro.vert)
-
-    end
-
-    for i = 1:spar.chromatinLength*spar.chromatinNumber
-
     nuc.forces.chromationRepulsion = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
-
     for i = eachindex(nuc.vert)
         nuc.forces.chromationRepulsion[i] = Vec(0.,0.,0.);
     end
 
-    end
+    chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef, length(chro.vert));
 
+    for i = 1:spar.chromatinLength*spar.chromatinNumber
+        closest,distance = knn(envelopeTree, chro.vert[i],1,true)
+
+             if distance[1] < mean(nuc.normalLengths)*2
+
+            nTri = length(nuc.vertexTri[closest[1],1]);
+
+            closePointDistances = Vector{Float64}(undef,nTri);
+            closePointCoordinates = Vector{Vec{3,Float64}}(undef, nTri);
+            closePointVertices = Vector{Vector{Int64}}(undef, nTri);
+
+            for j = 1:nTri
+
+                tri = nuc.vertexTri[closest[1],1][j];
+
+                closePointDistances[j],closePointCoordinates[j],closePointVertices[j] = vertex_triangle_distance(nuc, chro.vert[i], tri)
+            end
+            
+            closestPoint = findmin(closePointDistances);
+            closestDistance = closestPoint[1];
+
+            if closestDistance < spar.repulsionDistance
+
+                closeCoords = closePointCoordinates[closestPoint[2]];
+
+                unitVector = (chro.vert[i] - closeCoords)/closestDistance;
+                
+                forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closestDistance)^(3/2)
+                chro.forces.enveRepulsion[i] = forceMagnitude*unitVector;
+
+                closeVertices = closePointVertices[closestPoint[2]]; 
+
+                if length(closeVertices) == 1
+
+                    nuc.forces.chromationRepulsion[closeVertices[1]] += -forceMagnitude*unitVector;
+
+                elseif length(closeVertices) == 2
+
+                    w1 = (closeCoords[1] - nuc.vert[closeVertices[2]][1])/(nuc.vert[closeVertices[2]][1] - nuc.vert[closeVertices[2]][2])
+                    w2 = 1 - w1;
+
+                    nuc.forces.chromationRepulsion[closeVertices[1]] += -w1*forceMagnitude*unitVector;
+                    nuc.forces.chromationRepulsion[closeVertices[2]] += -w2*forceMagnitude*unitVector;
+
+                else
+
+                    # get baryocentric weights
+                    # https://answers.unity.com/questions/383804/calculate-uv-coordinates-of-3d-point-on-plane-of-m.html
+                    # https://math.stackexchange.com/questions/1727200/compute-weight-of-a-point-on-a-3d-triangle
+
+                    fullArea = 0.5*norm(nuc.vert[closeVertices[1]] - nuc.vert[closeVertices[2]])*norm(nuc.vert[closeVertices[1]] - nuc.vert[closeVertices[3]])
+                    area1 = 0.5*norm(closeCoords - nuc.vert[closeVertices[2]])*norm(closeCoords - nuc.vert[closeVertices[3]])
+                    area2 = 0.5*norm(closeCoords - nuc.vert[closeVertices[1]])*norm(closeCoords - nuc.vert[closeVertices[3]])
+                    area3 = 0.5*norm(closeCoords - nuc.vert[closeVertices[1]])*norm(closeCoords - nuc.vert[closeVertices[2]])
+
+                    nuc.forces.chromationRepulsion[closeVertices[1]] += -area1/fullArea*forceMagnitude*unitVector;
+                    nuc.forces.chromationRepulsion[closeVertices[2]] += -area2/fullArea*forceMagnitude*unitVector;
+                    nuc.forces.chromationRepulsion[closeVertices[3]] += -area3/fullArea*forceMagnitude*unitVector;
+
+                    closeCoords
+                end
+
+            else
+                chro.forces.enveRepulsion[i] = Vec(0.,0.,0.)
+            end
+        else
+            chro.forces.enveRepulsion[i] = Vec(0.,0.,0.)
+        end
+    end
 end

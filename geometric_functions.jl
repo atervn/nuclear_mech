@@ -242,7 +242,9 @@ function line_point_distance(AB::Vec{3,Float64},AC::Vec{3,Float64})
  
 end
 
-function vertex_triangle_distance(nuc, p, tri, pip = nothing)
+function vertex_triangle_distance(nuc, vertex, tri, pip = nothing)
+
+    # based on https://gist.github.com/joshuashaffer/99d58e4ccbd37ca5d96e
 
     if pip === nothing
         tri = nuc.tri[tri,:];
@@ -256,8 +258,7 @@ function vertex_triangle_distance(nuc, p, tri, pip = nothing)
         E1 = pip.vert[tri[3]] - B;
     end
 
-
-    D = B - nuc.vert[p]
+    D = B - vertex
     
     a = E0[1]^2 + E0[2]^2 + E0[3]^2;
     b = dot(E0,E1);
@@ -299,6 +300,9 @@ function vertex_triangle_distance(nuc, p, tri, pip = nothing)
                         end
                     end
                 end
+
+                vertices = [tri[1]]
+
             else
                 # region 3
                 s = 0;
@@ -314,6 +318,9 @@ function vertex_triangle_distance(nuc, p, tri, pip = nothing)
                         sqrdistance = e*t + f;
                     end
                 end
+
+                vertices = tri[[1,3]]
+
             end
         else
             if t < 0
@@ -331,12 +338,18 @@ function vertex_triangle_distance(nuc, p, tri, pip = nothing)
                         sqrdistance = d*s + f;
                     end
                 end
+
+                vertices = tri[[1,2]]
+
             else
                 # region 0
                 invDet = 1/det;
                 s = s*invDet;
                 t = t*invDet;
                 sqrdistance = s*(a*s + b*t + 2*d) + t*(b*s + c*t + 2*e) + f;
+
+                vertices = tri[[1,2,3]]
+
             end
         end
     else
@@ -372,6 +385,7 @@ function vertex_triangle_distance(nuc, p, tri, pip = nothing)
                     end
                 end
             end
+            vertices = [tri[3]]
         else
             if t < 0
                 # region6
@@ -404,6 +418,9 @@ function vertex_triangle_distance(nuc, p, tri, pip = nothing)
                         end
                     end
                 end
+
+                vertices = [tri[2]]
+            
             else
                 # region 1
                 numer = c + e - b - d;
@@ -423,6 +440,9 @@ function vertex_triangle_distance(nuc, p, tri, pip = nothing)
                         sqrdistance = s*(a*s + b*t + 2*d) + t*(b*s + c*t + 2*e) + f;
                     end
                 end
+
+                vertices = tri[[2,3]]
+
             end
         end
     end
@@ -436,6 +456,6 @@ function vertex_triangle_distance(nuc, p, tri, pip = nothing)
 
 
     PP0 = B + s*E0 + t*E1
-    return dist, PP0
+    return dist, PP0, vertices
     
 end

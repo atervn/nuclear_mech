@@ -14,21 +14,25 @@ function simulation(maxT,folderName)
     ipar = read_parameters(ipar,"./parameters.txt");
     
     # create nucleus
+    printstyled("Creating nuclear envelope..."; color = :blue)
     nuc = nucleusType();
     nuc = create_icosahedron!(nuc,ipar);
     nuc = subdivide_mesh!(nuc,ipar,nSubdivisions)
     nuc = setup_nucleus_data(nuc)
+    printstyled("Done!\n"; color = :blue)
     
     # scale parameters
     spar = scaledParametersType();
     spar = get_model_parameters(ipar,spar,nuc);
     
+    printstyled("Creating chromatin..."; color = :blue)
     chro = chromatinType();
     chro = create_all_chromatins(chro,spar)
+    printstyled("Done!\n"; color = :blue)
 
     # setup nucleus export
-    triCells, lineCells = setup_export(folderName,nuc,chro,spar)
-    
+    triCells, lineCells,folderName = setup_export(folderName,nuc,chro,spar)
+
     # setup pipette
     pip = generate_pipette_mesh();
     export_pipette_mesh(folderName,pip)
@@ -39,8 +43,12 @@ function simulation(maxT,folderName)
     # vector to store the aspiration lengths
     maxX = zeros(Float64,maxT+1)
     
+
+    printstyled("Starting simulation ("*Dates.format(now(), "YYYY-mm-dd HH:MM")*")\n"; color = :blue)
+    println
+
     # setup progress bar
-    p = Progress(maxT)
+    p = Progress(maxT, 1, "Simulating...", 100)
     
     # run the simulation
     for t = 0:maxT
@@ -70,13 +78,13 @@ function simulation(maxT,folderName)
         get_bending_chromatin_forces!(chro,spar,130)
         get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
         fluctuationForces = get_random_fluctuations(spar)
-        # get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
+        get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
 
 
-        local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.envelopeRepulsion .+ repulsion .+ aspiration;
+        local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.envelopeRepulsion .+ nuc.forces.chromationRepulsion .+ repulsion .+ aspiration;
 
 
-        totalChromatinForces = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion + fluctuationForces;
+        totalChromatinForces = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion;
         
 
         if mod(t,20) == 0

@@ -36,8 +36,6 @@ function create_all_chromatins(chro,spar)
                 reDoAllCounter += 1
                 break
             end
-            
-            println(k)
         end
 
         if !reDoAll

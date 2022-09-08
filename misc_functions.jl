@@ -12,7 +12,6 @@ function get_friction_matrix(nuc,spar)
     end
 
     return frictionMatrix
-
 end
 
 function read_parameters(ipar,filePath)
@@ -59,7 +58,19 @@ end
 
 function setup_export(folderName,nuc,chro,spar)
 
-    mkdir(".\\results\\"*folderName)
+    try
+        mkdir(".\\results\\"*folderName)
+    catch
+        for i = 1:1000
+            try
+                mkdir(".\\results\\"*folderName*"_"*string(i))
+                folderName = folderName*"_"*string(i)
+                break
+            catch
+            end
+        end
+    end
+    
 
     triCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,size(nuc.tri,1))
     for i = 1:size(nuc.tri,1)
@@ -71,7 +82,7 @@ function setup_export(folderName,nuc,chro,spar)
         lineCells[i] = MeshCell(PolyData.Lines(), chro.strandIdx[i]);
     end
 
-    return triCells, lineCells
+    return triCells, lineCells, folderName
 
 end
 

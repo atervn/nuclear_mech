@@ -11,6 +11,7 @@ using NearestNeighbors
 # using ProfileView
 using WriteVTK
 using DelimitedFiles
+using Dates
 
 include("create_nucleus.jl")
 include("plotting.jl")
@@ -133,4 +134,4 @@ end
 
 # simulation(50,"misc15")
 
-simulation(2000,"example_sim3")
+simulation(2000,"example_sim")
