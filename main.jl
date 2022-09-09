@@ -131,7 +131,15 @@ Base.@kwdef mutable struct pipetteType
     vertexTri::Array{Vector{Int64}} = Array{Int64}[]
 end
 
+Base.@kwdef mutable struct micromanipulationType
+    rightmostVertex::Int64 = 0
+    leftmostVertex::Int64 = 0
+    leftmostVertexPosition::Vec{3,Float64} = Vec(0.,0.,0.)
+    rightNeighbors::Vector{Int64} = []
+    leftNeighbors::Vector{Int64} = []
+    leftNeigborPositions::Vector{Vec{3,Float64}} = []
+end
 
-# simulation(50,"misc15")
+# simulation("MM",50,"misc")
 
-simulation(2000,"example_sim")
+simulation("MM",500,"mm_sim")

@@ -6,7 +6,7 @@ areaCompressionModulus,0.8e-3
 poissonsRatio,0.5
 bulkModulus,10000
 repulsionConstant,5e-7
-viscosity,0.00015
+viscosity,0.00001
 repulsionDistance,0.1e-6
 chroVertexDistance,0.6e-6
 chromatinNumber,46

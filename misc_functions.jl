@@ -105,3 +105,20 @@ function get_strand_vectors!(chro,spar)
     end
 
 end
+
+function setup_micromanipulation(nuc)
+
+    mm = micromanipulationType();
+
+    mm.leftmostVertex = argmin(getindex.(nuc.vert,1));
+    mm.rightmostVertex = argmax(getindex.(nuc.vert,1));
+
+    mm.leftNeighbors = nuc.neighbors[mm.leftmostVertex];
+    mm.rightNeighbors = nuc.neighbors[mm.rightmostVertex];
+
+    mm.leftmostVertexPosition = nuc.vert[mm.leftmostVertex]
+    mm.leftNeigborPositions = nuc.vert[mm.leftNeighbors]
+
+    return mm
+
+end

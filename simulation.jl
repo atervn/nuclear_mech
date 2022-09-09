@@ -1,4 +1,9 @@
-function simulation(maxT,folderName)
+function simulation(simType,maxT,folderName)
+
+    if cmp(simType,"MA") != 0 && cmp(simType,"MM") != 0
+        printstyled("Unknown simulation type"; color = :blue)
+        return
+    end
 
     # number of subdivisions when creating the geometry
     nSubdivisions = 4;
@@ -33,19 +38,23 @@ function simulation(maxT,folderName)
     # setup nucleus export
     triCells, lineCells,folderName = setup_export(folderName,nuc,chro,spar)
 
-    # setup pipette
-    pip = generate_pipette_mesh();
-    export_pipette_mesh(folderName,pip)
+    # setup aspiration
+    if cmp(simType,"MA") == 0
+        pip = generate_pipette_mesh();
+        export_pipette_mesh(folderName,pip)
+        # vector to store the aspiration lengths
+        maxX = zeros(Float64,maxT+1)
     
+    # setup micromanipulation 
+    elseif cmp(simType,"MM") == 0
+        mm = setup_micromanipulation(nuc)
+        nuclearLength = zeros(Float64,maxT+1)
+    end
+
     # create the friction matrix
     frictionMatrix = get_friction_matrix(nuc,spar);
-    
-    # vector to store the aspiration lengths
-    maxX = zeros(Float64,maxT+1)
-    
-
+   
     printstyled("Starting simulation ("*Dates.format(now(), "YYYY-mm-dd HH:MM")*")\n"; color = :blue)
-    println
 
     # setup progress bar
     p = Progress(maxT, 1, "Simulating...", 100)
@@ -53,8 +62,12 @@ function simulation(maxT,folderName)
     # run the simulation
     for t = 0:maxT
         
-        maxX[t+1] = maximum(getindex.(nuc.vert,1));
-    
+        if cmp(simType,"MA") == 0
+            maxX[t+1] = maximum(getindex.(nuc.vert,1));
+        elseif cmp(simType,"MM") == 0
+            nuclearLength[t+1] = nuc.vert[mm.rightmostVertex][1] - nuc.vert[mm.leftmostVertex][1];
+        end
+
         envelopeTree = KDTree(nuc.vert);
         chromatinTree = KDTree(chro.vert);
         get_strand_vectors!(chro,spar)
@@ -71,9 +84,12 @@ function simulation(maxT,folderName)
         get_bending_forces!(nuc,spar);
         get_elastic_forces!(nuc,spar);
         get_repulsion_forces!(nuc,spar,envelopeTree);
-        repulsion = get_aspiration_repulsion_forces(nuc,pip,spar);
-        aspiration = get_aspiration_forces(nuc,pip,spar);
-    
+        if cmp(simType,"MA") == 0 
+            repulsion = get_aspiration_repulsion_forces(nuc,pip,spar);
+            aspiration = get_aspiration_forces(nuc,pip,spar);
+        elseif cmp(simType,"MM") == 0
+            micromanipulation = get_micromanipulation_forces(nuc,mm,spar)
+        end
         get_linear_chromatin_forces!(chro,spar);
         get_bending_chromatin_forces!(chro,spar,130)
         get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
@@ -81,16 +97,22 @@ function simulation(maxT,folderName)
         get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
 
 
-        local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.envelopeRepulsion .+ nuc.forces.chromationRepulsion .+ repulsion .+ aspiration;
-
+        local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.envelopeRepulsion .+ nuc.forces.chromationRepulsion;
+        if cmp(simType,"MA") == 0 
+            totalForces .+=  repulsion .+ aspiration
+        elseif cmp(simType,"MM") == 0
+            totalForces .+= micromanipulation
+        end
 
         totalChromatinForces = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion;
         
 
         if mod(t,20) == 0
             vtk_grid(".\\results\\"*folderName*"\\nucl_" * lpad(t,4,"0"), [getindex.(nuc.vert,1) getindex.(nuc.vert,2) getindex.(nuc.vert,3)]', triCells) do vtk
-                vtk["Aspiration forces", VTKPointData()] = [getindex.(aspiration,1) getindex.(aspiration,2) getindex.(aspiration,3)]'
-                vtk["Pipette repulsion forces", VTKPointData()] = [getindex.(repulsion,1) getindex.(repulsion,2) getindex.(repulsion,3)]'
+                if cmp(simType,"MA") == 0 
+                    vtk["Aspiration forces", VTKPointData()] = [getindex.(aspiration,1) getindex.(aspiration,2) getindex.(aspiration,3)]'
+                    vtk["Pipette repulsion forces", VTKPointData()] = [getindex.(repulsion,1) getindex.(repulsion,2) getindex.(repulsion,3)]'
+                end
                 # vtk["Curvature"] = nuc.curvatures;
                 vtk["Element normals", VTKCellData()] = [getindex.(nuc.triangleNormalUnitVectors,1) getindex.(nuc.triangleNormalUnitVectors,2) getindex.(nuc.triangleNormalUnitVectors,3)]'
             end
@@ -114,13 +136,16 @@ function simulation(maxT,folderName)
     
     end
     
-    writedlm(".\\results\\"*folderName*"\\maxX.csv", maxX,',')
+    if cmp(simType,"MA") == 0
+        writedlm(".\\results\\"*folderName*"\\maxX.csv", maxX,',')
+        dL = maxX .- minimum(maxX);
     
+        J = 2*pi.*dL./(3*2.1*3*1);
+        
+        plot(10*dt:dt:maxT*dt,J[11:end],yaxis=:log,xaxis=:log,xlim = (0.1, 200),ylim = (0.01, 10))
+    elseif cmp(simType,"MM") == 0
+        writedlm(".\\results\\"*folderName*"\\nuclearLength.csv", nuclearLength,',')
+    end
     
-    dL = maxX .- minimum(maxX);
-    
-    J = 2*pi.*dL./(3*2.1*3*1);
-    
-    plot(10*dt:dt:maxT*dt,J[11:end],yaxis=:log,xaxis=:log,xlim = (0.1, 200),ylim = (0.01, 10))
     
 end

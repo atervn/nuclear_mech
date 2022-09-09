@@ -409,3 +409,22 @@ function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
         end
     end
 end
+
+function get_micromanipulation_forces(nuc,mm,spar)
+
+    micromanipulation = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+    for i = eachindex(nuc.vert)
+        micromanipulation[i] = Vec(0.,0.,0.);
+    end
+
+    micromanipulation[mm.leftmostVertex] = 100*(mm.leftmostVertexPosition .- nuc.vert[mm.leftmostVertex])
+    micromanipulation[mm.leftNeighbors] = 50*(mm.leftNeigborPositions .- nuc.vert[mm.leftNeighbors])
+
+    forceVector = 50*Vec(1.,0.,0.);
+    micromanipulation[mm.rightmostVertex] = forceVector
+    for i = eachindex(mm.rightNeighbors)
+        micromanipulation[mm.rightNeighbors[i]] = 0.5*forceVector
+    end
+
+    return micromanipulation
+end
