@@ -140,6 +140,6 @@ Base.@kwdef mutable struct micromanipulationType
     leftNeigborPositions::Vector{Vec{3,Float64}} = []
 end
 
-# simulation("MM",50,"misc")
+simulation("MM",5,"misc")
 
-simulation("MM",500,"mm_sim")
+simulation("MM",2000,"mm_sim")
