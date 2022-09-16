@@ -120,7 +120,7 @@ function simulation(simType,maxT,folderName)
         ladEnveForces, ladChroForces = get_lad_forces(nuc,chro,spar)
 
 
-        local totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.envelopeRepulsion .+ nuc.forces.chromationRepulsion .+ ladEnveForces;
+        totalForces = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.envelopeRepulsion .+ nuc.forces.chromationRepulsion .+ ladEnveForces;
         
         if cmp(simType,"MA") == 0 
             totalForces .+=  repulsion .+ aspiration
@@ -132,116 +132,19 @@ function simulation(simType,maxT,folderName)
 
         totalChromatinForces = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion .+ ladChroForces;
     
-        local vX = cg(frictionMatrix,[getindex.(totalForces,1);getindex.(totalChromatinForces,1)]);
-        local vY = cg(frictionMatrix,[getindex.(totalForces,2);getindex.(totalChromatinForces,2)]);
-        local vZ = cg(frictionMatrix,[getindex.(totalForces,3);getindex.(totalChromatinForces,3)]);
+        vX = cg(frictionMatrix,[getindex.(totalForces,1);getindex.(totalChromatinForces,1)]);
+        vY = cg(frictionMatrix,[getindex.(totalForces,2);getindex.(totalChromatinForces,2)]);
+        vZ = cg(frictionMatrix,[getindex.(totalForces,3);getindex.(totalChromatinForces,3)]);
     
-        if mod(t,50) == 0
-            vtk_grid(".\\results\\"*folderName*"\\nucl_" * lpad(t,4,"0"), [getindex.(nuc.vert,1) getindex.(nuc.vert,2) getindex.(nuc.vert,3)]', triCells) do vtk
-                if cmp(simType,"MA") == 0 
-                    vtk["Aspiration forces", VTKPointData()] = [getindex.(aspiration,1) getindex.(aspiration,2) getindex.(aspiration,3)]'
-                    vtk["Pipette repulsion forces", VTKPointData()] = [getindex.(repulsion,1) getindex.(repulsion,2) getindex.(repulsion,3)]'
-                end
-                # vtk["Curvature"] = nuc.curvatures;
-                vtk["Element normals", VTKCellData()] = [getindex.(nuc.triangleNormalUnitVectors,1) getindex.(nuc.triangleNormalUnitVectors,2) getindex.(nuc.triangleNormalUnitVectors,3)]'
-                vtk["Volume forces", VTKPointData()] = [getindex.(nuc.forces.volume,1) getindex.(nuc.forces.volume,2) getindex.(nuc.forces.volume,3)]'
-                vtk["Area forces", VTKPointData()] = [getindex.(nuc.forces.area,1) getindex.(nuc.forces.area,2) getindex.(nuc.forces.area,3)]'
-                vtk["Elastic forces", VTKPointData()] = [getindex.(nuc.forces.elastic,1) getindex.(nuc.forces.elastic,2) getindex.(nuc.forces.elastic,3)]'
-                vtk["enveRepulsion forces", VTKPointData()] = [getindex.(nuc.forces.envelopeRepulsion,1) getindex.(nuc.forces.envelopeRepulsion,2) getindex.(nuc.forces.envelopeRepulsion,3)]'
-                vtk["chroRepulsion forces", VTKPointData()] = [getindex.(nuc.forces.chromationRepulsion,1) getindex.(nuc.forces.chromationRepulsion,2) getindex.(nuc.forces.chromationRepulsion,3)]'
-
-            end
-            vtk_grid(".\\results\\"*folderName*"\\chro_" * lpad(t,4,"0"), [getindex.(chro.vert,1) getindex.(chro.vert,2) getindex.(chro.vert,3)]', lineCells) do vtk
-                vtk["line_id"] = 1:spar.chromatinNumber
-                vtk["Linear Forces", VTKPointData()] = [getindex.(chro.forces.linear,1) getindex.(chro.forces.linear,2) getindex.(chro.forces.linear,3)]'
-                vtk["Bending Forces", VTKPointData()] = [getindex.(chro.forces.bending,1) getindex.(chro.forces.bending,2) getindex.(chro.forces.bending,3)]'
-                vtk["chroRepulsion Forces", VTKPointData()] = [getindex.(chro.forces.chroRepulsion,1) getindex.(chro.forces.chroRepulsion,2) getindex.(chro.forces.chroRepulsion,3)]'
-                vtk["enveRepulsion Forces", VTKPointData()] = [getindex.(chro.forces.enveRepulsion,1) getindex.(chro.forces.enveRepulsion,2) getindex.(chro.forces.enveRepulsion,3)]'
-                vtk["Fluc Forces", VTKPointData()] = [getindex.(fluctuationForces,1) getindex.(fluctuationForces,2) getindex.(fluctuationForces,3)]'
-                vtk["Movement", VTKPointData()] = [dt*vX[length(nuc.vert)+1:end] dt*vY[length(nuc.vert)+1:end] dt*vZ[length(nuc.vert)+1:end]]'
-            end
-
-            # export lads
-            totalNum = sum(length.(nuc.lads));
-
-            vertices = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,totalNum)
-            for i = 1:totalNum
-                vertices[i] = MeshCell(VTKCellTypes.VTK_VERTEX, Int64.([i]));
-            end
-
-            vertexIDs = []
-            allVertices = []
-            for i = 1:spar.chromatinNumber
-                for j = 1:length(nuc.lads[i])
-                    push!(vertexIDs, i)
-                    push!(allVertices, nuc.lads[i][j])
-                end
-            end
-            vertexIDs = Int64.(vertexIDs)
-
-            vtk_grid(".\\results\\"*folderName*"\\enve_lads_" * lpad(t,4,"0"), [getindex.(nuc.vert[allVertices],1) getindex.(nuc.vert[allVertices],2) getindex.(nuc.vert[allVertices],3)]', vertices) do vtk
-                vtk["vertex_id"] = vertexIDs
-            end
-
-            # export chrolads
-            totalNum = sum(length.(chro.lads));
-
-            vertices = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,totalNum)
-            for i = 1:totalNum
-                vertices[i] = MeshCell(VTKCellTypes.VTK_VERTEX, Int64.([i]));
-            end
-
-            vertexIDs = []
-            allVertices = []
-            for i = 1:spar.chromatinNumber
-                for j = 1:length(chro.lads[i])
-                    push!(vertexIDs, i)
-                    push!(allVertices, chro.strandIdx[i][chro.lads[i][j]])
-                end
-            end
-            vertexIDs = Int64.(vertexIDs)
-
-            vtk_grid(".\\results\\"*folderName*"\\chro_lads_" * lpad(t,4,"0"), [getindex.(chro.vert[allVertices],1) getindex.(chro.vert[allVertices],2) getindex.(chro.vert[allVertices],3)]', vertices) do vtk
-                vtk["vertex_id"] = vertexIDs
-            end   
-
-
-
-
-
-        end
-
-        # enveVelocities = Vector{Vec{3,Float64}}(undef,length(nuc.vert))
+        export_data(nuc,chro,spar,folderName,50)
+        
         for i = 1:length(nuc.vert)
-            # enveVelocities[i] = Vec(vX[i],vY[i],vZ[i])
             nuc.vert[i] += Vec(vX[i],vY[i],vZ[i])*dt
         end
-        # chroVelocities = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
+       
         for k = 1:spar.chromatinLength*spar.chromatinNumber
-            # chroVelocities[k] = Vec(vX[length(nuc.vert)+k],vY[length(nuc.vert)+k],vZ[length(nuc.vert)+k])
             chro.vert[k] += Vec(vX[length(nuc.vert)+k],vY[length(nuc.vert)+k],vZ[length(nuc.vert)+k])*dt
         end
-
-        # enveMovements = Vector{Vec{3,Float64}}(undef,length(nuc.vert))
-        # chroMovements = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
-
-        # while true
-
-        #     enveMovements = enveVelocities.*dt;
-        #     if all(norm.(enveMovements) .< 0.05)
-        #         chroMovements = chroVelocities.*dt;
-        #         if all(norm.(chroMovements) .< 0.05)
-        #             break
-        #         else
-        #             dt = dt/2;
-        #         end
-        #     else
-        #         dt = dt/2;
-        #     end
-        # end
-
-        # nuc.vert .+= enveMovements
-        # chro.vert .+= chroMovements
 
         plane = plane - 0.1*dt;
 
