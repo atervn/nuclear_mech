@@ -12,6 +12,7 @@ using NearestNeighbors
 using WriteVTK
 using DelimitedFiles
 using Dates
+using StatsBase
 
 include("create_nucleus.jl")
 include("plotting.jl")
@@ -21,6 +22,7 @@ include("misc_functions.jl")
 include("mesh_generation.jl")
 include("create_chromatin.jl")
 include("simulation.jl")
+include("lad_creation.jl")
 
 Base.@kwdef mutable struct forcesType
     volume::Vector{Vec{3,Float64}} = []
@@ -68,6 +70,7 @@ Base.@kwdef mutable struct nucleusType
     tri31::Array{Any} = [];
     tri12::Array{Any} = [];
     tri13::Array{Any} = [];
+    lads::Vector{Vector{Int64}} = []
 end
 
 Base.@kwdef mutable struct inputParametersType
@@ -123,6 +126,7 @@ Base.@kwdef mutable struct chromatinType
     forces = chromatinForceType()
     vectors::Vector{Vector{Vec{3,Float64}}} = []
     vectorNorms::Vector{Vector{Float64}} = []
+    lads::Vector{Vector{Int64}} = []
 end
 
 Base.@kwdef mutable struct pipetteType
@@ -140,6 +144,6 @@ Base.@kwdef mutable struct micromanipulationType
     leftNeigborPositions::Vector{Vec{3,Float64}} = []
 end
 
-simulation("MM",5,"misc")
+# simulation("PC",5,"misc")
 
-simulation("MM",2000,"mm_sim")
+simulation("PC",6000,"blaa")

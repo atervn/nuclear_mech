@@ -298,7 +298,7 @@ function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
                 if chro.strandIdx[i][j] != closeVertices[j][k]
                     vector = chro.strandVert[i][j] - chro.vert[closeVertices[j][k]]
                     vectorNorm = norm(vector)
-                    chro.forces.strandChroRepulsion[i][j] += -(vectorNorm - spar.repulsionDistance)*vector/vectorNorm ;#24*0.01/vectorNorm^2*(2*0.12^12/vectorNorm^12 - 0.12^6/vectorNorm^6)*vector;
+                    chro.forces.strandChroRepulsion[i][j] += -spar.repulsionConstant*(vectorNorm - spar.repulsionDistance)*vector/vectorNorm ;#24*0.01/vectorNorm^2*(2*0.12^12/vectorNorm^12 - 0.12^6/vectorNorm^6)*vector;
                 end
             end
         end
@@ -307,7 +307,7 @@ end
 
 function get_random_fluctuations(spar)
 
-    strength = 0.5;
+    strength = 0.0;
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
@@ -427,4 +427,32 @@ function get_micromanipulation_forces(nuc,mm,spar)
     end
 
     return micromanipulation
+end
+
+function get_lad_forces(nuc,chro,spar)
+
+    ladEnveForces = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+    ladChroForces = Vector{Vec{3,Float64}}(undef, length(chro.vert));
+
+    for i = 1:length(nuc.vert)
+        ladEnveForces[i] = Vec(0.,0.,0.) 
+    end
+    for i = 1:length(chro.vert)
+        ladChroForces[i] = Vec(0.,0.,0.) 
+    end
+
+    for i = 1:spar.chromatinNumber
+
+        for j = 1:length(chro.lads[i])
+            vector = nuc.vert[nuc.lads[i][j]] - chro.vert[chro.strandIdx[i][chro.lads[i][j]]]
+            distance = norm(vector)
+            magnitude = -1*(distance - 0.5)
+            ladEnveForces[nuc.lads[i][j]] = magnitude*vector/distance
+            ladChroForces[chro.strandIdx[i][chro.lads[i][j]]] = -magnitude*vector/distance
+
+        end
+    end
+
+    return ladEnveForces, ladChroForces
+
 end

@@ -41,7 +41,7 @@ function get_model_parameters(ipar,spar,nuc)
 
     spar.bulkModulus = ipar.bulkModulus/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
-    spar.repulsionConstant = ipar.repulsionConstant/ipar.viscosity*ipar.scalingTime/ipar.scalingLength;
+    spar.repulsionConstant = ipar.repulsionConstant/ipar.viscosity*ipar.scalingTime#/ipar.scalingLength;
 
     spar.repulsionDistance = ipar.repulsionDistance/ipar.scalingLength;
 
@@ -81,7 +81,7 @@ function setup_export(folderName,nuc,chro,spar)
     for i = 1:spar.chromatinNumber
         lineCells[i] = MeshCell(PolyData.Lines(), chro.strandIdx[i]);
     end
-
+    
     return triCells, lineCells, folderName
 
 end

@@ -1,4 +1,4 @@
-function create_all_chromatins(chro,spar)
+function create_all_chromsomes(chro,spar)
 
     chro.vert = Vector{Vec{3,Float64}}(undef, spar.chromatinNumber*spar.chromatinLength);
     chro.strandIdx = Vector{Vector{Int64}}(undef,spar.chromatinNumber)
@@ -172,7 +172,7 @@ function get_other_vertices(chro,spar,vert,startInd,currentInd)
             if !reDoVert
 
                 # check if too close to nuclear membrane
-                if norm(newPoint) > spar.freeNucleusRadius - spar.repulsionDistance
+                if norm(newPoint) >= (spar.freeNucleusRadius - spar.repulsionDistance)
                     reDoVert = true
                 end
                 
