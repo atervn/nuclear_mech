@@ -37,7 +37,8 @@ function simulation(simType,maxT,folderName)
     printstyled("Done!\n"; color = :blue)
 
     # setup nucleus export
-    triCells, lineCells,folderName = setup_export(folderName,nuc,chro,spar)
+    ex = setup_export(folderName,nuc,chro,spar)
+    ex.step = 50;
 
     # setup aspiration
     if cmp(simType,"MA") == 0
@@ -115,7 +116,7 @@ function simulation(simType,maxT,folderName)
         get_linear_chromatin_forces!(chro,spar);
         get_bending_chromatin_forces!(chro,spar,130)
         get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
-        fluctuationForces = get_random_fluctuations(spar)
+        fluctuationForces = get_random_fluctuations(spar,dt)
         get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
         ladEnveForces, ladChroForces = get_lad_forces(nuc,chro,spar)
 
@@ -130,13 +131,13 @@ function simulation(simType,maxT,folderName)
             #totalForces .+= planeRepulsion
         end
 
-        totalChromatinForces = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion .+ ladChroForces;
+        totalChromatinForces = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion .+ ladChroForces + fluctuationForces;
     
         vX = cg(frictionMatrix,[getindex.(totalForces,1);getindex.(totalChromatinForces,1)]);
         vY = cg(frictionMatrix,[getindex.(totalForces,2);getindex.(totalChromatinForces,2)]);
         vZ = cg(frictionMatrix,[getindex.(totalForces,3);getindex.(totalChromatinForces,3)]);
     
-        export_data(nuc,chro,spar,folderName,50)
+        export_data(nuc,chro,spar,ex,t,simType)
         
         for i = 1:length(nuc.vert)
             nuc.vert[i] += Vec(vX[i],vY[i],vZ[i])*dt

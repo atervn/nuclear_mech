@@ -154,47 +154,6 @@ function get_repulsion_forces!(nuc,spar,envelopeTree)
     end
 end
 
-function flat_repulsion_forces(nuc,spar)
-
-    repulsionForces = zeros(Float64,length(nuc.x),3);
-
-    for i = 1:length(nuc.x)
-
-        if nuc.z[i] < spar.repulsionDistance
-
-            distance = nuc.z[i];
-            repulsionForces[i,3] = spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2);
-
-        end
-    end
-end
-
-function flat_repulsion_forces2(nuc,spar,t)
-
-    repulsionForces = zeros(Float64,length(nuc.x),3);
-
-    planePos = -0.002*(t) + 1.5;
-    if planePos < 0.4
-        planePos = 0.4;
-    end
-
-    for i = 1:length(nuc.x)
-
-        if nuc.z[i] > planePos - spar.repulsionDistance
-
-            distance = abs(planePos - nuc.z[i]);
-            repulsionForces[i,3] = -spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2);
-        elseif nuc.z[i] < -planePos + spar.repulsionDistance
-            distance = abs(-planePos - nuc.z[i]);
-            repulsionForces[i,3] = spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2);
-        end
-
-    end
-
-    return repulsionForces
-
-end
-
 function get_aspiration_repulsion_forces(nuc,pip,spar)
 
 
@@ -305,9 +264,9 @@ function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
     end
 end
 
-function get_random_fluctuations(spar)
+function get_random_fluctuations(spar,dt)
 
-    strength = 0.0;
+    strength = sqrt(2*spar.viscosity*1.38e-23*300/(dt))/spar.viscosity/spar.scalingLength*spar.scalingTime;
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
