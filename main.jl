@@ -17,6 +17,6 @@ if !(@isdefined nucleusType)
     using .NuclearMechTypes
 end
 
-# simulation("PC",5,"misc")
+simulation("PC",5,"misc")
 
-simulation("PC",1000,"blaa")
+simulation("PC",200,"blaaa")

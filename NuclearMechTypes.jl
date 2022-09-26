@@ -2,8 +2,9 @@ module NuclearMechTypes
 
 using WriteVTK
 using Meshes
+using SparseArrays
 
-export nucleusType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType
+export nucleusType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType
 
 Base.@kwdef mutable struct forcesType
     volume::Vector{Vec{3,Float64}} = []
@@ -12,6 +13,8 @@ Base.@kwdef mutable struct forcesType
     elastic::Vector{Vec{3,Float64}} = []
     envelopeRepulsion::Vector{Vec{3,Float64}} = []
     chromationRepulsion::Vector{Vec{3,Float64}} = []
+    ladEnveForces::Vector{Vec{3,Float64}} = []
+    total::Vector{Vec{3,Float64}} = []
 end
 
 Base.@kwdef mutable struct nucleusType
@@ -57,12 +60,17 @@ end
 Base.@kwdef mutable struct inputParametersType
     
     freeNucleusRadius::Float64 = 0;
+    laminaStiffness::Float64 = 0;
     laminaYoung::Float64 = 0;
     laminaThickness::Float64 = 0;
     laminaFriction::Float64 = 0;
     areaCompressionModulus::Float64 = 0;
     poissonsRatio::Float64 = 0;
     bulkModulus::Float64 = 0;
+    chromatinBendingModulus::Float64 = 0;
+    chromatinStiffness::Float64 = 0;
+    ladStrenght::Float64 = 0;
+    chromatinNormalAngle::Float64 = 0
     viscosity::Float64 = 0;
     repulsionConstant::Float64 = 0;
     repulsionDistance::Float64 = 0;
@@ -71,18 +79,24 @@ Base.@kwdef mutable struct inputParametersType
     chromatinLength::UInt64 = 0;
     scalingLength::Float64 = 0;
     scalingTime::Float64 = 0;
+    nSubdivisions::Float64 = 0;
+    dt::Float64 = 0;
 
 end
 
 Base.@kwdef mutable struct scaledParametersType
     
     bulkModulus::Float64 = 0;
+    laminaStiffness::Float64 = 0;
     areaCompressionStiffness::Float64 = 0;
     bendingStiffness::Float64 = 0;
-    laminaStiffness::Float64 = 0;
     repulsionConstant::Float64 = 0;
     repulsionDistance::Float64 = 0;
     laminaFriction::Float64 = 0;
+    chromatinBendingModulus::Float64 = 0;
+    chromatinStiffness::Float64 = 0;
+    ladStrenght::Float64 = 0;
+    chromatinNormalAngle::Float64 = 0
     freeNucleusRadius::Float64 = 0;
     chroVertexDistance::Float64 = 0;
     chromatinNumber::UInt64 = 0;
@@ -90,6 +104,8 @@ Base.@kwdef mutable struct scaledParametersType
     scalingLength::Float64 = 0
     scalingTime::Float64 = 0
     viscosity::Float64 = 0;
+    nSubdivisions::Float64 = 0;
+    dt::Float64 = 0;
 end
 
 Base.@kwdef mutable struct chromatinForceType
@@ -101,6 +117,9 @@ Base.@kwdef mutable struct chromatinForceType
     strandBending::Vector{Any} = []
     strandChroRepulsion::Vector{Any} = []
     strandEnveRepulsion::Vector{Any} = []
+    strandLadChroForces::Vector{Any} = []
+    ladChroForces::Vector{Vec{3,Float64}} = []
+    total::Vector{Vec{3,Float64}} = []
 end
 
 Base.@kwdef mutable struct chromatinType
@@ -139,6 +158,14 @@ Base.@kwdef mutable struct exportSettingsType
     ladChroVertices::Vector{Int} = []
     folderName::String = ""
     step::Int64 = 1
+end
+
+Base.@kwdef mutable struct simulationSettingsType
+    frictionMatrix::Any = []
+    envelopeTree::Any = []
+    chromatinTree::Any = []
+    simType::String = ""
+    prog::Any = []
 end
 
 end

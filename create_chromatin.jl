@@ -1,4 +1,4 @@
-function create_all_chromsomes(chro,spar)
+function create_all_chromsomes(chro,spar,ladCenterIdx)
 
     chro.vert = Vector{Vec{3,Float64}}(undef, spar.chromatinNumber*spar.chromatinLength);
     chro.strandIdx = Vector{Vector{Int64}}(undef,spar.chromatinNumber)
@@ -17,7 +17,7 @@ function create_all_chromsomes(chro,spar)
             reDoCounter = 0;
             while true
 
-                vert = create_chromatin_polymer(chro,spar,startInd)
+                vert = create_chromatin_polymer(chro,spar,startInd,ladCenterIdx,k)
 
                 if vert isa Bool
                     reDoCounter += 1
@@ -44,12 +44,14 @@ function create_all_chromsomes(chro,spar)
             chro.forces.bending = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
             chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
             chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
             chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,spar.chromatinNumber)
             chro.vectorNorms = Vector{Vector{Float64}}(undef,spar.chromatinNumber)
             chro.forces.strandLinear = Vector{Any}(undef,spar.chromatinNumber)
             chro.forces.strandBending = Vector{Any}(undef,spar.chromatinNumber)
             chro.forces.strandChroRepulsion = Vector{Any}(undef,spar.chromatinNumber)
             chro.forces.strandEnveRepulsion = Vector{Any}(undef,spar.chromatinNumber)
+            chro.forces.strandLadChroForces = Vector{Any}(undef,spar.chromatinNumber)
             initialize_chromatin_forces!(chro);
             
             for i = 1:spar.chromatinNumber
@@ -60,6 +62,7 @@ function create_all_chromsomes(chro,spar)
                 chro.forces.strandBending[i] = @view chro.forces.bending[chro.strandIdx[i]];
                 chro.forces.strandChroRepulsion[i] = @view chro.forces.chroRepulsion[chro.strandIdx[i]];
                 chro.forces.strandEnveRepulsion[i] = @view chro.forces.enveRepulsion[chro.strandIdx[i]];
+                chro.forces.strandLadChroForces[i] = @view chro.forces.ladChroForces[chro.strandIdx[i]];
             end
 
 
@@ -71,11 +74,11 @@ function create_all_chromsomes(chro,spar)
     end
 end
 
-function create_chromatin_polymer(chro,spar,startInd)
+function create_chromatin_polymer(chro,spar,startInd,ladCenterIdx,k)
     
     vert = Vector{Vec{3,Float64}}(undef,spar.chromatinLength)
 
-    newVertex = get_first_vertex(chro,spar,startInd)
+    newVertex = get_first_vertex(chro,spar,startInd,ladCenterIdx[k])
 
     if newVertex isa Bool
         return false
@@ -86,7 +89,7 @@ function create_chromatin_polymer(chro,spar,startInd)
     # get the other vertices
     for i = 2:spar.chromatinLength
         
-        newVertex = get_other_vertices(chro,spar,vert,startInd,i)
+        newVertex = get_other_vertices(chro,spar,vert,startInd,i,ladCenterIdx,k)
 
         if newVertex isa Bool
             return false
@@ -99,7 +102,7 @@ function create_chromatin_polymer(chro,spar,startInd)
     return vert
 end
 
-function get_first_vertex(chro,spar,startInd)
+function get_first_vertex(chro,spar,startInd,ladCenterIdx)
     
     reDoCounter = 0;
 
@@ -123,6 +126,10 @@ function get_first_vertex(chro,spar,startInd)
                 break
             end
         end
+
+        if norm(vertex - ladCenterIdx) > spar.freeNucleusRadius/3
+            reDoStart = true
+        end
         if !reDoStart
             return vertex
         else
@@ -137,7 +144,7 @@ function get_first_vertex(chro,spar,startInd)
 
 end
 
-function get_other_vertices(chro,spar,vert,startInd,currentInd)
+function get_other_vertices(chro,spar,vert,startInd,currentInd,ladCenterIdx,k)
 
     reDoCounter = 0;
     
@@ -177,8 +184,27 @@ function get_other_vertices(chro,spar,vert,startInd,currentInd)
                 end
                 
                 if !reDoVert
-                    return newPoint
+
+                    distanceFromOwn = norm(newPoint - ladCenterIdx[k])
+
+                    for j = 1:spar.chromatinNumber
+
+                        if j != k && norm(newPoint - ladCenterIdx[j]) < distanceFromOwn
+                            reDoVert = true
+                            break
+                        end
+
+                    end
+
+                    # if norm(newPoint - ladCenterIdx) > spar.freeNucleusRadius/3
+                    #     reDoVert = true
+                    # end
+
+                    if !reDoVert
+                        return newPoint
+                    end
                 end
+
             end
         end
 

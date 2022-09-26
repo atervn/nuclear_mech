@@ -101,7 +101,6 @@ function get_elastic_forces!(nuc,spar)
             vectorNorm = norm(vector);
 
             unitVector = vector/vectorNorm;
-
             force = spar.laminaStiffness*(vectorNorm - nuc.normalLengths[i])*unitVector;
 
             nuc.forces.elastic[nuc.edges[i,1]] += force
@@ -217,13 +216,15 @@ end
 function get_linear_chromatin_forces!(chro,spar)
 
     for i = 1:spar.chromatinNumber
-        chro.forces.strandLinear[i][1:end-1] += 10*(chro.vectorNorms[i] .- spar.chroVertexDistance).*chro.vectors[i]./chro.vectorNorms[i];
+        chro.forces.strandLinear[i][1:end-1] += spar.chromatinStiffness*(chro.vectorNorms[i] .- spar.chroVertexDistance).*chro.vectors[i]./chro.vectorNorms[i];
         chro.forces.strandLinear[i][2:end] -= chro.forces.strandLinear[i][1:end-1];
     end
 end
 
-function get_bending_chromatin_forces!(chro,spar,normAngle)
+function get_bending_chromatin_forces!(chro,spar)
     
+    chro.forces.bending = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
+
     for i = 1:spar.chromatinNumber
 
         vectors1 = -chro.vectors[i][1:end-1]
@@ -233,7 +234,7 @@ function get_bending_chromatin_forces!(chro,spar,normAngle)
 
         angles[angles .>= 1] .= 1.; 
 
-        angles = acosd.(angles);
+        angles = acos.(angles);
         
         unitVectors1 = cross.(vectors1,cross.(vectors1,vectors2));
         unitVectors2 = cross.(vectors2,cross.(vectors2,vectors1));
@@ -241,8 +242,9 @@ function get_bending_chromatin_forces!(chro,spar,normAngle)
         unitVectors1 = unitVectors1./norm.(unitVectors1);
         unitVectors2 = unitVectors2./norm.(unitVectors2);
         
-        chro.forces.strandBending[i][1:end-2] += -1e-2.*(angles .- normAngle).*unitVectors1;
-        chro.forces.strandBending[i][3:end] += -1e-2.*(angles .- normAngle).*unitVectors2;
+        chro.forces.strandBending[i][1:end-2] += -spar.chromatinBendingModulus./chro.vectorNorms[i][1:end-1].*(angles .- spar.chromatinNormalAngle).*unitVectors1;
+        chro.forces.strandBending[i][3:end] += -spar.chromatinBendingModulus./chro.vectorNorms[i][2:end].*(angles .- spar.chromatinNormalAngle).*unitVectors2;
+        chro.forces.bending[1+spar.chromatinLength*(i-1):spar.chromatinLength+spar.chromatinLength*(i-1)] = chro.forces.strandBending[i];
     end
 end
 
@@ -264,9 +266,9 @@ function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
     end
 end
 
-function get_random_fluctuations(spar,dt)
+function get_random_fluctuations(spar)
 
-    strength = sqrt(2*spar.viscosity*1.38e-23*300/(dt))/spar.viscosity/spar.scalingLength*spar.scalingTime;
+    strength = sqrt(2*spar.viscosity*1.38e-23*300/(spar.dt))/spar.viscosity/spar.scalingLength*spar.scalingTime;
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
@@ -285,6 +287,7 @@ function initialize_chromatin_forces!(chro)
         chro.forces.bending[i] = Vec(0.,0.,0.)
         chro.forces.chroRepulsion[i] = Vec(0.,0.,0.)
         chro.forces.enveRepulsion[i] = Vec(0.,0.,0.)
+        chro.forces.ladChroForces[i] = Vec(0.,0.,0.)
 
     end
 end
@@ -388,16 +391,16 @@ function get_micromanipulation_forces(nuc,mm,spar)
     return micromanipulation
 end
 
-function get_lad_forces(nuc,chro,spar)
+function get_lad_forces!(nuc,chro,spar)
 
-    ladEnveForces = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
-    ladChroForces = Vector{Vec{3,Float64}}(undef, length(chro.vert));
+    nuc.forces.ladEnveForces = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+    chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef, length(chro.vert));
 
     for i = 1:length(nuc.vert)
-        ladEnveForces[i] = Vec(0.,0.,0.) 
+        nuc.forces.ladEnveForces[i] = Vec(0.,0.,0.) 
     end
     for i = 1:length(chro.vert)
-        ladChroForces[i] = Vec(0.,0.,0.) 
+        chro.forces.ladChroForces[i] = Vec(0.,0.,0.) 
     end
 
     for i = 1:spar.chromatinNumber
@@ -405,13 +408,74 @@ function get_lad_forces(nuc,chro,spar)
         for j = 1:length(chro.lads[i])
             vector = nuc.vert[nuc.lads[i][j]] - chro.vert[chro.strandIdx[i][chro.lads[i][j]]]
             distance = norm(vector)
-            magnitude = -1*(distance - 0.5)
-            ladEnveForces[nuc.lads[i][j]] = magnitude*vector/distance
-            ladChroForces[chro.strandIdx[i][chro.lads[i][j]]] = -magnitude*vector/distance
+            magnitude = -spar.ladStrenght*(distance - 0.5)
+            nuc.forces.ladEnveForces[nuc.lads[i][j]] = magnitude*vector/distance
+            chro.forces.ladChroForces[chro.strandIdx[i][chro.lads[i][j]]] = -magnitude*vector/distance
 
         end
     end
 
-    return ladEnveForces, ladChroForces
+end
+
+function get_plane_repulsion(nuc,plane,spar)
+
+    planeRepulsion = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+    for i = eachindex(nuc.vert)
+        planeRepulsion[i] = Vec(0.,0.,0.);
+    end
+    for i = eachindex(nuc.vert)
+        if plane - nuc.vert[i][3] < spar.repulsionDistance
+            distance = plane - nuc.vert[i][3];
+            planeRepulsion[i] += Vec(0.,0.,-spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2))
+        end
+    end
+    for i = eachindex(nuc.vert)
+        if abs(-spar.freeNucleusRadius - nuc.vert[i][3]) < spar.repulsionDistance
+            distance = abs(-spar.freeNucleusRadius - nuc.vert[i][3]);
+            planeRepulsion[i] += Vec(0.,0.,spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2))
+        end
+    end
+
+    return planeRepulsion
+
+end
+
+function get_forces!(nuc,chro,spar,ext,simset)
+
+    get_volume_forces!(nuc,spar);
+    get_area_forces!(nuc,spar);
+    get_bending_forces!(nuc,spar);
+    get_elastic_forces!(nuc,spar);
+    get_repulsion_forces!(nuc,spar,simset.envelopeTree);
+
+    if cmp(simset.simType,"MA") == 0 
+        repulsion = get_aspiration_repulsion_forces(nuc,ext(1),spar);
+        aspiration = get_aspiration_forces(nuc,ext(1),spar);
+
+    elseif cmp(simset.simType,"MM") == 0
+        micromanipulation = get_micromanipulation_forces(nuc,ext(1),spar)
+
+    elseif cmp(simset.simType,"PC") == 0
+        planeRepulsion = get_plane_repulsion(nuc,ext,spar)
+    end
+    get_linear_chromatin_forces!(chro,spar);
+    get_bending_chromatin_forces!(chro,spar)
+    get_chromation_chromation_repulsion_forces!(chro,spar,simset.chromatinTree)
+    fluctuationForces = get_random_fluctuations(spar)
+    get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,simset.envelopeTree)
+    get_lad_forces!(nuc,chro,spar)
+
+
+    nuc.forces.total = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.envelopeRepulsion .+ nuc.forces.chromationRepulsion .+ nuc.forces.ladEnveForces;
+    
+    if cmp(simset.simType,"MA") == 0 
+        nuc.forces.total .+=  repulsion .+ aspiration
+    elseif cmp(simset.simType,"MM") == 0
+        nuc.forces.total .+= micromanipulation
+    elseif cmp(simset.simType,"PC") == 0
+        nuc.forces.total .+= planeRepulsion
+    end
+
+    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion .+ chro.forces.ladChroForces + fluctuationForces;
 
 end

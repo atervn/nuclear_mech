@@ -32,7 +32,6 @@ end
 
 function get_model_parameters(ipar,spar,nuc)
 
-    spar.laminaStiffness = 2/sqrt(3)*ipar.laminaYoung*ipar.laminaThickness;
     spar.laminaStiffness = spar.laminaStiffness/ipar.viscosity*ipar.scalingTime;
 
     spar.laminaFriction = ipar.laminaFriction/ipar.viscosity;
@@ -53,12 +52,21 @@ function get_model_parameters(ipar,spar,nuc)
 
     spar.chroVertexDistance = ipar.chroVertexDistance/ipar.scalingLength;
 
+    spar.chromatinBendingModulus = ipar.chromatinBendingModulus/ipar.viscosity/ipar.scalingLength*ipar.scalingTime
+
+    spar.chromatinStiffness = ipar.chromatinStiffness/ipar.viscosity*ipar.scalingTime;
+
+    spar.ladStrenght = ipar.ladStrenght/ipar.viscosity*ipar.scalingTime;
+
+    spar.chromatinNormalAngle = ipar.chromatinNormalAngle*pi/180
+
     spar.scalingLength = ipar.scalingLength
     spar.scalingTime = ipar.scalingTime
     spar.chromatinNumber = ipar.chromatinNumber
     spar.chromatinLength = ipar.chromatinLength
     spar.viscosity = ipar.viscosity
-    
+    spar.dt = ipar.dt/ipar.scalingTime
+
     return spar
 
 end
@@ -200,6 +208,7 @@ if mod(t,ex.step) == 0
         vtk["Bending Forces", VTKPointData()] = [getindex.(chro.forces.bending,1) getindex.(chro.forces.bending,2) getindex.(chro.forces.bending,3)]'
         vtk["chroRepulsion Forces", VTKPointData()] = [getindex.(chro.forces.chroRepulsion,1) getindex.(chro.forces.chroRepulsion,2) getindex.(chro.forces.chroRepulsion,3)]'
         vtk["enveRepulsion Forces", VTKPointData()] = [getindex.(chro.forces.enveRepulsion,1) getindex.(chro.forces.enveRepulsion,2) getindex.(chro.forces.enveRepulsion,3)]'
+        vtk["LAD forces", VTKPointData()] = [getindex.(chro.forces.ladChroForces,1) getindex.(chro.forces.ladChroForces,2) getindex.(chro.forces.ladChroForces,3)]'
         # vtk["Fluc Forces", VTKPointData()] = [getindex.(fluctuationForces,1) getindex.(fluctuationForces,2) getindex.(fluctuationForces,3)]'
         # vtk["Movement", VTKPointData()] = [dt*vX[length(nuc.vert)+1:end] dt*vY[length(nuc.vert)+1:end] dt*vZ[length(nuc.vert)+1:end]]'
     end
@@ -219,5 +228,46 @@ if mod(t,ex.step) == 0
     end   
 
 end
+
+end
+
+function solve_system!(nuc,chro,spar,simset)
+
+    vX = cg(simset.frictionMatrix,[getindex.(nuc.forces.total,1);getindex.(chro.forces.total,1)]);
+    vY = cg(simset.frictionMatrix,[getindex.(nuc.forces.total,2);getindex.(chro.forces.total,2)]);
+    vZ = cg(simset.frictionMatrix,[getindex.(nuc.forces.total,3);getindex.(chro.forces.total,3)]);
+
+    for i = 1:length(nuc.vert)
+        nuc.vert[i] += Vec(vX[i],vY[i],vZ[i])*spar.dt
+    end
+   
+    for k = 1:spar.chromatinLength*spar.chromatinNumber
+        chro.vert[k] += Vec(vX[length(nuc.vert)+k],vY[length(nuc.vert)+k],vZ[length(nuc.vert)+k])*spar.dt
+    end
+
+end
+
+function get_iteration_properties!(nuc,chro,simset,spar)
+   
+    simset.envelopeTree = KDTree(nuc.vert);
+    simset.chromatinTree = KDTree(chro.vert);
+    get_strand_vectors!(chro,spar)
+    initialize_chromatin_forces!(chro)
+
+    get_edge_vectors!(nuc);
+    get_voronoi_areas!(nuc);
+    get_area_unit_vectors!(nuc);
+    # get_local_curvatures!(nuc);
+    get_triangle_normals!(nuc);
+
+end
+
+function save_specific_data!(nuc,ext,simset)
+   
+    if cmp(simset.simType,"MA") == 0
+        ext(2)[t+1] = maximum(getindex.(nuc.vert,1));
+    elseif cmp(simset.simType,"MM") == 0
+        ext(2)[t+1] = nuc.vert[ext(1).rightmostVertex][1] - nuc.vert[ext(1).leftmostVertex][1];
+    end
 
 end

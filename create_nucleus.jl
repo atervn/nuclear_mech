@@ -115,7 +115,7 @@ function add_middle_vertices!(nuc,i,radius)
 end
 
 function subdivide_triangles!(nuc,radius)
-    
+
     newVertexIdx = zeros(Int64,size(nuc.edges,1));
     
     @inbounds for i = 1:size(nuc.edges,1)
@@ -160,13 +160,13 @@ function subdivide_triangles!(nuc,radius)
         
 end
 
-function subdivide_mesh!(nuc,ipar,nSubdivisions)
+function subdivide_mesh!(nuc,ipar)
     
     radius = ipar.freeNucleusRadius/ipar.scalingLength;
 
     nuc = get_edges!(nuc);
 
-    @inbounds for i = 1:nSubdivisions
+    for i = 1:ipar.nSubdivisions
         nuc = subdivide_triangles!(nuc,radius);
         nuc = get_edges!(nuc);
     end
