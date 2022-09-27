@@ -35,7 +35,7 @@ function create_icosahedron!(nuc,ipar)
     return nuc
 end
 
-function get_edges!(nuc)
+function get_edges(nuc)
 
     # initialize a vector for the pairs
     nuc.edges = zeros(0,2);
@@ -114,10 +114,10 @@ function add_middle_vertices!(nuc,i,radius)
     return nuc
 end
 
-function subdivide_triangles!(nuc,radius)
+function subdivide_triangles(nuc,radius)
 
     newVertexIdx = zeros(Int64,size(nuc.edges,1));
-    
+
     @inbounds for i = 1:size(nuc.edges,1)
         if nuc.firstEdges[i] == 1
             nuc = add_middle_vertices!(nuc,i,radius);
@@ -147,17 +147,8 @@ function subdivide_triangles!(nuc,radius)
     end
 
     nuc.tri = newTriangles;
-
-    nuc.vertexTri = fill(Int[], length(nuc.vert), 2);
-
-    for i = 1:length(nuc.vert)
-        aa = findall(nuc.tri  .== i);
-        nuc.vertexTri[i,1] = [i[1] for i in aa];
-        nuc.vertexTri[i,2] = [i[2]-1 for i in aa];
-    end
-
+    nuc = get_vertex_triangles(nuc) 
     return nuc
-        
 end
 
 function subdivide_mesh!(nuc,ipar)
@@ -167,8 +158,8 @@ function subdivide_mesh!(nuc,ipar)
     nuc = get_edges!(nuc);
 
     for i = 1:ipar.nSubdivisions
-        nuc = subdivide_triangles!(nuc,radius);
-        nuc = get_edges!(nuc);
+        nuc = subdivide_triangles(nuc,radius);
+        nuc = get_edges(nuc);
     end
 
     return nuc
@@ -244,6 +235,20 @@ function setup_nucleus_data(nuc)
         lengths[i] = norm(nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges[i,1]]);
     end
     nuc.normalLengths = lengths;
+
+    return nuc
+
+end
+
+function get_vertex_triangles(nuc)
+    
+    nuc.vertexTri = fill(Int[], length(nuc.vert), 2);
+
+    for i = 1:length(nuc.vert)
+        aa = findall(nuc.tri  .== i);
+        nuc.vertexTri[i,1] = [i[1] for i in aa];
+        nuc.vertexTri[i,2] = [i[2]-1 for i in aa];
+    end
 
     return nuc
 

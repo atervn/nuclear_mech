@@ -135,6 +135,16 @@ function setup_export(folderName,nuc,chro,spar)
     end
     ex.ladChroIdx = Int64.(ex.ladChroIdx)
 
+    # export lad indices
+    ladExport = Matrix{Int64}[];
+    for i = 1:spar.chromatinNumber
+        for j = 1:length(nuc.lads[i])
+            newLine = [i nuc.lads[i][j] chro.lads[i][j]]
+            push!(ladExport,newLine)
+        end
+    end
+
+    writedlm(".\\results\\"*folderName*"\\lads.csv", ladExport,',')
 
     return ex
 
@@ -270,4 +280,216 @@ function save_specific_data!(nuc,ext,simset)
         ext(2)[t+1] = nuc.vert[ext(1).rightmostVertex][1] - nuc.vert[ext(1).leftmostVertex][1];
     end
 
+end
+
+function check_simulation_type(simType)
+
+    if cmp(simType,"MA") != 0 && cmp(simType,"MM") != 0 && cmp(simType,"PC") != 0 && cmp(simType,"INIT") != 0
+        printstyled("Unknown simulation type"; color = :blue)
+        return true
+    end
+
+    return false
+
+end
+
+function setup_simulation(initType,simType)
+
+    # model parameters
+    ipar = inputParametersType();
+    ipar = read_parameters(ipar,"./parameters.txt");
+
+    if cmp(initType,"load") == 0
+        importFolder = pick_folder(pwd()*"\\results")
+    end
+    # create nucleus
+    nuc = nucleusType();
+    if cmp(initType,"new") == 0
+        printstyled("Creating nuclear envelope..."; color = :blue)
+        nuc = create_icosahedron!(nuc,ipar);
+        nuc = subdivide_mesh!(nuc,ipar)
+    elseif cmp(initType,"load") == 0
+        printstyled("Loading nuclear envelope..."; color = :blue)
+        nuc,importNumber = import_envelope(nuc,importFolder)
+    end
+
+    nuc = setup_nucleus_data(nuc)
+    printstyled("Done!\n"; color = :blue)
+    
+    # scale parameters
+    spar = scaledParametersType();
+    spar = get_model_parameters(ipar,spar,nuc);
+    
+    chro = chromatinType();
+    if cmp(initType,"new") == 0
+        ladCenterIdx = get_lad_centers(nuc,spar)
+        nuc.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar)
+
+        printstyled("Creating chromatin..."; color = :blue)
+        
+        chro = create_all_chromsomes(chro,spar,nuc.vert[ladCenterIdx])
+        
+        chro.lads = get_lad_chro_vertices(nuc,spar)
+    elseif cmp(initType,"load") == 0
+        printstyled("Loading chromatin..."; color = :blue)
+        chro = import_chromatin(chro,importFolder,importNumber)
+
+        nuc,chro = import_lads(nuc,chro,importFolder,spar)
+
+    end
+
+    printstyled("Done!\n"; color = :blue)
+
+    simset = simulationSettingsType()
+    simset.frictionMatrix = get_friction_matrix(nuc,spar);
+    simset.simType = simType;
+
+    # setup aspiration
+    if cmp(simType,"MA") == 0
+        pip = generate_pipette_mesh();
+        export_pipette_mesh(folderName,pip)
+        # vector to store the aspiration lengths
+        maxX = zeros(Float64,maxT+1)
+        ext = (pip,maxX)
+    # setup micromanipulation 
+    elseif cmp(simType,"MM") == 0
+        mm = setup_micromanipulation(nuc)
+        nuclearLength = zeros(Float64,maxT+1)
+        ext = (mm,nuclearLength)
+    elseif cmp(simType,"PC") == 0
+        plane = spar.freeNucleusRadius + spar.repulsionDistance;
+        ext = (plane)
+    elseif cmp(simType,"INIT") == 0
+        ext = ()
+    end
+
+    return nuc, chro, spar, simset,ext
+
+end
+
+function import_envelope(nuc,importFolder)
+
+    files = readdir(importFolder)
+    ifNucFile = zeros(Bool,length(files))
+    for i = eachindex(ifNucFile)
+        ifNucFile[i] = cmp(files[i][1:4],"nucl") == 0
+    end
+
+    nucFileIdx = findall(ifNucFile)
+
+    numTimePoints = length(nucFileIdx)
+
+    numOfDigitsInName = sum(.!isempty.([filter(isdigit, collect(s)) for s in files[nucFileIdx[1]]]))
+
+    timePointNumbers = zeros(Int64,numTimePoints)
+    for i = eachindex(timePointNumbers)
+
+        tempNum = [filter(isdigit, collect(s)) for s in files[nucFileIdx[i]]][end-(numOfDigitsInName+3):end-4]
+
+        numString = ""
+        for j = 1:numOfDigitsInName
+            numString = numString*string(tempNum[j][1])
+        end
+
+        timePointNumbers[i] = parse(Int64,numString)
+    end
+
+    importNumber = lpad(maximum(timePointNumbers),numOfDigitsInName,"0")
+
+    importName = "nucl_"*importNumber
+
+    vtk = VTKFile(importFolder*"\\"*importName*".vtu")
+
+    vert = get_points(vtk)
+
+    nuc.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+    for i = 1:size(vert,2)
+        nuc.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
+    end
+
+    VTKCelldata = get_cells(vtk)
+    tri = VTKCelldata.connectivity
+
+    # convert data to the required format
+    tri = reshape(tri,(3,:))
+    tri = tri' .+ 1
+    nuc.tri = tri
+
+    nuc = get_edges(nuc)
+    nuc = get_vertex_triangles(nuc)
+    
+    return nuc,importNumber
+end
+
+function import_chromatin(chro,importFolder,importNumber)
+
+    vtk = VTKFile(importFolder*"\\chro_"*importNumber*".vtp")
+    vert = get_points(vtk)
+
+    chro.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+    for i = 1:size(vert,2)
+        chro.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
+    end
+
+    endPoints = get_primitives(vtk,"Lines").offsets
+
+    chro.strandIdx = Vector{Vector{Int64}}(undef,length(endPoints))
+    for i = 1:length(endPoints)
+        if i == 1
+            chro.strandIdx[i] = collect(1:endPoints[i])
+        else
+            chro.strandIdx[i] = collect(endPoints[i-1] + 1:endPoints[i])
+        end
+    end
+
+    chromatinLength = endPoints[1]
+    chromatinNumber = length(endPoints);
+
+    chro.forces.linear = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    chro.forces.bending = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,chromatinNumber)
+    chro.vectorNorms = Vector{Vector{Float64}}(undef,chromatinNumber)
+    chro.forces.strandLinear = Vector{Any}(undef,chromatinNumber)
+    chro.forces.strandBending = Vector{Any}(undef,chromatinNumber)
+    chro.forces.strandChroRepulsion = Vector{Any}(undef,chromatinNumber)
+    chro.forces.strandEnveRepulsion = Vector{Any}(undef,chromatinNumber)
+    chro.forces.strandLadChroForces = Vector{Any}(undef,chromatinNumber)
+    initialize_chromatin_forces!(chro);
+    
+    chro.strandVert = Vector{Any}(undef,chromatinNumber)
+
+    for i = 1:chromatinNumber
+        chro.strandVert[i] = @view chro.vert[chro.strandIdx[i]];
+        chro.vectors[i] = chro.strandVert[i][2:end] .- chro.strandVert[i][1:end-1];
+        chro.vectorNorms[i] = norm.(chro.vectors[i])
+        chro.forces.strandLinear[i] = @view chro.forces.linear[chro.strandIdx[i]];
+        chro.forces.strandBending[i] = @view chro.forces.bending[chro.strandIdx[i]];
+        chro.forces.strandChroRepulsion[i] = @view chro.forces.chroRepulsion[chro.strandIdx[i]];
+        chro.forces.strandEnveRepulsion[i] = @view chro.forces.enveRepulsion[chro.strandIdx[i]];
+        chro.forces.strandLadChroForces[i] = @view chro.forces.ladChroForces[chro.strandIdx[i]];
+    end
+
+    return chro
+
+end
+
+function import_lads(nuc,chro,importFolder,spar)
+
+    nuc.lads = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
+    chro.lads = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
+
+    tempLads = readdlm(importFolder*"\\lads.csv", ',', Int64, '\n')
+
+    for i = 1:spar.chromatinNumber
+
+        tempIdx = findall(tempLads[:,1] .== i)
+        nuc.lads[i] = tempLads[tempIdx,2]
+        chro.lads[i] = tempLads[tempIdx,3]
+
+    end
+
+    return nuc,chro
 end

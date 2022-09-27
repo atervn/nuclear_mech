@@ -1,6 +1,6 @@
 using Plots, Statistics, LinearAlgebra, IterativeSolvers, SparseArrays, ProgressMeter,
 Meshes, FileIO, MeshIO, NearestNeighbors, ProfileView, WriteVTK, DelimitedFiles, Dates,
-StatsBase
+StatsBase, ReadVTK
 
 include("create_nucleus.jl")
 include("plotting.jl")
@@ -17,6 +17,6 @@ if !(@isdefined nucleusType)
     using .NuclearMechTypes
 end
 
-simulation("PC",5,"misc")
+# simulation("PC",5,"misc")
 
-simulation("PC",200,"blaaa")
+simulation("PC",2000,"blaaa")
