@@ -1,5 +1,5 @@
 freeNucleusRadius,6.6e-6
-laminaStiffness,2e-4
+laminaStiffness,10e-4
 laminaThickness,80e-9
 laminaFriction,50e-5
 areaCompressionModulus,0.8e-3
@@ -7,10 +7,10 @@ poissonsRatio,0.5
 bulkModulus,10000
 chromatinBendingModulus,2e-16
 chromatinStiffness,1e-3
-ladStrenght,0.1e-3
+ladStrenght,1e-4
 chromatinNormalAngle,130
-repulsionConstant,5e-4
-viscosity,0.0001
+repulsionConstant,5e-3
+viscosity,0.000002
 repulsionDistance,0.1e-6
 chroVertexDistance,0.6e-6
 chromatinNumber,46

@@ -1,6 +1,6 @@
 using Plots, Statistics, LinearAlgebra, IterativeSolvers, SparseArrays, ProgressMeter,
 Meshes, FileIO, MeshIO, NearestNeighbors, ProfileView, WriteVTK, DelimitedFiles, Dates,
-StatsBase, ReadVTK
+StatsBase, ReadVTK, NativeFileDialog
 
 include("create_nucleus.jl")
 include("plotting.jl")
@@ -19,4 +19,4 @@ end
 
 # simulation("PC",5,"misc")
 
-simulation("PC",2000,"blaaa")
+simulation("MM",5000,"pppc_test","load";importFolder = "blaaa_61")

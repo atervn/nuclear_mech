@@ -1,4 +1,4 @@
-function get_friction_matrix(nuc,spar)
+function get_friction_matrix(nuc,chro,spar)
 
     frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.vert)+spar.chromatinLength*spar.chromatinNumber,length(nuc.vert)+spar.chromatinLength*spar.chromatinNumber);
 
@@ -7,8 +7,43 @@ function get_friction_matrix(nuc,spar)
         frictionMatrix[j,nuc.neighbors[j]] .= -spar.laminaFriction;
     end
 
-    for j = length(nuc.vert)+1:length(nuc.vert)+spar.chromatinLength*spar.chromatinNumber
+    chroStart = length(nuc.vert)+1
+    for j = chroStart:chroStart+spar.chromatinLength*spar.chromatinNumber-1
         frictionMatrix[j,j] = 1
+    end
+
+    constant = 0.05;
+
+    for j = 1:spar.chromatinNumber
+        startIdx = chroStart + spar.chromatinLength*(j-1)
+        endIdx = chroStart + spar.chromatinLength*(j)-1
+
+        for k = startIdx:endIdx
+            if k == startIdx
+                frictionMatrix[k,k+1] = -spar.laminaFriction*constant
+                frictionMatrix[k,k] += spar.laminaFriction*constant
+            elseif k == endIdx
+                frictionMatrix[k,k-1] = -spar.laminaFriction*constant
+                frictionMatrix[k,k] += spar.laminaFriction*constant
+            else
+                frictionMatrix[k,k+1] = -spar.laminaFriction*constant
+                frictionMatrix[k,k-1] = -spar.laminaFriction*constant
+                frictionMatrix[k,k] += 2*spar.laminaFriction*constant
+            end
+        end
+
+        for k = 1:length(chro.lads[j])
+
+            nucVertex = nuc.lads[j][k]
+            chroVertex = startIdx + chro.lads[j][k] - 1
+
+            frictionMatrix[nucVertex,chroVertex] = -spar.laminaFriction*constant
+            frictionMatrix[chroVertex,nucVertex] = -spar.laminaFriction*constant
+            frictionMatrix[chroVertex,chroVertex] += spar.laminaFriction*constant
+            frictionMatrix[nucVertex,nucVertex] += spar.laminaFriction*constant
+
+        end
+
     end
 
     return frictionMatrix
@@ -32,8 +67,8 @@ end
 
 function get_model_parameters(ipar,spar,nuc)
 
-    spar.laminaStiffness = spar.laminaStiffness/ipar.viscosity*ipar.scalingTime;
-
+    spar.laminaStiffness = ipar.laminaStiffness/ipar.viscosity*ipar.scalingTime;
+    println(spar.laminaStiffness)
     spar.laminaFriction = ipar.laminaFriction/ipar.viscosity;
 
     spar.areaCompressionStiffness = ipar.areaCompressionModulus/(mean(nuc.normalLengths).*ipar.scalingLength);
@@ -45,7 +80,7 @@ function get_model_parameters(ipar,spar,nuc)
     spar.bulkModulus = ipar.bulkModulus/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
     spar.repulsionConstant = ipar.repulsionConstant/ipar.viscosity*ipar.scalingTime#/ipar.scalingLength;
-
+    println(spar.repulsionConstant)
     spar.repulsionDistance = ipar.repulsionDistance/ipar.scalingLength;
 
     spar.freeNucleusRadius = ipar.freeNucleusRadius/ipar.scalingLength;
@@ -55,7 +90,7 @@ function get_model_parameters(ipar,spar,nuc)
     spar.chromatinBendingModulus = ipar.chromatinBendingModulus/ipar.viscosity/ipar.scalingLength*ipar.scalingTime
 
     spar.chromatinStiffness = ipar.chromatinStiffness/ipar.viscosity*ipar.scalingTime;
-
+    println(spar.chromatinStiffness)
     spar.ladStrenght = ipar.ladStrenght/ipar.viscosity*ipar.scalingTime;
 
     spar.chromatinNormalAngle = ipar.chromatinNormalAngle*pi/180
@@ -73,23 +108,29 @@ end
 
 #########################################################################################################
 
-function setup_export(folderName,nuc,chro,spar)
+function setup_export(folderName,nuc,chro,spar,nameDate)
 
 
     ex = exportSettingsType()
+    
+    if nameDate == "yes"
+        ex.folderName = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")*folderName
+    else
+        ex.folderName = folderName
+    end
+
     try
-        mkdir(".\\results\\"*folderName)
+        mkdir(".\\results\\"*ex.folderName)
     catch
         for i = 1:1000
             try
-                mkdir(".\\results\\"*folderName*"_"*string(i))
-                folderName = folderName*"_"*string(i)
+                mkdir(".\\results\\"*ex.folderName*"_"*string(i))
+                ex.folderName = ex.folderName*"_"*string(i)
                 break
             catch
             end
         end
     end
-    ex.folderName = folderName
 
     ex.enveCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,size(nuc.tri,1))
     for i = 1:size(nuc.tri,1)
@@ -144,7 +185,7 @@ function setup_export(folderName,nuc,chro,spar)
         end
     end
 
-    writedlm(".\\results\\"*folderName*"\\lads.csv", ladExport,',')
+    writedlm(".\\results\\"*ex.folderName*"\\lads.csv", ladExport,',')
 
     return ex
 
@@ -208,7 +249,7 @@ if mod(t,ex.step) == 0
         vtk["Volume forces", VTKPointData()] = [getindex.(nuc.forces.volume,1) getindex.(nuc.forces.volume,2) getindex.(nuc.forces.volume,3)]'
         vtk["Area forces", VTKPointData()] = [getindex.(nuc.forces.area,1) getindex.(nuc.forces.area,2) getindex.(nuc.forces.area,3)]'
         vtk["Elastic forces", VTKPointData()] = [getindex.(nuc.forces.elastic,1) getindex.(nuc.forces.elastic,2) getindex.(nuc.forces.elastic,3)]'
-        vtk["enveRepulsion forces", VTKPointData()] = [getindex.(nuc.forces.envelopeRepulsion,1) getindex.(nuc.forces.envelopeRepulsion,2) getindex.(nuc.forces.envelopeRepulsion,3)]'
+        # vtk["enveRepulsion forces", VTKPointData()] = [getindex.(nuc.forces.envelopeRepulsion,1) getindex.(nuc.forces.envelopeRepulsion,2) getindex.(nuc.forces.envelopeRepulsion,3)]'
         vtk["chroRepulsion forces", VTKPointData()] = [getindex.(nuc.forces.chromationRepulsion,1) getindex.(nuc.forces.chromationRepulsion,2) getindex.(nuc.forces.chromationRepulsion,3)]'
 
     end
@@ -272,12 +313,12 @@ function get_iteration_properties!(nuc,chro,simset,spar)
 
 end
 
-function save_specific_data!(nuc,ext,simset)
+function save_specific_data!(nuc,ext,simset,t)
    
     if cmp(simset.simType,"MA") == 0
-        ext(2)[t+1] = maximum(getindex.(nuc.vert,1));
+        ext[2][t+1] = maximum(getindex.(nuc.vert,1));
     elseif cmp(simset.simType,"MM") == 0
-        ext(2)[t+1] = nuc.vert[ext(1).rightmostVertex][1] - nuc.vert[ext(1).leftmostVertex][1];
+        ext[2][t+1] = nuc.vert[ext[1].rightmostVertex][1] - nuc.vert[ext[1].leftmostVertex][1];
     end
 
 end
@@ -293,14 +334,18 @@ function check_simulation_type(simType)
 
 end
 
-function setup_simulation(initType,simType)
+function setup_simulation(initType,simType,maxT,importFolder)
 
     # model parameters
     ipar = inputParametersType();
     ipar = read_parameters(ipar,"./parameters.txt");
 
     if cmp(initType,"load") == 0
-        importFolder = pick_folder(pwd()*"\\results")
+        if importFolder == ""
+            importFolder = pick_folder(pwd()*"\\results")
+        else
+            importFolder = pwd()*"\\results\\"*importFolder
+        end
     end
     # create nucleus
     nuc = nucleusType();
@@ -341,7 +386,7 @@ function setup_simulation(initType,simType)
     printstyled("Done!\n"; color = :blue)
 
     simset = simulationSettingsType()
-    simset.frictionMatrix = get_friction_matrix(nuc,spar);
+    simset.frictionMatrix = get_friction_matrix(nuc,chro,spar)
     simset.simType = simType;
 
     # setup aspiration

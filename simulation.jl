@@ -1,13 +1,13 @@
-function simulation(simType,maxT,folderName)
+function simulation(simType,maxT,folderName, initState; importFolder ="", nameDate = "yes")
 
     if check_simulation_type(simType); return; end
 
     # setup simulation
-    nuc,chro,spar,simset,ext = setup_simulation("load",simType)
+    nuc,chro,spar,simset,ext = setup_simulation(initState,simType,maxT,importFolder)
 
     # setup nucleus export
-    ex = setup_export(folderName,nuc,chro,spar)
-    ex.step = 10;
+    ex = setup_export(folderName,nuc,chro,spar,nameDate)
+    ex.step = 20;
 
     # run_simulation!(nuc,chro,spar,maxT,frictionMatrix)
     printstyled("Starting simulation ("*Dates.format(now(), "YYYY-mm-dd HH:MM")*")\n"; color = :blue)
@@ -19,7 +19,7 @@ function simulation(simType,maxT,folderName)
     # run the simulation
     for t = 0:maxT
         
-        save_specific_data!(nuc,ext,simset)
+        save_specific_data!(nuc,ext,simset,t)
   
         get_iteration_properties!(nuc,chro,simset,spar)
     
@@ -30,7 +30,9 @@ function simulation(simType,maxT,folderName)
         solve_system!(nuc,chro,spar,simset)
         
         if cmp(simType,"PC") == 0
-            ext = ext - 0.1*spar.dt;
+            if ext > -spar.freeNucleusRadius/3
+                ext = ext - 0.2*spar.dt;
+            end
         end
 
         next!(simset.prog)
@@ -40,14 +42,15 @@ function simulation(simType,maxT,folderName)
     ##################################################################################################
 
     if cmp(simType,"MA") == 0
-        writedlm(".\\results\\"*folderName*"\\maxX.csv", maxX,',')
-        dL = ext(2) .- minimum(maxX);
+        writedlm(".\\results\\"*ex.folderName*"\\maxX.csv", maxX,',')
+        dL = ext[2] .- minimum(ext[2]);
     
         J = 2*pi.*dL./(3*2.1*3*1);
         
         plot(10*dt:dt:maxT*dt,J[11:end],yaxis=:log,xaxis=:log,xlim = (0.1, 200),ylim = (0.01, 10))
     elseif cmp(simType,"MM") == 0
-        writedlm(".\\results\\"*folderName*"\\nuclearLength.csv", ext(2),',')
+        println("hep")
+        writedlm(".\\results\\"*ex.folderName*"\\nuclearLength.csv", ext[2],',')
     end
     
     

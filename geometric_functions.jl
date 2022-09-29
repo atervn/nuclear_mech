@@ -260,12 +260,12 @@ function vertex_triangle_distance(nuc, vertex, tri, pip = nothing)
 
     D = B - vertex
     
-    a = E0[1]^2 + E0[2]^2 + E0[3]^2;
+    a = dot(E0,E0);
     b = dot(E0,E1);
-    c = sum(E1.^2);
+    c = dot(E1,E1);
     d = dot(E0,D);
     e = dot(E1,D);;
-    f = sum(D.^2);
+    f = dot(D,D); 
     
     #print "{0} {1} {2} ".format(B,E1,E0)
     det = a * c - b * b
