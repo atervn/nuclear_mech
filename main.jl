@@ -18,5 +18,5 @@ if !(@isdefined nucleusType)
 end
 
 # simulation("PC",5,"misc")
-
-simulation("MM",5000,"pppc_test","load";importFolder = "blaaa_61")
+# @ProfileView.profview
+simulation("INIT",2000,"crosslink_testing","load";importFolder = "blaaa_61")

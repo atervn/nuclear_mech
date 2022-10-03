@@ -1,5 +1,5 @@
 freeNucleusRadius,6.6e-6
-laminaStiffness,10e-4
+laminaStiffness,50e-4
 laminaThickness,80e-9
 laminaFriction,50e-5
 areaCompressionModulus,0.8e-3
@@ -18,4 +18,5 @@ chromatinLength,128
 scalingLength,1e-6
 scalingTime,1
 nSubdivisions,4
-dt,0.05
+dt,0.01
+temperature,300

@@ -23,6 +23,8 @@ function simulation(simType,maxT,folderName, initState; importFolder ="", nameDa
   
         get_iteration_properties!(nuc,chro,simset,spar)
     
+        get_crosslinks!(chro,simset,spar)
+
         get_forces!(nuc,chro,spar,ext,simset)
 
         export_data(nuc,chro,spar,ex,t,simType)
@@ -36,7 +38,7 @@ function simulation(simType,maxT,folderName, initState; importFolder ="", nameDa
         end
 
         next!(simset.prog)
-    
+
     end
     
     ##################################################################################################
@@ -49,7 +51,6 @@ function simulation(simType,maxT,folderName, initState; importFolder ="", nameDa
         
         plot(10*dt:dt:maxT*dt,J[11:end],yaxis=:log,xaxis=:log,xlim = (0.1, 200),ylim = (0.01, 10))
     elseif cmp(simType,"MM") == 0
-        println("hep")
         writedlm(".\\results\\"*ex.folderName*"\\nuclearLength.csv", ext[2],',')
     end
     

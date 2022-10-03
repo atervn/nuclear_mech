@@ -102,6 +102,9 @@ function get_model_parameters(ipar,spar,nuc)
     spar.viscosity = ipar.viscosity
     spar.dt = ipar.dt/ipar.scalingTime
 
+    spar.boltzmannConst = ipar.boltzmannConst/ipar.viscosity/ipar.scalingLength^2*ipar.scalingTime
+    spar.temperature = ipar.temperature
+
     return spar
 
 end
@@ -141,40 +144,33 @@ function setup_export(folderName,nuc,chro,spar,nameDate)
     for i = 1:spar.chromatinNumber
         ex.chroCells[i] = MeshCell(PolyData.Lines(), chro.strandIdx[i]);
     end
-    
+
+
     totalNum = sum(length.(nuc.lads));
 
-    ex.ladEnveCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,totalNum)
-    for i = 1:totalNum
-        ex.ladEnveCells[i] = MeshCell(VTKCellTypes.VTK_VERTEX, Int64.([i]));
-    end
+    ex.ladCells = Vector{MeshCell{PolyData.Lines, Vector{Int64}}}(undef,totalNum)
 
-    ex.ladEnveIdx = []
+    for i = 1:totalNum
+        ex.ladCells[i] = MeshCell(PolyData.Lines(), [i, totalNum+i]);
+    end
+    
+    ex.ladIdx = []
     ex.ladEnveVertices = []
     for i = 1:spar.chromatinNumber
         for j = 1:length(nuc.lads[i])
-            push!(ex.ladEnveIdx, i)
+            push!(ex.ladIdx, i)
             push!(ex.ladEnveVertices, nuc.lads[i][j])
         end
     end
-    ex.ladEnveIdx = Int64.(ex.ladEnveIdx)
 
-    totalNum = sum(length.(chro.lads));
+    ex.ladIdx = Int64.(ex.ladIdx)
 
-    ex.ladChroCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,totalNum)
-    for i = 1:totalNum
-        ex.ladChroCells[i] = MeshCell(VTKCellTypes.VTK_VERTEX, Int64.([i]));
-    end
-
-    ex.ladChroIdx = []
     ex.ladChroVertices = []
     for i = 1:spar.chromatinNumber
         for j = 1:length(chro.lads[i])
-            push!(ex.ladChroIdx, i)
             push!(ex.ladChroVertices, chro.strandIdx[i][chro.lads[i][j]])
         end
     end
-    ex.ladChroIdx = Int64.(ex.ladChroIdx)
 
     # export lad indices
     ladExport = Matrix{Int64}[];
@@ -266,17 +262,18 @@ if mod(t,ex.step) == 0
 
     # export lads
  
-    tempVert = nuc.vert[ex.ladEnveVertices]
-    vtk_grid(".\\results\\"*ex.folderName*"\\enve_lads_" * lpad(t,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', ex.ladEnveCells) do vtk
-        vtk["vertex_id"] = ex.ladEnveIdx
+    tempVert = [chro.vert[ex.ladChroVertices] ; nuc.vert[ex.ladEnveVertices]]
+    vtk_grid(".\\results\\"*ex.folderName*"\\lads_" * lpad(t,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', ex.ladCells) do vtk
+        vtk["LAD ID"] = ex.ladIdx
     end
 
-    # export chrolads
-
-    tempVert = chro.vert[ex.ladChroVertices]
-    vtk_grid(".\\results\\"*ex.folderName*"\\chro_lads_" * lpad(t,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', ex.ladChroCells) do vtk
-        vtk["vertex_id"] = ex.ladChroIdx
-    end   
+    crossLinkCells =  Vector{MeshCell{PolyData.Lines, Vector{Int64}}}(undef,length(chro.crosslinks))
+    for i = 1:length(chro.crosslinks)
+        crossLinkCells[i] = MeshCell(PolyData.Lines(), [i, length(chro.crosslinks)+i]);
+    end
+    tempVert = [chro.vert[getindex.(chro.crosslinks,1)] ; chro.vert[getindex.(chro.crosslinks,2)]];
+    vtk_grid(".\\results\\"*ex.folderName*"\\crosslinks_" * lpad(t,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', crossLinkCells) do vtk
+    end
 
 end
 
@@ -375,6 +372,9 @@ function setup_simulation(initType,simType,maxT,importFolder)
         chro = create_all_chromsomes(chro,spar,nuc.vert[ladCenterIdx])
         
         chro.lads = get_lad_chro_vertices(nuc,spar)
+
+        chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+
     elseif cmp(initType,"load") == 0
         printstyled("Loading chromatin..."; color = :blue)
         chro = import_chromatin(chro,importFolder,importNumber)
@@ -382,6 +382,8 @@ function setup_simulation(initType,simType,maxT,importFolder)
         nuc,chro = import_lads(nuc,chro,importFolder,spar)
 
     end
+
+    chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
 
     printstyled("Done!\n"; color = :blue)
 
@@ -537,4 +539,52 @@ function import_lads(nuc,chro,importFolder,spar)
     end
 
     return nuc,chro
+end
+
+function get_crosslinks!(chro,simset,spar)
+
+    # remove crosslinks
+    nLinked = length(chro.crosslinks)
+    probs = rand(nLinked)
+    for i = nLinked:-1:1
+        if probs[i] < 0.001
+
+            chro.crosslinked[chro.crosslinks[i][1]] = 0
+            chro.crosslinked[chro.crosslinks[i][2]] = 0
+
+            chro.crosslinks = chro.crosslinks[1:end .!= i]
+
+        end
+    end
+    # form crosslinks
+    notCrosslinked = findall(chro.crosslinked .== 0)
+    closestVerts = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+    possiblyLinking =  zeros(Bool,spar.chromatinLength*spar.chromatinNumber)
+
+    for i = notCrosslinked
+        # closestVertsTemp = inrange(simset.chromatinTree, chro.vert[i], 0.5, true)
+        closest,distance = knn(simset.chromatinTree, chro.vert[i],1,true,j -> any(j .== i))
+        if distance[1] <= 0.5 
+            closestVerts[i] = closest[1]
+            possiblyLinking[i] = true
+        end
+    end
+    
+    possibleLinkingIdx = findall(possiblyLinking)
+    for i = possibleLinkingIdx
+
+        if chro.crosslinked[i] == 0 && chro.crosslinked[closestVerts[i]] == 0
+
+            if rand() < 0.0001
+
+                push!(chro.crosslinks, [i, closestVerts[i]])
+                chro.crosslinked[i] = 1
+                chro.crosslinked[closestVerts[i]] = 1
+
+            end
+        end
+    end
+
+
+
 end

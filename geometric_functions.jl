@@ -185,12 +185,23 @@ function get_triangle_normals!(nuc)
 
     nuc.triangleNormalUnitVectors = triangleNormalUnitVectors;
 
+    edgeNormalUnitVectors = Vector{Vec{3,Float64}}(undef, size(nuc.edges,1));
+
+    for i = 1:size(nuc.edges,1)
+
+        vector = mean(nuc.triangleNormalUnitVectors[nuc.edgesTri[i,:]],dims=1)[1]
+        edgeNormalUnitVectors[i] = vector./norm(vector);
+
+    end
+    
+    nuc.edgeNormalUnitVectors = edgeNormalUnitVectors;
+
+
     vertexNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
     
     for i = 1:length(nuc.vert)
 
         vector = mean(nuc.triangleNormalUnitVectors[nuc.vertexTri[i]],dims=1)[1];
-
         vertexNormalUnitVectors[i] = vector./norm(vector);
 
     end

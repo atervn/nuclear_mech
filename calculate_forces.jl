@@ -268,7 +268,7 @@ end
 
 function get_random_fluctuations(spar)
 
-    strength = sqrt(2*spar.viscosity*1.38e-23*300/(spar.dt))/spar.viscosity/spar.scalingLength*spar.scalingTime;
+    strength = sqrt(2*spar.boltzmannConst*spar.temperature/(spar.dt));
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
@@ -281,7 +281,7 @@ end
 
 function get_random_enve_fluctuations(spar,nuc)
 
-    strength = sqrt(2*spar.viscosity*1.38e-23*300/(spar.dt))/spar.viscosity/spar.scalingLength*spar.scalingTime;
+    strength = sqrt(2*spar.boltzmannConst*spar.temperature/(spar.dt));
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,length(nuc.vert))
     for i = 1:length(nuc.vert)
@@ -324,81 +324,39 @@ function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
             neighbors = nuc.neighbors[closest[1]]
             neigborsCoords = nuc.vert[neighbors]
 
-            # distancesTemp = zeros(nTri);
+
             triangles = nuc.tri[nuc.vertexTri[closest[1],1],:]
             distanceMatrix = zeros(size(triangles))
             for j = 1:nTri
                 distancesTemp = norm(neigborsCoords[j] - chro.vert[i])
-                # println(distanceMatrix)
-                # println(triangles .== neighbors[j])
-                # println(distancesTemp)
                 distanceMatrix[triangles .== neighbors[j]] .= distancesTemp
             end
             
             tri = nuc.vertexTri[closest[1],1][argmin(sum(distanceMatrix,dims=2))]
 
+            closePointDistance,closeCoords,closeVertices = vertex_triangle_distance(nuc, chro.vert[i], tri)
 
+            if closePointDistance < spar.repulsionDistance
 
-            # distOrder = sortperm(distancesTemp);
-
-            
-
-            # neighbor1 = nuc.neighbors[closest[1]][distOrder[1]];
-            # neighbor2 = nuc.neighbors[closest[1]][distOrder[2]];
-
-            # closestTriangle = findall((sum(triangles .== neighbor1,dims=2) .* sum(triangles .== neighbor2,dims=2)) .== 1)
-
-            # tri = nuc.vertexTri[closest[1],1][closestTriangle]
-            # println(tri)
-            # if isempty(tri)
-
-            #     neighbor3 = nuc.neighbors[closest[1]][distOrder[3]];
-            #     closestTriangle = findall((sum(triangles .== neighbor1,dims=2) .* sum(triangles .== neighbor3,dims=2)) .== 1)
-            #     tri = nuc.vertexTri[closest[1],1][closestTriangle]
-            #     println(tri)
-            #     if isempty(tri)
-
-            #         neighbor4 = nuc.neighbors[closest[1]][distOrder[4]];
-            #         closestTriangle = findall((sum(triangles .== neighbor1,dims=2) .* sum(triangles .== neighbor4,dims=2)) .== 1)
-            #         tri = nuc.vertexTri[closest[1],1][closestTriangle]
-            #         println(tri)
-            #     end
-            # end
-            # println(tri)
-            # closePointDistances = Vector{Float64}(undef,nTri);
-            # closePointCoordinates = Vector{Vec{3,Float64}}(undef, nTri);
-            # closePointVertices = Vector{Vector{Int64}}(undef, nTri);
-
-
-            # for j = 1:nTri
-
-                # tri = nuc.vertexTri[closest[1],1][j];
-
-                closePointDistances,closePointCoordinates,closePointVertices = vertex_triangle_distance(nuc, chro.vert[i], tri)
-            # end
-            
-            # closestPoint = findmin(closePointDistances);
-            # closestDistance = closestPoint[1];
-
-            if closePointDistances < spar.repulsionDistance
-
-                closeCoords = closePointCoordinates;
-
-                unitVector = (chro.vert[i] - closeCoords)/closePointDistances;
+                unitVector = (chro.vert[i] - closeCoords)/closePointDistance;
                 
-                triUnitVector = nuc.triangleNormalUnitVectors[tri]
+                if length(closeVertices) == 1
+                    enveUnitVector = nuc.vertexNormalUnitVectors[closeVertices[1]];
+                elseif length(closeVertices) == 2
+                    edge = findall((nuc.edges[:,1] .== closeVertices[1] .&& nuc.edges[:,2] .== closeVertices[2]))[1]
+                    enveUnitVector = nuc.edgeNormalUnitVectors[edge]
+                else
+                    enveUnitVector = nuc.triangleNormalUnitVectors[tri]
+                end
 
-                if dot(unitVector,triUnitVector) >= 0
+                if dot(unitVector,enveUnitVector) >= 0
                     unitVector = -unitVector
                     forceMagnitude = 0.01*spar.repulsionConstant
                 else
-                    forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closePointDistances)^(3/2)
+                    forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closePointDistance)^(3/2)
                 end
 
-                # forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closestDistance)^(3/2)
                 chro.forces.enveRepulsion[i] = forceMagnitude*unitVector;
-
-                closeVertices = closePointVertices; 
 
                 if length(closeVertices) == 1
 
@@ -446,10 +404,10 @@ function get_micromanipulation_forces(nuc,mm,spar)
         micromanipulation[i] = Vec(0.,0.,0.);
     end
 
-    micromanipulation[mm.leftmostVertex] = 400*(mm.leftmostVertexPosition .- nuc.vert[mm.leftmostVertex])
-    micromanipulation[mm.leftNeighbors] = 200*(mm.leftNeigborPositions .- nuc.vert[mm.leftNeighbors])
+    micromanipulation[mm.leftmostVertex] = 1000*(mm.leftmostVertexPosition .- nuc.vert[mm.leftmostVertex])
+    micromanipulation[mm.leftNeighbors] = 500*(mm.leftNeigborPositions .- nuc.vert[mm.leftNeighbors])
 
-    forceVector = 200*Vec(1.,0.,0.);
+    forceVector = 500*Vec(1.,0.,0.);
     micromanipulation[mm.rightmostVertex] = forceVector
     for i = eachindex(mm.rightNeighbors)
         micromanipulation[mm.rightNeighbors[i]] = 0.5*forceVector
@@ -531,6 +489,7 @@ function get_forces!(nuc,chro,spar,ext,simset)
     get_chromation_chromation_repulsion_forces!(chro,spar,simset.chromatinTree)
     fluctuationForces = get_random_fluctuations(spar)
     get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,simset.envelopeTree)
+    crosslinkForces = get_crosslink_forces!(chro,spar,simset)
     get_lad_forces!(nuc,chro,spar)
 
 
@@ -544,6 +503,28 @@ function get_forces!(nuc,chro,spar,ext,simset)
         nuc.forces.total .+= planeRepulsion
     end
 
-    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion .+ chro.forces.ladChroForces + fluctuationForces;
+    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion .+ chro.forces.ladChroForces .+ fluctuationForces  .+ crosslinkForces
+    # println(chro.forces.total[1:100])
+    # chro.forces.total = chro.forces.total .+ crosslinkForces;
+    # println(chro.forces.total[1:100])
 
+end
+
+function get_crosslink_forces!(chro,spar,simset)
+
+    crosslinkForces = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
+    for i = eachindex(crosslinkForces)
+        crosslinkForces[i] = Vec(0.,0.,0.)
+    end
+
+    for i = 1:length(chro.crosslinks)
+
+        vector = chro.vert[chro.crosslinks[i][1]] - chro.vert[chro.crosslinks[i][2]]
+        vectorNorm = norm(vector);
+        crosslinkForces[chro.crosslinks[i][1]] = -1*(vectorNorm - 0.4).*vector./vectorNorm;
+        crosslinkForces[chro.crosslinks[i][2]] = -crosslinkForces[chro.crosslinks[i][1]]
+
+    end
+
+    return crosslinkForces
 end

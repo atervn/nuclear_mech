@@ -93,7 +93,6 @@ function get_lad_enve_vertices(ladCenterIdx,nuc,spar)
 
     for i = 1:spar.chromatinNumber
         ladVertices[i] = sample(closeVertices[i],ladNumbers[i])
-        usedVertices = [usedVertices; ladVertices[i]]
     end
 
 

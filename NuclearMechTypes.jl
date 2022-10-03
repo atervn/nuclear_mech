@@ -32,6 +32,7 @@ Base.@kwdef mutable struct nucleusType
     voronoiAreas::Vector{Vector{Float64}} = []
     curvatures::Vector{Float64} = []
     vertexNormalUnitVectors::Vector{Vec{3,Float64}} = []
+    edgeNormalUnitVectors::Vector{Vec{3,Float64}} = []
     triangleNormalUnitVectors::Vector{Vec{3,Float64}} = []
     areaUnitVectors::Vector{Vector{Vec{3,Float64}}} = []
     normalVolume::Float64 = 0
@@ -81,6 +82,8 @@ Base.@kwdef mutable struct inputParametersType
     scalingTime::Float64 = 0;
     nSubdivisions::Float64 = 0;
     dt::Float64 = 0;
+    boltzmannConst::Float64 = 1.380649e-23
+    temperature::Float64 = 0;
 
 end
 
@@ -106,6 +109,8 @@ Base.@kwdef mutable struct scaledParametersType
     viscosity::Float64 = 0;
     nSubdivisions::Float64 = 0;
     dt::Float64 = 0;
+    boltzmannConst::Float64 = 0;
+    temperature::Float64 = 0;
 end
 
 Base.@kwdef mutable struct chromatinForceType
@@ -130,6 +135,8 @@ Base.@kwdef mutable struct chromatinType
     vectors::Vector{Vector{Vec{3,Float64}}} = []
     vectorNorms::Vector{Vector{Float64}} = []
     lads::Vector{Vector{Int64}} = []
+    crosslinks::Vector{Vector{Int64}} = []
+    crosslinked::Vector{Int64} = []
 end
 
 Base.@kwdef mutable struct pipetteType
@@ -150,10 +157,8 @@ end
 Base.@kwdef mutable struct exportSettingsType
     enveCells::Vector{MeshCell{VTKCellType, Vector{Int64}}} = []
     chroCells::Vector{MeshCell{PolyData.Lines, Vector{Int64}}} = []
-    ladEnveCells::Vector{MeshCell{VTKCellType, Vector{Int64}}} = []
-    ladChroCells::Vector{MeshCell{VTKCellType, Vector{Int64}}} = []
-    ladEnveIdx::Vector{Int} = []
-    ladChroIdx::Vector{Int} = []
+    ladCells::Vector{MeshCell{PolyData.Lines, Vector{Int64}}} = []
+    ladIdx::Vector{Int} = []
     ladEnveVertices::Vector{Int} = []
     ladChroVertices::Vector{Int} = []
     folderName::String = ""
