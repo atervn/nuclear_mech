@@ -155,7 +155,7 @@ function subdivide_mesh!(nuc,ipar)
     
     radius = ipar.freeNucleusRadius/ipar.scalingLength;
 
-    nuc = get_edges!(nuc);
+    nuc = get_edges(nuc);
 
     for i = 1:ipar.nSubdivisions
         nuc = subdivide_triangles(nuc,radius);
@@ -194,6 +194,7 @@ function setup_nucleus_data(nuc)
     nuc.ep2 = Array{Any}(undef,length(nuc.edges))
     nuc.ep31 = Array{Any}(undef,length(nuc.edges))
     nuc.ep32 = Array{Any}(undef,length(nuc.edges))
+    nuc.edgeTrirdVertices = Vector{Vector{Int64}}(undef,length(nuc.edges))
 
     for i = 1:size(nuc.tri,1)
         nuc.p1[i] = @view nuc.vert[nuc.tri[i,1]];
@@ -223,6 +224,12 @@ function setup_nucleus_data(nuc)
         nuc.ep2[i] = @view nuc.vert[nuc.edges[i,2]];
         nuc.ep31[i] = @view nuc.vert[nuc.edges3vertex[i,1]];
         nuc.ep32[i] = @view nuc.vert[nuc.edges3vertex[i,2]];
+
+        firstNeighbor = findall(nuc.edges[:,1] .== nuc.edges[i,1] .&& nuc.edges[:,2] .== nuc.edges3vertex[i,1])[1]
+        secondNeighbor = findall(nuc.edges[:,1] .== nuc.edges[i,1] .&& nuc.edges[:,2] .== nuc.edges3vertex[i,2])[1]
+
+        nuc.edgeTrirdVertices[i] = [firstNeighbor, secondNeighbor]
+
     end
 
     nuc.normalVolume = get_volume!(nuc);

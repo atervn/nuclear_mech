@@ -1,46 +1,74 @@
-function simulation(simType,maxT,folderName, initState; importFolder ="", nameDate = "yes")
+function simulation(simType,maxT,folderName, initState; importFolder ="", nameDate = "yes", parameterFile = "./parameters.txt")
 
     if check_simulation_type(simType); return; end
 
     # setup simulation
-    nuc,chro,spar,simset,ext = setup_simulation(initState,simType,maxT,importFolder)
+    nuc,chro,spar,simset,ext = setup_simulation(initState,simType,importFolder,parameterFile)
 
     # setup nucleus export
     ex = setup_export(folderName,nuc,chro,spar,nameDate)
-    ex.step = 20;
+    ex.step = 2*spar.dt;
+
+    maxT = maxT/spar.scalingTime
 
     # run_simulation!(nuc,chro,spar,maxT,frictionMatrix)
     printstyled("Starting simulation ("*Dates.format(now(), "YYYY-mm-dd HH:MM")*")\n"; color = :blue)
 
     # setup progress bar
-    simset.prog = Progress(maxT, 0.1, "Simulating...", 100)
-    
+    simset.prog = Progress(Int64(round(maxT/spar.dt)), 0.1, "Simulating...", 100)
+
+    time = 0;
+    intTime = Int64(0)
+
+    intMaxTime = Int64(floor(maxT/spar.dt))
+
+    dt = spar.dt;
+
+    nuc.forces.volume = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+    nuc.forces.area = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+
+    nCrosslinks = []
+
     ####################################################################################################
     # run the simulation
-    for t = 0:maxT
-        
-        save_specific_data!(nuc,ext,simset,t)
-  
-        get_iteration_properties!(nuc,chro,simset,spar)
+
+    try
+        while intTime <= intMaxTime
+            
+            save_specific_data!(nuc,ext,simset)
     
-        get_crosslinks!(chro,simset,spar)
-
-        get_forces!(nuc,chro,spar,ext,simset)
-
-        export_data(nuc,chro,spar,ex,t,simType)
+            get_iteration_properties!(nuc,chro,simset,spar)
         
-        solve_system!(nuc,chro,spar,simset)
-        
-        if cmp(simType,"PC") == 0
-            if ext > -spar.freeNucleusRadius/3
-                ext = ext - 0.2*spar.dt;
+            get_crosslinks!(nuc,chro,simset,spar)
+
+            get_forces!(nuc,chro,spar,ext,simset)
+
+            export_data(nuc,chro,spar,ex,time,simType,simset)
+            
+            solve_system!(nuc,chro,spar,simset,dt)
+            
+            if cmp(simType,"PC") == 0
+                if ext > -spar.freeNucleusRadius/3
+                    ext = ext - 0.2*dt*simset.timeStepMultiplier;
+                end
             end
+
+            if simset.timeStepProgress == 0
+                next!(simset.prog)
+                intTime += 1
+            end
+
+            time += dt*simset.timeStepMultiplier
+
+            push!(nCrosslinks,length(chro.crosslinks[:,1]))
+
+            # println(simset.timeStepMultiplier)
         end
-
-        next!(simset.prog)
-
+    catch e
+        println("Simulation failed")
+        rethrow(e)
     end
-    
+
     ##################################################################################################
 
     if cmp(simType,"MA") == 0
@@ -54,5 +82,6 @@ function simulation(simType,maxT,folderName, initState; importFolder ="", nameDa
         writedlm(".\\results\\"*ex.folderName*"\\nuclearLength.csv", ext[2],',')
     end
     
-    
+    return nCrosslinks
+
 end

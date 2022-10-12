@@ -98,31 +98,34 @@ end
 
 function get_voronoi_areas!(nuc)
 
-    voronoiAreas = fill(Float64[], length(nuc.vert));
+    voronoiAreas = Vector{Float64}(undef,length(nuc.vert))
 
     for i = 1:length(nuc.vert)
 
-        voronoiAreasTemp = zeros(Float64,length(nuc.vertexTri[i,1]));
+        voronoiAreasTemp = 0;
 
         for j = 1:length(nuc.vertexTri[i,1])
 
-            v = circshift(nuc.tri[nuc.vertexTri[i,1][j],:],(-nuc.vertexTri[i,2][j]));
+            # approximately correct, below is the full accuracy one
+
+            voronoiAreasTemp += nuc.triangleAreas[nuc.vertexTri[i,1][j]]/3
+            # v = circshift(nuc.tri[nuc.vertexTri[i,1][j],:],(-nuc.vertexTri[i,2][j]));
             
-            center3 = mean(nuc.vert[v]);
-            tempArea = 0;
+            # center3 = mean(nuc.vert[v]);
+            # tempArea = 0;
 
-            for k = 2:3
+            # for k = 2:3
 
-                center2 = (nuc.vert[i] + nuc.vert[v[k]])/2
+            #     center2 = (nuc.vert[i] + nuc.vert[v[k]])/2
 
-                dist1 = norm(center3 - center2)
-                dist2 = norm(nuc.vert[i] - center2)
+            #     dist1 = norm(center3 - center2)
+            #     dist2 = norm(nuc.vert[i] - center2)
 
-                tempArea += dist1*dist2/2;
+            #     tempArea += dist1*dist2/2;
 
-            end
+            # end
 
-            voronoiAreasTemp[j] = tempArea;
+            # voronoiAreasTemp[j] = tempArea;
 
         end
 
@@ -179,7 +182,7 @@ function get_triangle_normals!(nuc)
 
         #normalVector = cross_product(p1,p2,p3);
 
-        triangleNormalUnitVectors[i] = normalVector./norm(normalVector);
+        triangleNormalUnitVectors[i] = normalVector/norm(normalVector);
 
     end
 
@@ -189,7 +192,7 @@ function get_triangle_normals!(nuc)
 
     for i = 1:size(nuc.edges,1)
 
-        vector = mean(nuc.triangleNormalUnitVectors[nuc.edgesTri[i,:]],dims=1)[1]
+        vector = nuc.triangleNormalUnitVectors[nuc.edgesTri[i,1]] + nuc.triangleNormalUnitVectors[nuc.edgesTri[i,2]]
         edgeNormalUnitVectors[i] = vector./norm(vector);
 
     end
@@ -201,7 +204,7 @@ function get_triangle_normals!(nuc)
     
     for i = 1:length(nuc.vert)
 
-        vector = mean(nuc.triangleNormalUnitVectors[nuc.vertexTri[i]],dims=1)[1];
+        vector = sum(nuc.triangleNormalUnitVectors[nuc.vertexTri[i]]);
         vertexNormalUnitVectors[i] = vector./norm(vector);
 
     end
@@ -222,12 +225,11 @@ function get_triangle_angles(nuc)
 
     angles = zeros(Float64,size(nuc.edges,1),1);
     
-    for i = 1:size(nuc.edges,1)
 
-        normalVector1,normalVector2 = nuc.testview[i];
+    normalVectors1 = nuc.triangleNormalUnitVectors[nuc.edgesTri[:,1]];
+    normalVectors2 = nuc.triangleNormalUnitVectors[nuc.edgesTri[:,2]];
 
-        angles[i] = acosd(dot(normalVector1,normalVector2));
-    end
+    angles = acosd.(dot.(normalVectors1,normalVectors2))
 
     return angles
 

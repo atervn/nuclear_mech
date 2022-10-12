@@ -4,28 +4,15 @@ function get_volume_forces!(nuc,spar)
 
     pressure = -spar.bulkModulus*log10(nucleusVolume/nuc.normalVolume);
 
-    if length(nuc.forces.volume) == 0
-        nuc.forces.volume = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
-    end
+    nuc.forces.volume = pressure*nuc.voronoiAreas.*nuc.vertexNormalUnitVectors
 
-    for i = eachindex(nuc.vert)
-
-        forceMagnitude = pressure*sum(nuc.voronoiAreas[i]);
-
-        nuc.forces.volume[i] = forceMagnitude*nuc.vertexNormalUnitVectors[i]
-    end
 end
 
 function get_area_forces!(nuc,spar)
 
-    triangleAreas = get_area!(nuc);
-    nucleusArea = sum(triangleAreas);
+    nucleusArea = sum(nuc.triangleAreas);
 
     forceMagnitude = spar.areaCompressionStiffness*(nucleusArea - nuc.normalArea)/nuc.normalArea;
-
-    if length(nuc.forces.area) == 0
-        nuc.forces.area = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
-    end
 
     for i = 1:length(nuc.vert)
         nuc.forces.area[i] = -forceMagnitude*mean(nuc.areaUnitVectors[i])
@@ -34,7 +21,7 @@ function get_area_forces!(nuc,spar)
     for i = 1:size(nuc.tri,1)
 
         baryocenter = mean(nuc.trii[i]);
-        magnitude = 0.1*spar.areaCompressionStiffness*(triangleAreas[i] - nuc.normalTriangleAreas[i])/nuc.normalTriangleAreas[i];
+        magnitude = 0.1*spar.areaCompressionStiffness*(nuc.triangleAreas[i] - nuc.normalTriangleAreas[i])/nuc.normalTriangleAreas[i];
         
         for j = 1:3
 
@@ -56,31 +43,34 @@ function get_bending_forces!(nuc,spar)
 
     angles = get_triangle_angles(nuc);
 
-    for i = 1:size(nuc.edges,1)
-    
-        if nuc.firstEdges[i] == 1
-            moment = spar.bendingStiffness*sind(angles[i] - nuc.normalAngle);
+    moment = spar.bendingStiffness*sind.(angles .- nuc.normalAngle);
 
+    for i = 1:size(nuc.edges,1)
+        
+        if nuc.firstEdges[i] == 1
             
-            distance1 = line_point_distance(nuc.ep1[i][1] - nuc.ep2[i][1], nuc.ep1[i][1] - nuc.ep31[i][1])
+            # FUTUREFIXnuc.edgeTrirdVertices
+            distance1 = line_point_distance(nuc.edgeVectors[i], nuc.edgeVectors[nuc.edgeTrirdVertices[i][1]])
             
-            force = moment*distance1*nuc.triangleNormalUnitVectors[nuc.edgesTri[i,1]]
+            force = moment[i]*distance1*nuc.triangleNormalUnitVectors[nuc.edgesTri[i,1]]
+
+            counterForce = -0.5*force
 
             nuc.forces.bending[nuc.edges3vertex[i,1]] += force;
             
-            nuc.forces.bending[nuc.edges[i,1]] += -0.5.*force;
+            nuc.forces.bending[nuc.edges[i,1]] += counterForce;
             
-            nuc.forces.bending[nuc.edges[i,2]] += -0.5.*force;
+            nuc.forces.bending[nuc.edges[i,2]] += counterForce;
 
-            distance2 = line_point_distance(nuc.ep1[i][1] - nuc.ep2[i][1], nuc.ep1[i][1] - nuc.ep32[i][1])
+            distance2 = line_point_distance(nuc.edgeVectors[i], nuc.edgeVectors[nuc.edgeTrirdVertices[i][2]])
             
-            force = moment*distance2.*nuc.triangleNormalUnitVectors[nuc.edgesTri[i,2]]
+            force = moment[i]*distance2*nuc.triangleNormalUnitVectors[nuc.edgesTri[i,2]]
 
             nuc.forces.bending[nuc.edges3vertex[i,2]] += force
             
-            nuc.forces.bending[nuc.edges[i,1]] += -0.5.*force
+            nuc.forces.bending[nuc.edges[i,1]] += counterForce
             
-            nuc.forces.bending[nuc.edges[i,2]] += -0.5.*force
+            nuc.forces.bending[nuc.edges[i,2]] += counterForce
 
         end
     end
@@ -266,9 +256,9 @@ function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
     end
 end
 
-function get_random_fluctuations(spar)
+function get_random_fluctuations(spar,dt)
 
-    strength = sqrt(2*spar.boltzmannConst*spar.temperature/(spar.dt));
+    strength = sqrt(2*spar.boltzmannConst*spar.temperature/(dt));
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
@@ -279,9 +269,9 @@ function get_random_fluctuations(spar)
 
 end
 
-function get_random_enve_fluctuations(spar,nuc)
+function get_random_enve_fluctuations(spar,nuc,dt)
 
-    strength = sqrt(2*spar.boltzmannConst*spar.temperature/(spar.dt));
+    strength = sqrt(2*spar.boltzmannConst*spar.temperature/(dt));
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,length(nuc.vert))
     for i = 1:length(nuc.vert)
@@ -317,13 +307,12 @@ function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
         closest,distance = knn(envelopeTree, chro.vert[i],1,true)
 
-        if distance[1] < mean(nuc.normalLengths)*2
+        if distance[1] < spar.meanLaminaLength*2
 
             nTri = length(nuc.vertexTri[closest[1],1]);
 
             neighbors = nuc.neighbors[closest[1]]
             neigborsCoords = nuc.vert[neighbors]
-
 
             triangles = nuc.tri[nuc.vertexTri[closest[1],1],:]
             distanceMatrix = zeros(size(triangles))
@@ -336,9 +325,22 @@ function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
 
             closePointDistance,closeCoords,closeVertices = vertex_triangle_distance(nuc, chro.vert[i], tri)
 
+            getForce = false
+            
+            unitVector = (chro.vert[i] - closeCoords)/closePointDistance;
             if closePointDistance < spar.repulsionDistance
+                getForce = true
+                
+            else
+                enveUnitVector = nuc.vertexNormalUnitVectors[closest[1]];
+                if dot(unitVector,enveUnitVector) >= 0
+                    getForce = true
+                end
+            end
 
-                unitVector = (chro.vert[i] - closeCoords)/closePointDistance;
+            if getForce
+
+                # unitVector = (chro.vert[i] - closeCoords)/closePointDistance;
                 
                 if length(closeVertices) == 1
                     enveUnitVector = nuc.vertexNormalUnitVectors[closeVertices[1]];
@@ -351,7 +353,7 @@ function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
 
                 if dot(unitVector,enveUnitVector) >= 0
                     unitVector = -unitVector
-                    forceMagnitude = 0.01*spar.repulsionConstant
+                    forceMagnitude = 0.5*spar.repulsionConstant
                 else
                     forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closePointDistance)^(3/2)
                 end
@@ -399,15 +401,17 @@ end
 
 function get_micromanipulation_forces(nuc,mm,spar)
 
+    pullingForce = 1e-9/spar.viscosity/spar.scalingLength*spar.scalingTime;
+
     micromanipulation = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
     for i = eachindex(nuc.vert)
         micromanipulation[i] = Vec(0.,0.,0.);
     end
 
-    micromanipulation[mm.leftmostVertex] = 1000*(mm.leftmostVertexPosition .- nuc.vert[mm.leftmostVertex])
-    micromanipulation[mm.leftNeighbors] = 500*(mm.leftNeigborPositions .- nuc.vert[mm.leftNeighbors])
+    micromanipulation[mm.leftmostVertex] = 2*pullingForce*(mm.leftmostVertexPosition .- nuc.vert[mm.leftmostVertex])
+    micromanipulation[mm.leftNeighbors] = pullingForce*(mm.leftNeigborPositions .- nuc.vert[mm.leftNeighbors])
 
-    forceVector = 500*Vec(1.,0.,0.);
+    forceVector = pullingForce*Vec(1.,0.,0.);
     micromanipulation[mm.rightmostVertex] = forceVector
     for i = eachindex(mm.rightNeighbors)
         micromanipulation[mm.rightNeighbors[i]] = 0.5*forceVector
@@ -472,7 +476,7 @@ function get_forces!(nuc,chro,spar,ext,simset)
     get_bending_forces!(nuc,spar);
     get_elastic_forces!(nuc,spar);
     # get_repulsion_forces!(nuc,spar,simset.envelopeTree);
-    enveFlucs = get_random_enve_fluctuations(spar,nuc)
+    # enveFlucs = get_random_enve_fluctuations(spar,nuc)
 
     if cmp(simset.simType,"MA") == 0 
         repulsion = get_aspiration_repulsion_forces(nuc,ext[1],spar);
@@ -487,13 +491,12 @@ function get_forces!(nuc,chro,spar,ext,simset)
     get_linear_chromatin_forces!(chro,spar);
     get_bending_chromatin_forces!(chro,spar)
     get_chromation_chromation_repulsion_forces!(chro,spar,simset.chromatinTree)
-    fluctuationForces = get_random_fluctuations(spar)
     get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,simset.envelopeTree)
     crosslinkForces = get_crosslink_forces!(chro,spar,simset)
     get_lad_forces!(nuc,chro,spar)
 
 
-    nuc.forces.total = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.chromationRepulsion .+ nuc.forces.ladEnveForces + enveFlucs;  # .+ nuc.forces.envelopeRepulsion
+    nuc.forces.total = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.chromationRepulsion .+ nuc.forces.ladEnveForces;  # .+ nuc.forces.envelopeRepulsion
     
     if cmp(simset.simType,"MA") == 0 
         nuc.forces.total .+=  repulsion .+ aspiration
@@ -503,10 +506,7 @@ function get_forces!(nuc,chro,spar,ext,simset)
         nuc.forces.total .+= planeRepulsion
     end
 
-    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ fluctuationForces .+ chro.forces.enveRepulsion .+ chro.forces.ladChroForces .+ fluctuationForces  .+ crosslinkForces
-    # println(chro.forces.total[1:100])
-    # chro.forces.total = chro.forces.total .+ crosslinkForces;
-    # println(chro.forces.total[1:100])
+    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ chro.forces.enveRepulsion .+ chro.forces.ladChroForces .+ crosslinkForces
 
 end
 
@@ -521,7 +521,7 @@ function get_crosslink_forces!(chro,spar,simset)
 
         vector = chro.vert[chro.crosslinks[i][1]] - chro.vert[chro.crosslinks[i][2]]
         vectorNorm = norm(vector);
-        crosslinkForces[chro.crosslinks[i][1]] = -1*(vectorNorm - 0.4).*vector./vectorNorm;
+        crosslinkForces[chro.crosslinks[i][1]] = -spar.ladStrenght*(vectorNorm - 0.4).*vector./vectorNorm;
         crosslinkForces[chro.crosslinks[i][2]] = -crosslinkForces[chro.crosslinks[i][1]]
 
     end

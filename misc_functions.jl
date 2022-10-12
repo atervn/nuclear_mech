@@ -12,7 +12,7 @@ function get_friction_matrix(nuc,chro,spar)
         frictionMatrix[j,j] = 1
     end
 
-    constant = 0.05;
+    constant = 0.01;
 
     for j = 1:spar.chromatinNumber
         startIdx = chroStart + spar.chromatinLength*(j-1)
@@ -32,6 +32,7 @@ function get_friction_matrix(nuc,chro,spar)
             end
         end
 
+        constant = 0.001;
         for k = 1:length(chro.lads[j])
 
             nucVertex = nuc.lads[j][k]
@@ -68,7 +69,7 @@ end
 function get_model_parameters(ipar,spar,nuc)
 
     spar.laminaStiffness = ipar.laminaStiffness/ipar.viscosity*ipar.scalingTime;
-    println(spar.laminaStiffness)
+
     spar.laminaFriction = ipar.laminaFriction/ipar.viscosity;
 
     spar.areaCompressionStiffness = ipar.areaCompressionModulus/(mean(nuc.normalLengths).*ipar.scalingLength);
@@ -80,7 +81,7 @@ function get_model_parameters(ipar,spar,nuc)
     spar.bulkModulus = ipar.bulkModulus/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
     spar.repulsionConstant = ipar.repulsionConstant/ipar.viscosity*ipar.scalingTime#/ipar.scalingLength;
-    println(spar.repulsionConstant)
+
     spar.repulsionDistance = ipar.repulsionDistance/ipar.scalingLength;
 
     spar.freeNucleusRadius = ipar.freeNucleusRadius/ipar.scalingLength;
@@ -90,7 +91,7 @@ function get_model_parameters(ipar,spar,nuc)
     spar.chromatinBendingModulus = ipar.chromatinBendingModulus/ipar.viscosity/ipar.scalingLength*ipar.scalingTime
 
     spar.chromatinStiffness = ipar.chromatinStiffness/ipar.viscosity*ipar.scalingTime;
-    println(spar.chromatinStiffness)
+
     spar.ladStrenght = ipar.ladStrenght/ipar.viscosity*ipar.scalingTime;
 
     spar.chromatinNormalAngle = ipar.chromatinNormalAngle*pi/180
@@ -104,6 +105,11 @@ function get_model_parameters(ipar,spar,nuc)
 
     spar.boltzmannConst = ipar.boltzmannConst/ipar.viscosity/ipar.scalingLength^2*ipar.scalingTime
     spar.temperature = ipar.temperature
+
+    spar.crosslingBindingProbability = ipar.crosslingBindingProbability
+    spar.crosslingUnbindingProbability = ipar.crosslingUnbindingProbability
+
+    spar.meanLaminaLength = mean(nuc.normalLengths)
 
     return spar
 
@@ -232,10 +238,13 @@ end
 
 #########################################################################################################
 
-function export_data(nuc,chro,spar,ex,t,simType)
+function export_data(nuc,chro,spar,ex,time,simType,simset)
 
-if mod(t,ex.step) == 0
-    vtk_grid(".\\results\\"*ex.folderName*"\\nucl_" * lpad(t,4,"0"), [getindex.(nuc.vert,1) getindex.(nuc.vert,2) getindex.(nuc.vert,3)]', ex.enveCells) do vtk
+if isapprox(mod(time+1e-10,ex.step),0;atol=1e-8) && simset.timeStepProgress == 0
+
+    exportNumber = string(Int64(round(time/ex.step)+1));
+
+    vtk_grid(".\\results\\"*ex.folderName*"\\nucl_" * lpad(exportNumber,4,"0"), [getindex.(nuc.vert,1) getindex.(nuc.vert,2) getindex.(nuc.vert,3)]', ex.enveCells) do vtk
         if cmp(simType,"MA") == 0 
             vtk["Aspiration forces", VTKPointData()] = [getindex.(aspiration,1) getindex.(aspiration,2) getindex.(aspiration,3)]'
             vtk["Pipette repulsion forces", VTKPointData()] = [getindex.(repulsion,1) getindex.(repulsion,2) getindex.(repulsion,3)]'
@@ -249,7 +258,7 @@ if mod(t,ex.step) == 0
         vtk["chroRepulsion forces", VTKPointData()] = [getindex.(nuc.forces.chromationRepulsion,1) getindex.(nuc.forces.chromationRepulsion,2) getindex.(nuc.forces.chromationRepulsion,3)]'
 
     end
-    vtk_grid(".\\results\\"*ex.folderName*"\\chro_" * lpad(t,4,"0"), [getindex.(chro.vert,1) getindex.(chro.vert,2) getindex.(chro.vert,3)]', ex.chroCells) do vtk
+    vtk_grid(".\\results\\"*ex.folderName*"\\chro_" * lpad(exportNumber,4,"0"), [getindex.(chro.vert,1) getindex.(chro.vert,2) getindex.(chro.vert,3)]', ex.chroCells) do vtk
         vtk["line_id"] = 1:spar.chromatinNumber
         vtk["Linear Forces", VTKPointData()] = [getindex.(chro.forces.linear,1) getindex.(chro.forces.linear,2) getindex.(chro.forces.linear,3)]'
         vtk["Bending Forces", VTKPointData()] = [getindex.(chro.forces.bending,1) getindex.(chro.forces.bending,2) getindex.(chro.forces.bending,3)]'
@@ -263,7 +272,7 @@ if mod(t,ex.step) == 0
     # export lads
  
     tempVert = [chro.vert[ex.ladChroVertices] ; nuc.vert[ex.ladEnveVertices]]
-    vtk_grid(".\\results\\"*ex.folderName*"\\lads_" * lpad(t,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', ex.ladCells) do vtk
+    vtk_grid(".\\results\\"*ex.folderName*"\\lads_" * lpad(exportNumber,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', ex.ladCells) do vtk
         vtk["LAD ID"] = ex.ladIdx
     end
 
@@ -272,26 +281,85 @@ if mod(t,ex.step) == 0
         crossLinkCells[i] = MeshCell(PolyData.Lines(), [i, length(chro.crosslinks)+i]);
     end
     tempVert = [chro.vert[getindex.(chro.crosslinks,1)] ; chro.vert[getindex.(chro.crosslinks,2)]];
-    vtk_grid(".\\results\\"*ex.folderName*"\\crosslinks_" * lpad(t,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', crossLinkCells) do vtk
+    vtk_grid(".\\results\\"*ex.folderName*"\\crosslinks_" * lpad(exportNumber,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', crossLinkCells) do vtk
     end
+
+    writedlm(".\\results\\"*ex.folderName*"\\crosslinks_" * lpad(exportNumber,4,"0") * ".csv", [getindex.(chro.crosslinks,1) getindex.(chro.crosslinks,2)],',')
 
 end
 
 end
 
-function solve_system!(nuc,chro,spar,simset)
+function solve_system!(nuc,chro,spar,simset,dt)
 
-    vX = cg(simset.frictionMatrix,[getindex.(nuc.forces.total,1);getindex.(chro.forces.total,1)]);
-    vY = cg(simset.frictionMatrix,[getindex.(nuc.forces.total,2);getindex.(chro.forces.total,2)]);
-    vZ = cg(simset.frictionMatrix,[getindex.(nuc.forces.total,3);getindex.(chro.forces.total,3)]);
+    
+    movements = Vector{Vec{3,Float64}}(undef,length(nuc.vert)+length(chro.vert))
 
-    for i = 1:length(nuc.vert)
-        nuc.vert[i] += Vec(vX[i],vY[i],vZ[i])*spar.dt
+    maxMovement::Float64 = 0;
+
+    while true
+
+        everythingIsFine = true
+        enveFlucs = get_random_enve_fluctuations(spar,nuc,dt)
+        fluctuationForces = get_random_fluctuations(spar,dt)
+        
+        totalEnve = nuc.forces.total .+ enveFlucs;
+        totalChro = chro.forces.total .+ fluctuationForces;
+
+        vX = cg(simset.frictionMatrix,[getindex.(totalEnve,1);getindex.(totalChro,1)]);
+        vY = cg(simset.frictionMatrix,[getindex.(totalEnve,2);getindex.(totalChro,2)]);
+        vZ = cg(simset.frictionMatrix,[getindex.(totalEnve,3);getindex.(totalChro,3)]);
+
+        
+        for i = eachindex(movements)
+            movements[i] = Vec(vX[i],vY[i],vZ[i])*dt*simset.timeStepMultiplier
+            movementNorm = norm(movements[i]);
+            if movementNorm >= maxMovement
+                maxMovement = movementNorm
+            end
+            if movementNorm >= 0.5
+                everythingIsFine = false
+                simset.timeStepMultiplier = simset.timeStepMultiplier/2
+                break
+            end
+        end
+
+        if everythingIsFine
+            break
+        end
+
     end
+
+    nuc.vert .+= movements[1:length(nuc.vert)]
+    chro.vert .+= movements[length(nuc.vert)+1:end]
+
+    multiplier::Rational = 1;
+    if simset.timeStepMultiplier != 1 && maxMovement <= 0.2
+        multiplier = 2;
+    end
+    
+    while true
+        if simset.timeStepProgress + simset.timeStepMultiplier*multiplier <= 1
+            simset.timeStepMultiplier = simset.timeStepMultiplier*multiplier
+            simset.timeStepProgress += simset.timeStepMultiplier
+            if simset.timeStepProgress == 1
+                simset.timeStepProgress = 0
+            end
+            break
+        else
+            simset.timeStepMultiplier = simset.timeStepMultiplier/2;
+        end
+    end
+
+
+    # for i = 1:length(nuc.vert)
+    #     nuc.vert[i] += Vec(vX[i],vY[i],vZ[i])*spar.dt
+    # end
    
-    for k = 1:spar.chromatinLength*spar.chromatinNumber
-        chro.vert[k] += Vec(vX[length(nuc.vert)+k],vY[length(nuc.vert)+k],vZ[length(nuc.vert)+k])*spar.dt
-    end
+    # for k = 1:spar.chromatinLength*spar.chromatinNumber
+    #     chro.vert[k] += Vec(vX[length(nuc.vert)+k],vY[length(nuc.vert)+k],vZ[length(nuc.vert)+k])*spar.dt
+    # end
+
 
 end
 
@@ -302,6 +370,7 @@ function get_iteration_properties!(nuc,chro,simset,spar)
     get_strand_vectors!(chro,spar)
     initialize_chromatin_forces!(chro)
 
+    nuc.triangleAreas = get_area!(nuc)
     get_edge_vectors!(nuc);
     get_voronoi_areas!(nuc);
     get_area_unit_vectors!(nuc);
@@ -310,14 +379,15 @@ function get_iteration_properties!(nuc,chro,simset,spar)
 
 end
 
-function save_specific_data!(nuc,ext,simset,t)
+function save_specific_data!(nuc,ext,simset)
    
-    if cmp(simset.simType,"MA") == 0
-        ext[2][t+1] = maximum(getindex.(nuc.vert,1));
-    elseif cmp(simset.simType,"MM") == 0
-        ext[2][t+1] = nuc.vert[ext[1].rightmostVertex][1] - nuc.vert[ext[1].leftmostVertex][1];
+    if simset.timeStepProgress == 0
+        if cmp(simset.simType,"MA") == 0
+            push!(ext[2],maximum(getindex.(nuc.vert,1)));
+        elseif cmp(simset.simType,"MM") == 0
+            push!(ext[2],nuc.vert[ext[1].rightmostVertex][1] - nuc.vert[ext[1].leftmostVertex][1]);
+        end
     end
-
 end
 
 function check_simulation_type(simType)
@@ -331,11 +401,11 @@ function check_simulation_type(simType)
 
 end
 
-function setup_simulation(initType,simType,maxT,importFolder)
+function setup_simulation(initType,simType,importFolder,parameterFile)
 
     # model parameters
     ipar = inputParametersType();
-    ipar = read_parameters(ipar,"./parameters.txt");
+    ipar = read_parameters(ipar,parameterFile);
 
     if cmp(initType,"load") == 0
         if importFolder == ""
@@ -375,15 +445,50 @@ function setup_simulation(initType,simType,maxT,importFolder)
 
         chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
 
+        for i = 1:spar.chromatinNumber
+
+            chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
+
+        end
     elseif cmp(initType,"load") == 0
         printstyled("Loading chromatin..."; color = :blue)
         chro = import_chromatin(chro,importFolder,importNumber)
 
         nuc,chro = import_lads(nuc,chro,importFolder,spar)
 
+        chro = import_crosslinks(chro,importFolder,importNumber,spar)
+
+        chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+
+        for i = 1:spar.chromatinNumber
+
+            chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
+
+        end
     end
 
-    chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+    chro.neighbors = Vector{Vector{Int64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+    ind = 1
+    for i = 1:spar.chromatinNumber
+        for j = 1:spar.chromatinLength
+
+            if j == 1
+                chro.neighbors[ind] = [ind, ind+1, ind+2]
+            elseif j == 2
+                chro.neighbors[ind] = [ind-1, ind, ind+1, ind+2]
+            elseif j == spar.chromatinLength-1
+                chro.neighbors[ind] = [ind-2, ind-1, ind, ind+1]
+            elseif j == spar.chromatinLength
+                chro.neighbors[ind] = [ind-2, ind-1, ind]
+            else
+                chro.neighbors[ind] = [ind-2, ind-1, ind, ind+1, ind+2]
+            end
+            
+            ind += 1
+        end
+    end
+
+    
 
     printstyled("Done!\n"; color = :blue)
 
@@ -396,12 +501,12 @@ function setup_simulation(initType,simType,maxT,importFolder)
         pip = generate_pipette_mesh();
         export_pipette_mesh(folderName,pip)
         # vector to store the aspiration lengths
-        maxX = zeros(Float64,maxT+1)
+        maxX = []
         ext = (pip,maxX)
     # setup micromanipulation 
     elseif cmp(simType,"MM") == 0
         mm = setup_micromanipulation(nuc)
-        nuclearLength = zeros(Float64,maxT+1)
+        nuclearLength = []
         ext = (mm,nuclearLength)
     elseif cmp(simType,"PC") == 0
         plane = spar.freeNucleusRadius + spar.repulsionDistance;
@@ -541,50 +646,87 @@ function import_lads(nuc,chro,importFolder,spar)
     return nuc,chro
 end
 
-function get_crosslinks!(chro,simset,spar)
+function get_crosslinks!(nuc,chro,simset,spar)
+
+    constant = 0.001;
 
     # remove crosslinks
     nLinked = length(chro.crosslinks)
     probs = rand(nLinked)
     for i = nLinked:-1:1
-        if probs[i] < 0.001
+
+        if probs[i] < spar.crosslingUnbindingProbability*spar.dt*simset.timeStepMultiplier
 
             chro.crosslinked[chro.crosslinks[i][1]] = 0
             chro.crosslinked[chro.crosslinks[i][2]] = 0
+
+            simset.frictionMatrix[length(nuc.vert) + chro.crosslinks[i][1], length(nuc.vert) + chro.crosslinks[i][2]] = 0
+            simset.frictionMatrix[length(nuc.vert) + chro.crosslinks[i][2], length(nuc.vert) + chro.crosslinks[i][1]] = 0
+            simset.frictionMatrix[length(nuc.vert) + chro.crosslinks[i][1], length(nuc.vert) + chro.crosslinks[i][1]] -= spar.laminaFriction*constant
+            simset.frictionMatrix[length(nuc.vert) + chro.crosslinks[i][2], length(nuc.vert) + chro.crosslinks[i][2]] -= spar.laminaFriction*constant
 
             chro.crosslinks = chro.crosslinks[1:end .!= i]
 
         end
     end
+
+    dropzeros!(simset.frictionMatrix)
+
     # form crosslinks
     notCrosslinked = findall(chro.crosslinked .== 0)
     closestVerts = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
     possiblyLinking =  zeros(Bool,spar.chromatinLength*spar.chromatinNumber)
 
     for i = notCrosslinked
-        # closestVertsTemp = inrange(simset.chromatinTree, chro.vert[i], 0.5, true)
-        closest,distance = knn(simset.chromatinTree, chro.vert[i],1,true,j -> any(j .== i))
-        if distance[1] <= 0.5 
+        closest,distance = knn(simset.chromatinTree, chro.vert[i],1,true,j -> any(j .== chro.neighbors[i]))
+        if distance[1] <= 0.5
             closestVerts[i] = closest[1]
             possiblyLinking[i] = true
         end
     end
     
     possibleLinkingIdx = findall(possiblyLinking)
+
+    
     for i = possibleLinkingIdx
 
         if chro.crosslinked[i] == 0 && chro.crosslinked[closestVerts[i]] == 0
 
-            if rand() < 0.0001
+            if rand() < spar.crosslingBindingProbability*spar.dt*simset.timeStepMultiplier
 
                 push!(chro.crosslinks, [i, closestVerts[i]])
                 chro.crosslinked[i] = 1
                 chro.crosslinked[closestVerts[i]] = 1
 
+                simset.frictionMatrix[length(nuc.vert) + i, length(nuc.vert) + closestVerts[i]] -= spar.laminaFriction*constant
+                simset.frictionMatrix[length(nuc.vert) + closestVerts[i], length(nuc.vert) + i] -= spar.laminaFriction*constant
+                simset.frictionMatrix[length(nuc.vert) + i, length(nuc.vert) + i] += spar.laminaFriction*constant
+                simset.frictionMatrix[length(nuc.vert) + closestVerts[i], length(nuc.vert) + closestVerts[i]] += spar.laminaFriction*constant
+
             end
         end
     end
+end
 
+function import_crosslinks(chro,importFolder,folderNumber,spar)
 
+    tempCrosslinks = readdlm(importFolder*"\\crosslinks_" * folderNumber * ".csv", ',', Int64, '\n')
+
+    chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+
+    for i = 1:size(tempCrosslinks,1)
+
+        push!(chro.crosslinks, tempCrosslinks[i,:])
+        chro.crosslinked[tempCrosslinks[i,:]] .= 1
+
+    end
+
+    for i = 1:spar.chromatinNumber
+
+        chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
+
+    end
+
+    return chro
 
 end

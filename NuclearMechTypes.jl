@@ -29,7 +29,8 @@ Base.@kwdef mutable struct nucleusType
     vertexTri::Array{Vector{Int64}} = Array{Int64}[]
     edgesTri::Array{Int64} = Array{Int64}[]
     edges3vertex::Array{Int64} = Array{Int64}[]
-    voronoiAreas::Vector{Vector{Float64}} = []
+    voronoiAreas::Vector{Float64} = []
+    triangleAreas::Vector{Float64} = []
     curvatures::Vector{Float64} = []
     vertexNormalUnitVectors::Vector{Vec{3,Float64}} = []
     edgeNormalUnitVectors::Vector{Vec{3,Float64}} = []
@@ -41,6 +42,7 @@ Base.@kwdef mutable struct nucleusType
     normalLengths::Vector{Float64} = []
     normalTriangleAreas::Vector{Float64} = []
     neighboringTriangles::Array{Int64} = []
+    edgeTrirdVertices::Vector{Vector{Int64}} = []
     forces = forcesType()
     testview::Array{Any} = [];
     p1::Array{Any} = [];
@@ -84,6 +86,8 @@ Base.@kwdef mutable struct inputParametersType
     dt::Float64 = 0;
     boltzmannConst::Float64 = 1.380649e-23
     temperature::Float64 = 0;
+    crosslingBindingProbability::Float64 = 0
+    crosslingUnbindingProbability::Float64 = 0
 
 end
 
@@ -111,6 +115,9 @@ Base.@kwdef mutable struct scaledParametersType
     dt::Float64 = 0;
     boltzmannConst::Float64 = 0;
     temperature::Float64 = 0;
+    crosslingBindingProbability::Float64 = 0
+    crosslingUnbindingProbability::Float64 = 0
+    meanLaminaLength::Float64 = 0;
 end
 
 Base.@kwdef mutable struct chromatinForceType
@@ -137,6 +144,7 @@ Base.@kwdef mutable struct chromatinType
     lads::Vector{Vector{Int64}} = []
     crosslinks::Vector{Vector{Int64}} = []
     crosslinked::Vector{Int64} = []
+    neighbors::Vector{Vector{Int64}} = []
 end
 
 Base.@kwdef mutable struct pipetteType
@@ -162,7 +170,7 @@ Base.@kwdef mutable struct exportSettingsType
     ladEnveVertices::Vector{Int} = []
     ladChroVertices::Vector{Int} = []
     folderName::String = ""
-    step::Int64 = 1
+    step::Float64 = 1
 end
 
 Base.@kwdef mutable struct simulationSettingsType
@@ -171,6 +179,8 @@ Base.@kwdef mutable struct simulationSettingsType
     chromatinTree::Any = []
     simType::String = ""
     prog::Any = []
+    timeStepProgress::Rational = 0;
+    timeStepMultiplier::Rational = 1;
 end
 
 end

@@ -70,7 +70,7 @@ end
 function get_lad_enve_vertices(ladCenterIdx,nuc,spar)
 
     ladVertices = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
-    usedVertices = [];
+
     ladNumbers = rand(8:13,spar.chromatinNumber)
 
     closeVertices = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
@@ -92,7 +92,11 @@ function get_lad_enve_vertices(ladCenterIdx,nuc,spar)
     end
 
     for i = 1:spar.chromatinNumber
-        ladVertices[i] = sample(closeVertices[i],ladNumbers[i])
+        if length(closeVertices[i]) >= ladNumbers[i]
+            ladVertices[i] = sample(closeVertices[i],ladNumbers[i],replace = false)
+        else
+            ladVertices[i] = sample(closeVertices[i],length(closeVertices[i]),replace = false)
+        end
     end
 
 
@@ -108,7 +112,7 @@ function get_lad_chro_vertices(nuc,spar)
 
         nLads = length(nuc.lads[i]);
         
-        vertPerLad = round(spar.chromatinLength/nLads)
+        vertPerLad = floor(spar.chromatinLength/nLads)
 
         possibleLadVertices = Vector{Vector{Int64}}(undef, nLads);
 
@@ -126,12 +130,19 @@ function get_lad_chro_vertices(nuc,spar)
         ladVertices[i] = [];
 
         for j = 1:nLads
-            
-            push!(ladVertices[i],rand(possibleLadVertices[j]))
+            if j == 1
+                tempVertex = rand(possibleLadVertices[j])
+            else
+                while true
+                    tempVertex = rand(possibleLadVertices[j])
+                    if tempVertex - ladVertices[i][end] > 4
+                        break
+                    end
+                end
+            end
+            push!(ladVertices[i],tempVertex)
             
         end
-
-
     end
 
     return ladVertices
