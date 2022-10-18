@@ -15,7 +15,7 @@ function get_lad_centers(nuc,spar)
     nucleusArea = 4*pi*spar.freeNucleusRadius^2;
     minDistance = 1.4*sqrt(nucleusArea/spar.chromatinNumber/pi)
 
-    ladCenterIdx = zeros(Int64,46)
+    ladCenterIdx = zeros(Int64,spar.chromatinNumber)
 
     reDoAllCounter = 0;
     while true
@@ -136,7 +136,11 @@ function get_lad_chro_vertices(nuc,spar)
                 while true
                     tempVertex = rand(possibleLadVertices[j])
                     if tempVertex - ladVertices[i][end] > 4
-                        break
+                        distanceEnve = norm(nuc.vert[nuc.lads[i][j]] - nuc.vert[nuc.lads[i][j-1]])
+                        distanceChro = (tempVertex - ladVertices[i][end])*spar.chroVertexDistance
+                        if distanceChro > distanceEnve
+                            break
+                        end
                     end
                 end
             end

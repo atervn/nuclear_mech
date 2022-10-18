@@ -229,7 +229,7 @@ function get_triangle_angles(nuc)
     normalVectors1 = nuc.triangleNormalUnitVectors[nuc.edgesTri[:,1]];
     normalVectors2 = nuc.triangleNormalUnitVectors[nuc.edgesTri[:,2]];
 
-    angles = acosd.(dot.(normalVectors1,normalVectors2))
+    angles = acos.(dot.(normalVectors1,normalVectors2))
 
     return angles
 

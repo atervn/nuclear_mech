@@ -32,6 +32,8 @@ function simulation(simType,maxT,folderName, initState; importFolder ="", nameDa
     ####################################################################################################
     # run the simulation
 
+    iLU = ilu(simset.frictionMatrix,τ=0.005)
+
     try
         while intTime <= intMaxTime
             
@@ -39,13 +41,13 @@ function simulation(simType,maxT,folderName, initState; importFolder ="", nameDa
     
             get_iteration_properties!(nuc,chro,simset,spar)
         
-            get_crosslinks!(nuc,chro,simset,spar)
+            get_crosslinks!(nuc,chro,simset,spar,iLU)
 
             get_forces!(nuc,chro,spar,ext,simset)
 
             export_data(nuc,chro,spar,ex,time,simType,simset)
             
-            solve_system!(nuc,chro,spar,simset,dt)
+            solve_system!(nuc,chro,spar,simset,dt,iLU)
             
             if cmp(simType,"PC") == 0
                 if ext > -spar.freeNucleusRadius/3

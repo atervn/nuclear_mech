@@ -75,8 +75,8 @@ function get_model_parameters(ipar,spar,nuc)
     spar.areaCompressionStiffness = ipar.areaCompressionModulus/(mean(nuc.normalLengths).*ipar.scalingLength);
     spar.areaCompressionStiffness = spar.areaCompressionStiffness/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
-    spar.bendingStiffness = ipar.laminaYoung*ipar.laminaThickness^3/(12*(1-ipar.poissonsRatio^2));
-    spar.bendingStiffness = spar.bendingStiffness/ipar.viscosity*ipar.scalingTime/ipar.scalingLength^2;
+    # spar.bendingStiffness = ipar.laminaYoung*ipar.laminaThickness^3/(12*(1-ipar.poissonsRatio^2));
+    spar.bendingStiffness = 3e-19/ipar.viscosity*ipar.scalingTime/ipar.scalingLength^2;
 
     spar.bulkModulus = ipar.bulkModulus/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
@@ -88,8 +88,8 @@ function get_model_parameters(ipar,spar,nuc)
 
     spar.chroVertexDistance = ipar.chroVertexDistance/ipar.scalingLength;
 
-    spar.chromatinBendingModulus = ipar.chromatinBendingModulus/ipar.viscosity/ipar.scalingLength*ipar.scalingTime
-
+    spar.chromatinBendingModulus = ipar.chromatinBendingModulus/ipar.viscosity/ipar.scalingLength^2*ipar.scalingTime
+    println(spar.chromatinBendingModulus)
     spar.chromatinStiffness = ipar.chromatinStiffness/ipar.viscosity*ipar.scalingTime;
 
     spar.ladStrenght = ipar.ladStrenght/ipar.viscosity*ipar.scalingTime;
@@ -110,6 +110,8 @@ function get_model_parameters(ipar,spar,nuc)
     spar.crosslingUnbindingProbability = ipar.crosslingUnbindingProbability
 
     spar.meanLaminaLength = mean(nuc.normalLengths)
+
+    spar.pullingForce = ipar.pullingForce/ipar.viscosity/ipar.scalingLength*ipar.scalingTime;
 
     return spar
 
@@ -290,7 +292,7 @@ end
 
 end
 
-function solve_system!(nuc,chro,spar,simset,dt)
+function solve_system!(nuc,chro,spar,simset,dt,iLU)
 
     
     movements = Vector{Vec{3,Float64}}(undef,length(nuc.vert)+length(chro.vert))
@@ -306,11 +308,12 @@ function solve_system!(nuc,chro,spar,simset,dt)
         totalEnve = nuc.forces.total .+ enveFlucs;
         totalChro = chro.forces.total .+ fluctuationForces;
 
-        vX = cg(simset.frictionMatrix,[getindex.(totalEnve,1);getindex.(totalChro,1)]);
-        vY = cg(simset.frictionMatrix,[getindex.(totalEnve,2);getindex.(totalChro,2)]);
-        vZ = cg(simset.frictionMatrix,[getindex.(totalEnve,3);getindex.(totalChro,3)]);
+        vX,ch = cg(simset.frictionMatrix,[getindex.(totalEnve,1);getindex.(totalChro,1)],Pl=iLU,log=true);
+        vY = cg(simset.frictionMatrix,[getindex.(totalEnve,2);getindex.(totalChro,2)],Pl=iLU);
+        vZ = cg(simset.frictionMatrix,[getindex.(totalEnve,3);getindex.(totalChro,3)],Pl=iLU);
 
-        
+        # println(ch.iters)
+
         for i = eachindex(movements)
             movements[i] = Vec(vX[i],vY[i],vZ[i])*dt*simset.timeStepMultiplier
             movementNorm = norm(movements[i]);
@@ -438,7 +441,7 @@ function setup_simulation(initType,simType,importFolder,parameterFile)
         nuc.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar)
 
         printstyled("Creating chromatin..."; color = :blue)
-        
+
         chro = create_all_chromsomes(chro,spar,nuc.vert[ladCenterIdx])
         
         chro.lads = get_lad_chro_vertices(nuc,spar)
@@ -646,9 +649,11 @@ function import_lads(nuc,chro,importFolder,spar)
     return nuc,chro
 end
 
-function get_crosslinks!(nuc,chro,simset,spar)
+function get_crosslinks!(nuc,chro,simset,spar,iLU)
 
     constant = 0.001;
+
+    changesDone = false
 
     # remove crosslinks
     nLinked = length(chro.crosslinks)
@@ -666,6 +671,8 @@ function get_crosslinks!(nuc,chro,simset,spar)
             simset.frictionMatrix[length(nuc.vert) + chro.crosslinks[i][2], length(nuc.vert) + chro.crosslinks[i][2]] -= spar.laminaFriction*constant
 
             chro.crosslinks = chro.crosslinks[1:end .!= i]
+
+            changesDone = true
 
         end
     end
@@ -703,9 +710,14 @@ function get_crosslinks!(nuc,chro,simset,spar)
                 simset.frictionMatrix[length(nuc.vert) + i, length(nuc.vert) + i] += spar.laminaFriction*constant
                 simset.frictionMatrix[length(nuc.vert) + closestVerts[i], length(nuc.vert) + closestVerts[i]] += spar.laminaFriction*constant
 
+                changesDone = true
             end
         end
     end
+    if changesDone
+        # iLU = ilu(simset.frictionMatrix,τ=0.25)
+    end
+
 end
 
 function import_crosslinks(chro,importFolder,folderNumber,spar)

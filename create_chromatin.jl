@@ -189,7 +189,7 @@ function get_other_vertices(chro,spar,vert,startInd,currentInd,ladCenterIdx,k)
 
                     for j = 1:spar.chromatinNumber
 
-                        if j != k && norm(newPoint - ladCenterIdx[j]) < distanceFromOwn
+                        if j != k && (norm(newPoint - ladCenterIdx[j]) - distanceFromOwn < -1)
                             reDoVert = true
                             break
                         end

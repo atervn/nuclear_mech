@@ -88,6 +88,7 @@ Base.@kwdef mutable struct inputParametersType
     temperature::Float64 = 0;
     crosslingBindingProbability::Float64 = 0
     crosslingUnbindingProbability::Float64 = 0
+    pullingForce::Float64 = 0
 
 end
 
@@ -118,6 +119,7 @@ Base.@kwdef mutable struct scaledParametersType
     crosslingBindingProbability::Float64 = 0
     crosslingUnbindingProbability::Float64 = 0
     meanLaminaLength::Float64 = 0;
+    pullingForce::Float64 = 0
 end
 
 Base.@kwdef mutable struct chromatinForceType
