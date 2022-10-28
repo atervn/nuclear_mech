@@ -20,15 +20,18 @@ end
 Base.@kwdef mutable struct nucleusType
     vert::Vector{Vec{3,Float64}} = []
     neighbors::Vector{Vector{Int64}} = []
-    tri::Array{Int64} = Array{Int64}[]
-    edges::Array{Int64} = Array{Int64}[]
+    tri::Vector{Vector{Int64}} = []
+    edges::Vector{Vector{Int64}} = []
+    edges2::Vector{Vector{Int64}} = []
     edgeVectors::Vector{Vec{3,Float64}} = []
+    edgeVectorNorms::Vector{Float64} = []
+    edgeUnitVectors::Vector{Vec{3,Float64}} = []
     mirrorEdges::Vector{Int64} = []
     firstEdges::Vector{Int64} = []
     vertexEdges::Vector{Vector{Int64}} = []
-    vertexTri::Array{Vector{Int64}} = Array{Int64}[]
-    edgesTri::Array{Int64} = Array{Int64}[]
-    edges3vertex::Array{Int64} = Array{Int64}[]
+    vertexTri::Vector{Vector{Int64}} = []
+    edgesTri::Vector{Vector{Int64}} = []
+    edges3Vertex::Vector{Vector{Int64}} = []
     voronoiAreas::Vector{Float64} = []
     triangleAreas::Vector{Float64} = []
     curvatures::Vector{Float64} = []
@@ -41,22 +44,10 @@ Base.@kwdef mutable struct nucleusType
     normalAngle::Float64 = 0
     normalLengths::Vector{Float64} = []
     normalTriangleAreas::Vector{Float64} = []
-    neighboringTriangles::Array{Int64} = []
-    edgeTrirdVertices::Vector{Vector{Int64}} = []
+    edgeThirdVertices::Vector{Vector{Int64}} = []
     forces = forcesType()
-    testview::Array{Any} = [];
-    p1::Array{Any} = [];
-    p2::Array{Any} = [];
-    p3::Array{Any} = [];
-    ep1::Array{Any} = [];
-    ep2::Array{Any} = [];
-    ep31::Array{Any} = [];
-    ep32::Array{Any} = [];
-    trii::Array{Any} = [];
-    tri21::Array{Any} = [];
-    tri31::Array{Any} = [];
-    tri12::Array{Any} = [];
-    tri13::Array{Any} = [];
+    triEdge1::Vector{Int64} = []
+    triEdge2::Vector{Int64} = []
     lads::Vector{Vector{Int64}} = []
 end
 
@@ -72,7 +63,7 @@ Base.@kwdef mutable struct inputParametersType
     bulkModulus::Float64 = 0;
     chromatinBendingModulus::Float64 = 0;
     chromatinStiffness::Float64 = 0;
-    ladStrenght::Float64 = 0;
+    ladStrength::Float64 = 0;
     chromatinNormalAngle::Float64 = 0
     viscosity::Float64 = 0;
     repulsionConstant::Float64 = 0;
@@ -83,13 +74,14 @@ Base.@kwdef mutable struct inputParametersType
     scalingLength::Float64 = 0;
     scalingTime::Float64 = 0;
     nSubdivisions::Float64 = 0;
-    dt::Float64 = 0;
+    maxDt::Float64 = 0;
     boltzmannConst::Float64 = 1.380649e-23
     temperature::Float64 = 0;
-    crosslingBindingProbability::Float64 = 0
-    crosslingUnbindingProbability::Float64 = 0
+    crosslinkingBindingProbability::Float64 = 0
+    crosslinkingUnbindingProbability::Float64 = 0
     pullingForce::Float64 = 0
-
+    iLUCutoff::Float64 = 0
+    exportStep::Int64 = 0
 end
 
 Base.@kwdef mutable struct scaledParametersType
@@ -103,7 +95,7 @@ Base.@kwdef mutable struct scaledParametersType
     laminaFriction::Float64 = 0;
     chromatinBendingModulus::Float64 = 0;
     chromatinStiffness::Float64 = 0;
-    ladStrenght::Float64 = 0;
+    ladStrength::Float64 = 0;
     chromatinNormalAngle::Float64 = 0
     freeNucleusRadius::Float64 = 0;
     chroVertexDistance::Float64 = 0;
@@ -113,13 +105,15 @@ Base.@kwdef mutable struct scaledParametersType
     scalingTime::Float64 = 0
     viscosity::Float64 = 0;
     nSubdivisions::Float64 = 0;
-    dt::Float64 = 0;
+    maxDt::Float64 = 0;
     boltzmannConst::Float64 = 0;
     temperature::Float64 = 0;
-    crosslingBindingProbability::Float64 = 0
-    crosslingUnbindingProbability::Float64 = 0
+    crosslinkingBindingProbability::Float64 = 0
+    crosslinkingUnbindingProbability::Float64 = 0
     meanLaminaLength::Float64 = 0;
     pullingForce::Float64 = 0
+    iLUCutoff::Float64 = 0
+    exportStep::Int64 = 0
 end
 
 Base.@kwdef mutable struct chromatinForceType
@@ -165,6 +159,7 @@ Base.@kwdef mutable struct micromanipulationType
 end
 
 Base.@kwdef mutable struct exportSettingsType
+    exportData::Bool = true
     enveCells::Vector{MeshCell{VTKCellType, Vector{Int64}}} = []
     chroCells::Vector{MeshCell{PolyData.Lines, Vector{Int64}}} = []
     ladCells::Vector{MeshCell{PolyData.Lines, Vector{Int64}}} = []
@@ -172,7 +167,7 @@ Base.@kwdef mutable struct exportSettingsType
     ladEnveVertices::Vector{Int} = []
     ladChroVertices::Vector{Int} = []
     folderName::String = ""
-    step::Float64 = 1
+    step::Int64 = 1
 end
 
 Base.@kwdef mutable struct simulationSettingsType
@@ -183,6 +178,7 @@ Base.@kwdef mutable struct simulationSettingsType
     prog::Any = []
     timeStepProgress::Rational = 0;
     timeStepMultiplier::Rational = 1;
+    iLU::Any = []
 end
 
 end

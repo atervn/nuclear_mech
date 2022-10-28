@@ -22,15 +22,29 @@ function create_icosahedron!(nuc,ipar)
         nuc.vert[i] = nuc.vert[i]./norm(nuc.vert[i]).*radius
     end
 
+    nuc.tri = Vector{Vector{Int64}}(undef,0)
     # define the triangles so that they are defined 
     # in counterclockwise direction
-    nuc.tri = [1 12 6; 1 6 2;   1 2 8;
-                1 8 11;  1 11 12; 2 6 10;
-                6 12 5;  12 11 3; 11 8 7;
-                8 2 9;   4 10 5;  4 5 3;
-                4 3 7;   4 7 9;   4 9 10;
-                5 10 6;  3 5 12;  7 3 11;
-                9 7 8;   10 9 2];
+    push!(nuc.tri, [1, 12, 6])
+    push!(nuc.tri, [1, 6, 2])
+    push!(nuc.tri, [1, 2, 8])
+    push!(nuc.tri, [1, 8, 11])
+    push!(nuc.tri, [1, 11, 12])
+    push!(nuc.tri, [2, 6, 10])
+    push!(nuc.tri, [6, 12, 5])
+    push!(nuc.tri, [12, 11, 3])
+    push!(nuc.tri, [11, 8, 7])
+    push!(nuc.tri, [8, 2, 9])
+    push!(nuc.tri, [4, 10, 5])
+    push!(nuc.tri, [4, 5, 3])
+    push!(nuc.tri, [4, 3, 7])
+    push!(nuc.tri, [4, 7, 9])
+    push!(nuc.tri, [4, 9, 10])
+    push!(nuc.tri, [5, 10, 6])
+    push!(nuc.tri, [3, 5, 12])
+    push!(nuc.tri, [7, 3, 11])
+    push!(nuc.tri, [9, 7, 8])
+    push!(nuc.tri, [10, 9, 2])
 
     return nuc
 end
@@ -38,27 +52,29 @@ end
 function get_edges(nuc)
 
     # initialize a vector for the pairs
-    nuc.edges = zeros(0,2);
+    nuc.edges = Vector{Vector{Int64}}(undef,0);
     
     nuc.neighbors = fill(Int[], length(nuc.vert));
+
+    triMatrix = [getindex.(nuc.tri,1) getindex.(nuc.tri,2) getindex.(nuc.tri,3)];
 
     # go through the vertices
     @inbounds for i = 1:length(nuc.vert)
         
         # find in which triangles vertex i is included
-        hasVertex = nuc.tri .== i;
+        hasVertex = triMatrix .== i;
     
         # initialize a vector for the neighbors
         neighbors = [];
         
         # go through the triangles
-        @inbounds for j = 1:length(nuc.tri[:,1])
+        @inbounds for j = eachindex(nuc.tri)
             
             # check if vertex i is included in the triangle
             if any(hasVertex[j,:])
                 
                 # add the other vertices in the triangle to the list of neighboring vertices
-                append!(neighbors,nuc.tri[j,.!hasVertex[j,:]]);
+                append!(neighbors,nuc.tri[j][.!hasVertex[j,:]]);
             end
         end
         
@@ -68,22 +84,24 @@ function get_edges(nuc)
         nuc.neighbors[i] = neighbors;
 
         # add the connections to the edges matrix
-        nuc.edges = [nuc.edges ; [i.*Int.(ones(length(neighbors),1)) neighbors]]  ;  
+        for j = eachindex(neighbors)
+            push!(nuc.edges, [i, neighbors[j]]);
+        end  
     end
         
     # vector to store the first time the a pair vector is seen
-    nuc.mirrorEdges = zeros(Int64,size(nuc.edges,1));
+    nuc.mirrorEdges = zeros(Int64,length(nuc.edges));
     
     # vector to store the corresponding edge pairs
-    nuc.firstEdges = zeros(Int64,size(nuc.edges,1));
+    nuc.firstEdges = zeros(Int64,length(nuc.edges));
     
-    @inbounds for i = 1:size(nuc.edges,1)
+    @inbounds for i = eachindex(nuc.edges)
             
-        b = findall(nuc.edges[:,1] .== nuc.edges[i,2] .&& nuc.edges[:,2] .== nuc.edges[i,1]);
+        mirrorIdx = findall(getindex.(nuc.edges,1) .== nuc.edges[i][2] .&& getindex.(nuc.edges,2) .== nuc.edges[i][1]);
         
-        nuc.mirrorEdges[i] = b[1];
-        nuc.mirrorEdges[b[1]] = i;
-        if nuc.firstEdges[i] == 0 && nuc.firstEdges[b[1]] == 0 
+        nuc.mirrorEdges[i] = mirrorIdx[1];
+        nuc.mirrorEdges[mirrorIdx[1]] = i;
+        if nuc.firstEdges[i] == 0 && nuc.firstEdges[mirrorIdx[1]] == 0 
             nuc.firstEdges[i] = 1;
         end
     end
@@ -91,22 +109,22 @@ function get_edges(nuc)
     nuc.vertexEdges = fill(Int[], length(nuc.vert));
     
     for i = 1:length(nuc.vert)
-        nuc.vertexEdges[i] = findall(nuc.edges[:,1] .== i);
+        nuc.vertexEdges[i] = findall(getindex(nuc.edges,1) .== i);
     end
 
-    nuc.edgesTri = zeros(Int64,size(nuc.edges,1),2);
+    nuc.edgesTri = Vector{Vector{Int64}}(undef,length(nuc.edges));
 
-    for i = 1:size(nuc.edges,1)
-        neighboringTriangles = findall(sum(nuc.tri .== nuc.edges[i,1],dims=2) .> 0 .&& sum(nuc.tri .== nuc.edges[i,2],dims=2) .> 0);
-        nuc.edgesTri[i,:] = [j[1] for j in neighboringTriangles];
+    for i = eachindex(nuc.edges)
+        neighboringTriangles = findall(sum(triMatrix .== nuc.edges[i][1],dims=2) .> 0 .&& sum(triMatrix .== nuc.edges[i][2],dims=2) .> 0);
+        nuc.edgesTri[i] = [j[1] for j in neighboringTriangles];
     end
     return nuc
         
 end
 
 function add_middle_vertices!(nuc,i,radius)
-    p1 = nuc.edges[i,1];
-    p2 = nuc.edges[i,2];
+    p1 = nuc.edges[i][1];
+    p2 = nuc.edges[i][2];
     
     newVertex = (nuc.vert[p1] + nuc.vert[p2])./2;
 
@@ -116,9 +134,9 @@ end
 
 function subdivide_triangles(nuc,radius)
 
-    newVertexIdx = zeros(Int64,size(nuc.edges,1));
+    newVertexIdx = zeros(Int64,length(nuc.edges));
 
-    @inbounds for i = 1:size(nuc.edges,1)
+    @inbounds for i = eachindex(nuc.edges)
         if nuc.firstEdges[i] == 1
             nuc = add_middle_vertices!(nuc,i,radius);
             newVertexIdx[i] = length(nuc.vert);
@@ -126,24 +144,25 @@ function subdivide_triangles(nuc,radius)
         end
     end
     
-    nextNeighbors = circshift(nuc.tri,(0,-1));
-    prevNeighbors = circshift(nuc.tri,(0,1));
+    newTriangles = Vector{Vector{Int64}}(undef,0);
     
-    newTriangles = zeros(Int64,0,3);
-    
-    @inbounds for i = 1:length(nuc.tri[:,1])
-        
-        middleTriangle = zeros(Int64,1,3);
+    @inbounds for i = eachindex(nuc.tri)
+
+        nextNeighbors = circshift(nuc.tri[i],-1);
+        prevNeighbors = circshift(nuc.tri[i],1);
+
+        middleTriangle = zeros(Int64,3);
         @inbounds for j = 1:3
-            firstVertex = nuc.tri[i,j];
-            secondVertex = newVertexIdx[findall(nuc.edges[:,1] .== nuc.tri[i,j] .&& nuc.edges[:,2] .== nextNeighbors[i,j])[1]];
-            thirdVertex = newVertexIdx[findall(nuc.edges[:,1] .== nuc.tri[i,j] .&& nuc.edges[:,2] .== prevNeighbors[i,j])[1]];
+            firstVertex = nuc.tri[i][j];
+            secondVertex = newVertexIdx[findall(getindex.(nuc.edges,1) .== nuc.tri[i][j] .&& getindex.(nuc.edges,2) .== nextNeighbors[j])[1]];
+            thirdVertex = newVertexIdx[findall(getindex.(nuc.edges,1) .== nuc.tri[i][j] .&& getindex.(nuc.edges,2) .== prevNeighbors[j])[1]];
             middleTriangle[j] = secondVertex;
             
-            newTriangles = [newTriangles ; [firstVertex secondVertex thirdVertex]];
+            push!(newTriangles, [firstVertex, secondVertex, thirdVertex]);
             
         end
-            newTriangles = [newTriangles; middleTriangle];
+        
+        push!(newTriangles, middleTriangle)
     end
 
     nuc.tri = newTriangles;
@@ -167,68 +186,40 @@ end
 
 function setup_nucleus_data(nuc)
 
+    nuc.edgeVectors = Vector{Vec{3,Float64}}(undef, length(nuc.edges));
+    nuc.edgeUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.edges));
+    nuc.edgeVectorNorms = Vector{Float64}(undef, length(nuc.edges));
     get_edge_vectors!(nuc);
 
-    nuc.neighboringTriangles = zeros(Int64,size(nuc.edges,1),2)
-    nuc.edges3vertex = zeros(Int64,size(nuc.edges,1),2);
-    for i = 1:size(nuc.edges,1)
-        temp = findall(sum(nuc.tri .== nuc.edges[i,1],dims=2) .> 0 .&& sum(nuc.tri .== nuc.edges[i,2],dims=2) .> 0);
-        nuc.neighboringTriangles[i,:] = [j[1] for j in temp];
-        thirdVertex1 = nuc.tri[nuc.neighboringTriangles[i,1],.!(nuc.tri[nuc.neighboringTriangles[i,1],:] .== nuc.edges[i,1] .|| nuc.tri[nuc.neighboringTriangles[i,1],:] .== nuc.edges[i,2])][1];
-        thirdVertex2 = nuc.tri[nuc.neighboringTriangles[i,2],.!(nuc.tri[nuc.neighboringTriangles[i,2],:] .== nuc.edges[i,1] .|| nuc.tri[nuc.neighboringTriangles[i,2],:] .== nuc.edges[i,2])][1];
+    nuc.edges3Vertex = Vector{Vector{Int64}}(undef,length(nuc.edges));
+    for i = eachindex(nuc.edges)
+        thirdVertex1 = nuc.tri[nuc.edgesTri[i][1]][.!(nuc.tri[nuc.edgesTri[i][1]] .== nuc.edges[i][1] .|| nuc.tri[nuc.edgesTri[i][1]] .== nuc.edges[i][2])][1];
+        thirdVertex2 = nuc.tri[nuc.edgesTri[i][2]][.!(nuc.tri[nuc.edgesTri[i][2]] .== nuc.edges[i][1] .|| nuc.tri[nuc.edgesTri[i][2]] .== nuc.edges[i][2])][1];
 
-        nuc.edges3vertex[i,1] = thirdVertex1;
-        nuc.edges3vertex[i,2] = thirdVertex2; 
+        nuc.edges3Vertex[i] = [thirdVertex1, thirdVertex2]
     end
 
-    nuc.testview = Array{Any}(undef,length(nuc.edges))
-    nuc.p1 = Array{Any}(undef,length(nuc.tri))
-    nuc.p2 = Array{Any}(undef,length(nuc.tri))
-    nuc.p3 = Array{Any}(undef,length(nuc.tri))
-    nuc.trii = Array{Any}(undef,length(nuc.tri))
-    nuc.tri21 = Array{Any}(undef,length(nuc.tri))
-    nuc.tri31 = Array{Any}(undef,length(nuc.tri))
-    nuc.tri12 = Array{Any}(undef,length(nuc.tri))
-    nuc.tri13 = Array{Any}(undef,length(nuc.tri))
-    nuc.ep1 = Array{Any}(undef,length(nuc.edges))
-    nuc.ep2 = Array{Any}(undef,length(nuc.edges))
-    nuc.ep31 = Array{Any}(undef,length(nuc.edges))
-    nuc.ep32 = Array{Any}(undef,length(nuc.edges))
-    nuc.edgeTrirdVertices = Vector{Vector{Int64}}(undef,length(nuc.edges))
+    nuc.triEdge1 = Vector{Int64}(undef,length(nuc.tri))
+    nuc.triEdge2 = Vector{Int64}(undef,length(nuc.tri))
+    nuc.edgeThirdVertices = Vector{Vector{Int64}}(undef,length(nuc.edges))
+    
 
-    for i = 1:size(nuc.tri,1)
-        nuc.p1[i] = @view nuc.vert[nuc.tri[i,1]];
-        nuc.p2[i] = @view nuc.vert[nuc.tri[i,2]];
-        nuc.p3[i] = @view nuc.vert[nuc.tri[i,3]];
-        nuc.trii[i] = @view nuc.vert[nuc.tri[i,:]];
-        
-        edgeIdx = findall(nuc.edges[:,1] .== nuc.tri[i,2] .&& nuc.edges[:,2] .== nuc.tri[i,1])
-        nuc.tri21[i] = @view nuc.edgeVectors[edgeIdx];
+    for i = eachindex(nuc.tri)
 
-        edgeIdx = findall(nuc.edges[:,1] .== nuc.tri[i,3] .&& nuc.edges[:,2] .== nuc.tri[i,1])
-        nuc.tri31[i] = @view nuc.edgeVectors[edgeIdx];
+        nuc.triEdge1[i] = findall(getindex.(nuc.edges,1) .== nuc.tri[i][1] .&& getindex.(nuc.edges,2) .== nuc.tri[i][2])[1]
 
-        edgeIdx = findall(nuc.edges[:,1] .== nuc.tri[i,1] .&& nuc.edges[:,2] .== nuc.tri[i,2])
-        nuc.tri12[i] = @view nuc.edgeVectors[edgeIdx];
-
-        edgeIdx = findall(nuc.edges[:,1] .== nuc.tri[i,1] .&& nuc.edges[:,2] .== nuc.tri[i,3])
-        nuc.tri13[i] = @view nuc.edgeVectors[edgeIdx];
+        nuc.triEdge2[i] = findall(getindex.(nuc.edges,1) .== nuc.tri[i][1] .&& getindex.(nuc.edges,2) .== nuc.tri[i][3])[1]
 
     end
 
     get_triangle_normals!(nuc);
 
-    for i = 1:size(nuc.edges,1)
-        nuc.testview[i] = @view nuc.triangleNormalUnitVectors[nuc.edgesTri[i,:]];
-        nuc.ep1[i] = @view nuc.vert[nuc.edges[i,1]];
-        nuc.ep2[i] = @view nuc.vert[nuc.edges[i,2]];
-        nuc.ep31[i] = @view nuc.vert[nuc.edges3vertex[i,1]];
-        nuc.ep32[i] = @view nuc.vert[nuc.edges3vertex[i,2]];
+    for i = eachindex(nuc.edges)
 
-        firstNeighbor = findall(nuc.edges[:,1] .== nuc.edges[i,1] .&& nuc.edges[:,2] .== nuc.edges3vertex[i,1])[1]
-        secondNeighbor = findall(nuc.edges[:,1] .== nuc.edges[i,1] .&& nuc.edges[:,2] .== nuc.edges3vertex[i,2])[1]
+        firstNeighbor = findall(getindex.(nuc.edges,1) .== nuc.edges[i][1] .&& getindex.(nuc.edges,2) .== nuc.edges3Vertex[i][1])[1]
+        secondNeighbor = findall(getindex.(nuc.edges,1) .== nuc.edges[i][1] .&& getindex.(nuc.edges,2) .== nuc.edges3Vertex[i][2])[1]
 
-        nuc.edgeTrirdVertices[i] = [firstNeighbor, secondNeighbor]
+        nuc.edgeThirdVertices[i] = [firstNeighbor, secondNeighbor]
 
     end
 
@@ -236,10 +227,10 @@ function setup_nucleus_data(nuc)
     nuc.normalTriangleAreas = get_area!(nuc);
     nuc.normalArea = sum(nuc.normalTriangleAreas);
     nuc.normalAngle = mean(get_triangle_angles(nuc));
-    lengths = zeros(Float64,Int64(size(nuc.edges,1)));
+    lengths = zeros(Float64,length(nuc.edges));
 
-    for i = 1:size(nuc.edges,1)  
-        lengths[i] = norm(nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges[i,1]]);
+    for i = eachindex(nuc.edges)  
+        lengths[i] = norm(nuc.vert[nuc.edges[i][2]] - nuc.vert[nuc.edges[i][1]]);
     end
     nuc.normalLengths = lengths;
 
@@ -249,12 +240,13 @@ end
 
 function get_vertex_triangles(nuc)
     
-    nuc.vertexTri = fill(Int[], length(nuc.vert), 2);
+    nuc.vertexTri = Vector{Vector{Int64}}(undef, length(nuc.vert));
+
+    triMatrix = [getindex.(nuc.tri,1) getindex.(nuc.tri,2) getindex.(nuc.tri,3)];
 
     for i = 1:length(nuc.vert)
-        aa = findall(nuc.tri  .== i);
-        nuc.vertexTri[i,1] = [i[1] for i in aa];
-        nuc.vertexTri[i,2] = [i[2]-1 for i in aa];
+        aa = findall(triMatrix  .== i);
+        nuc.vertexTri[i] = [i[1] for i in aa];
     end
 
     return nuc

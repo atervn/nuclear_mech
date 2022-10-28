@@ -18,17 +18,17 @@ function get_area_forces!(nuc,spar)
         nuc.forces.area[i] = -forceMagnitude*mean(nuc.areaUnitVectors[i])
     end
 
-    for i = 1:size(nuc.tri,1)
+    for i = eachindex(nuc.tri)
 
-        baryocenter = mean(nuc.trii[i]);
+        baryocenter = mean(nuc.vert[nuc.tri[i]]);
         magnitude = 0.1*spar.areaCompressionStiffness*(nuc.triangleAreas[i] - nuc.normalTriangleAreas[i])/nuc.normalTriangleAreas[i];
         
         for j = 1:3
 
-            vector = nuc.trii[i][j] - baryocenter;
+            vector = nuc.vert[nuc.tri[i][j]] - baryocenter;
             unitVector = vector/norm(vector)
 
-            nuc.forces.area[nuc.tri[i,j]] += -magnitude*unitVector
+            nuc.forces.area[nuc.tri[i][j]] += -magnitude*unitVector
         end
 
     end
@@ -46,29 +46,22 @@ function get_bending_forces!(nuc,spar)
 
     moment = spar.bendingStiffness*(angles .- nuc.normalAngle);
 
-    for i = 1:size(nuc.edges,1)
+    for i = eachindex(nuc.edges)
         
         if nuc.firstEdges[i] == 1
             
-            distance1 = line_point_distance(nuc.edgeVectors[i], nuc.edgeVectors[nuc.edgeTrirdVertices[i][1]])
+            distance1 = line_point_distance(nuc.edgeVectors[i], nuc.edgeVectors[nuc.edgeThirdVertices[i][1]])
+            distance2 = line_point_distance(nuc.edgeVectors[i], nuc.edgeVectors[nuc.edgeThirdVertices[i][2]])
             
-            force = -moment[i]/distance1*nuc.triangleNormalUnitVectors[nuc.edgesTri[i,1]]
+            force1 = -moment[i]/distance1*nuc.triangleNormalUnitVectors[nuc.edgesTri[i][1]]
+            force2 = -moment[i]/distance2*nuc.triangleNormalUnitVectors[nuc.edgesTri[i][2]]
 
-            counterForce = -0.5*force
+            counterForces = 0.5*force1 + 0.5*force2
 
-            nuc.forces.bending[nuc.edges3vertex[i,1]] += force;
-            nuc.forces.bending[nuc.edges[i,1]] += counterForce;
-            nuc.forces.bending[nuc.edges[i,2]] += counterForce;
-
-            distance2 = line_point_distance(nuc.edgeVectors[i], nuc.edgeVectors[nuc.edgeTrirdVertices[i][2]])
-            
-            force = -moment[i]/distance2*nuc.triangleNormalUnitVectors[nuc.edgesTri[i,2]]
-
-            counterForce = -0.5*force
-
-            nuc.forces.bending[nuc.edges3vertex[i,2]] += force
-            nuc.forces.bending[nuc.edges[i,1]] += counterForce
-            nuc.forces.bending[nuc.edges[i,2]] += counterForce
+            nuc.forces.bending[nuc.edges3Vertex[i][1]] += force1;
+            nuc.forces.bending[nuc.edges3Vertex[i][2]] += force2;
+            nuc.forces.bending[nuc.edges[i][1]] -= counterForces;
+            nuc.forces.bending[nuc.edges[i][2]] -= counterForces;
 
         end
     end
@@ -82,17 +75,13 @@ function get_elastic_forces!(nuc,spar)
         nuc.forces.elastic[i] = Vec(0.,0.,0.);
     end
 
-    for i = 1:size(nuc.edges,1)
+    for i = eachindex(nuc.edges)
         if nuc.firstEdges[i] == 1
 
-            vector = nuc.edgeVectors[i];
-            vectorNorm = norm(vector);
+            force = spar.laminaStiffness*(nuc.edgeVectorNorms[i] - nuc.normalLengths[i])*nuc.edgeUnitVectors[i];
 
-            unitVector = vector/vectorNorm;
-            force = spar.laminaStiffness*(vectorNorm - nuc.normalLengths[i])*unitVector;
-
-            nuc.forces.elastic[nuc.edges[i,1]] += force
-            nuc.forces.elastic[nuc.edges[i,2]] -= force
+            nuc.forces.elastic[nuc.edges[i][1]] += force
+            nuc.forces.elastic[nuc.edges[i][2]] -= force
         end
     end
 end
@@ -109,14 +98,14 @@ function get_repulsion_forces!(nuc,spar,envelopeTree)
 
         if distance[1] < mean(nuc.normalLengths)*1.5
 
-            nTri = length(nuc.vertexTri[closest[1],1]);
+            nTri = length(nuc.vertexTri[closest[1]]);
 
             closePointDistances = Vector{Float64}(undef,nTri);
             closePointCoordinates = Vector{Vec{3,Float64}}(undef, nTri);
 
             for j = 1:nTri
 
-                tri = nuc.vertexTri[closest[1],1][j];
+                tri = nuc.vertexTri[closest[1]][j];
 
                 closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(nuc, nuc.vert[i], tri)
             end
@@ -203,6 +192,10 @@ end
 
 function get_linear_chromatin_forces!(chro,spar)
 
+    for i = 1:length(chro.vert)
+        chro.forces.linear[i] = Vec(0.,0.,0.)
+    end
+
     for i = 1:spar.chromatinNumber
         chro.forces.strandLinear[i][1:end-1] += spar.chromatinStiffness*(chro.vectorNorms[i] .- spar.chroVertexDistance).*chro.vectors[i]./chro.vectorNorms[i];
         chro.forces.strandLinear[i][2:end] -= chro.forces.strandLinear[i][1:end-1];
@@ -211,7 +204,7 @@ end
 
 function get_bending_chromatin_forces!(chro,spar)
     
-     for i = 1:spar.chromatinNumber
+    for i = 1:spar.chromatinNumber
 
         vectors1 = -chro.vectors[i][1:end-1]
         vectors2 = chro.vectors[i][2:end]
@@ -230,11 +223,15 @@ function get_bending_chromatin_forces!(chro,spar)
         
         chro.forces.strandBending[i][1:end-2] = -spar.chromatinBendingModulus./chro.vectorNorms[i][1:end-1].*(angles .- spar.chromatinNormalAngle).*unitVectors1;
         chro.forces.strandBending[i][3:end] = -spar.chromatinBendingModulus./chro.vectorNorms[i][2:end].*(angles .- spar.chromatinNormalAngle).*unitVectors2;
-        # chro.forces.bending[1+spar.chromatinLength*(i-1):spar.chromatinLength+spar.chromatinLength*(i-1)] = chro.forces.strandBending[i];
     end
 end
 
 function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
+
+    for i = 1:length(chro.vert)
+        chro.forces.chroRepulsion[i] = Vec(0.,0.,0.)
+    end
+
 
     for i = 1:spar.chromatinNumber
 
@@ -298,28 +295,30 @@ function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
         nuc.forces.chromationRepulsion[i] = Vec(0.,0.,0.);
     end
 
-    chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef, length(chro.vert));
+    for i = eachindex(chro.vert)
+        chro.forces.enveRepulsion[i] = Vec(0.,0.,0.)
+    end
+
 
     for i = 1:spar.chromatinLength*spar.chromatinNumber
         closest,distance = knn(envelopeTree, chro.vert[i],1,true)
 
         if distance[1] < spar.meanLaminaLength*2
 
-            nTri = length(nuc.vertexTri[closest[1],1]);
+            nTri = length(nuc.vertexTri[closest[1]]);
 
             neighbors = nuc.neighbors[closest[1]]
             neigborsCoords = nuc.vert[neighbors]
 
-            triangles = nuc.tri[nuc.vertexTri[closest[1],1],:]
-            distanceMatrix = zeros(size(triangles))
+            triangles = nuc.tri[nuc.vertexTri[closest[1]]]
+            distanceVector = zeros(size(triangles,1))
             for j = 1:nTri
-                distancesTemp = norm(neigborsCoords[j] - chro.vert[i])
-                tempIdx = findall(triangles .== neighbors[j])
-                distanceMatrix[tempIdx[1]] = distancesTemp
-                distanceMatrix[tempIdx[2]] = distancesTemp
+                for k = 1:3
+                    distanceVector[j] += norm(nuc.vert[triangles[j][k]] - chro.vert[i])
+                end
             end
             
-            tri = nuc.vertexTri[closest[1],1][argmin(sum(distanceMatrix,dims=2))]
+            tri = nuc.vertexTri[closest[1]][argmin(distanceVector)]
 
             closePointDistance,closeCoords,closeVertices = vertex_triangle_distance(nuc, chro.vert[i], tri)
 
@@ -343,7 +342,7 @@ function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
                 if length(closeVertices) == 1
                     enveUnitVector = nuc.vertexNormalUnitVectors[closeVertices[1]];
                 elseif length(closeVertices) == 2
-                    edge = findall((nuc.edges[:,1] .== closeVertices[1] .&& nuc.edges[:,2] .== closeVertices[2]))[1]
+                    edge = findall((getindex.(nuc.edges,1) .== closeVertices[1] .&& getindex.(nuc.edges,2) .== closeVertices[2]))[1]
                     enveUnitVector = nuc.edgeNormalUnitVectors[edge]
                 else
                     enveUnitVector = nuc.triangleNormalUnitVectors[tri]
@@ -387,12 +386,7 @@ function get_envelope_chromatin_repulsion_forces!(nuc,chro,spar,envelopeTree)
 
                     closeCoords
                 end
-
-            else
-                chro.forces.enveRepulsion[i] = Vec(0.,0.,0.)
             end
-        else
-            chro.forces.enveRepulsion[i] = Vec(0.,0.,0.)
         end
     end
 end
@@ -404,10 +398,16 @@ function get_micromanipulation_forces(nuc,mm,spar)
         micromanipulation[i] = Vec(0.,0.,0.);
     end
 
+
     micromanipulation[mm.leftmostVertex] = 2*spar.pullingForce*(mm.leftmostVertexPosition .- nuc.vert[mm.leftmostVertex])
+    # micromanipulation[mm.leftNeighbors] = spar.pullingForce*(mm.leftNeigborPositions .- nuc.vert[mm.leftNeighbors])
 
     forceVector = spar.pullingForce*Vec(1.,0.,0.);
     micromanipulation[mm.rightmostVertex] = forceVector
+    # for i = eachindex(mm.rightNeighbors)
+    #     micromanipulation[mm.rightNeighbors[i]] = 0.5*1/length(mm.rightNeighbors)*forceVector
+    # end
+    
 
     return micromanipulation
 end
@@ -415,13 +415,9 @@ end
 function get_lad_forces!(nuc,chro,spar)
 
     nuc.forces.ladEnveForces = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
-    chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef, length(chro.vert));
 
     for i = 1:length(nuc.vert)
         nuc.forces.ladEnveForces[i] = Vec(0.,0.,0.) 
-    end
-    for i = 1:length(chro.vert)
-        chro.forces.ladChroForces[i] = Vec(0.,0.,0.) 
     end
 
     for i = 1:spar.chromatinNumber
@@ -429,7 +425,7 @@ function get_lad_forces!(nuc,chro,spar)
         for j = 1:length(chro.lads[i])
             vector = nuc.vert[nuc.lads[i][j]] - chro.vert[chro.strandIdx[i][chro.lads[i][j]]]
             distance = norm(vector)
-            magnitude = -spar.ladStrenght*(distance - 0.2)
+            magnitude = -spar.ladStrength*(distance - 0.2)
             nuc.forces.ladEnveForces[nuc.lads[i][j]] = magnitude*vector/distance
             chro.forces.ladChroForces[chro.strandIdx[i][chro.lads[i][j]]] = -magnitude*vector/distance
 
@@ -488,7 +484,7 @@ function get_forces!(nuc,chro,spar,ext,simset)
     get_lad_forces!(nuc,chro,spar)
 
 
-    nuc.forces.total = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.bending .+ nuc.forces.chromationRepulsion .+ nuc.forces.ladEnveForces;  # .+ nuc.forces.envelopeRepulsion
+    nuc.forces.total = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.bending .+ nuc.forces.chromationRepulsion;# .+ nuc.forces.ladEnveForces;  # .+ nuc.forces.envelopeRepulsion
     
     if cmp(simset.simType,"MA") == 0 
         nuc.forces.total .+=  repulsion .+ aspiration
@@ -498,7 +494,7 @@ function get_forces!(nuc,chro,spar,ext,simset)
         nuc.forces.total .+= planeRepulsion
     end
 
-    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ chro.forces.enveRepulsion .+ chro.forces.ladChroForces .+ crosslinkForces
+    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ chro.forces.enveRepulsion .+ crosslinkForces;# .+ chro.forces.ladChroForces
 
 end
 
@@ -513,7 +509,7 @@ function get_crosslink_forces!(chro,spar,simset)
 
         vector = chro.vert[chro.crosslinks[i][1]] - chro.vert[chro.crosslinks[i][2]]
         vectorNorm = norm(vector);
-        crosslinkForces[chro.crosslinks[i][1]] = -spar.ladStrenght*(vectorNorm - 0.4).*vector./vectorNorm;
+        crosslinkForces[chro.crosslinks[i][1]] = -spar.ladStrength*(vectorNorm - 0.4).*vector./vectorNorm;
         crosslinkForces[chro.crosslinks[i][2]] = -crosslinkForces[chro.crosslinks[i][1]]
 
     end

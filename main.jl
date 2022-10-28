@@ -1,6 +1,7 @@
-using Plots, Statistics, LinearAlgebra, IterativeSolvers, SparseArrays, ProgressMeter,
-Meshes, FileIO, MeshIO, NearestNeighbors, WriteVTK, DelimitedFiles, Dates,
-StatsBase, ReadVTK, NativeFileDialog, Random, IncompleteLU
+using Plots, Statistics, LinearAlgebra, IterativeSolvers, SparseArrays,
+ProgressMeter, Meshes, FileIO, MeshIO, NearestNeighbors, WriteVTK,
+DelimitedFiles, Dates, StatsBase, ReadVTK, NativeFileDialog, Random,
+IncompleteLU, LinearSolve
 
 include("create_nucleus.jl")
 include("plotting.jl")
@@ -17,4 +18,5 @@ if !(@isdefined nucleusType)
     using .NuclearMechTypes
 end
 
-test = simulation("MM",10,"mm_tst","load")
+simulation("MM",0.1,"mm_te","load";importFolder = "2022-10-18_141029_final",exportData = false)
+# simulation("MM",5,"mm_fitting_no_lads_test_222","load";importFolder = "2022-10-18_141029_final")

@@ -3,16 +3,10 @@ function get_volume!(nuc)
     based on https://stackoverflow.com/questions/1406029/how-to-calculate-the-volume-of-a-3d-mesh-object-the-surface-of-which-is-made-up
     and http://chenlab.ece.cornell.edu/Publication/Cha/icip01_Cha.pdf
     =#
-    volumes = zeros(size(nuc.tri,1),1);
+    volumes = zeros(length(nuc.tri));
 
-    for i = 1:size(nuc.tri,1)
-        tri = @view nuc.tri[i,:];
-
-        p1 = nuc.p1[i];
-        p2 = nuc.p2[i];
-        p3 = nuc.p3[i];
-
-        volumes[i] = 1/6*dot(p1[1],cross(p2[1],p3[1]))
+    for i = eachindex(nuc.tri)
+        volumes[i] = 1/6*dot(nuc.vert[nuc.tri[i][1]],cross(nuc.vert[nuc.tri[i][2]],nuc.vert[nuc.tri[i][3]]))
     end
 
     return sum(volumes)
@@ -21,22 +15,15 @@ end
 
 function get_area!(nuc)
 
-    areas = zeros(size(nuc.tri,1));
+    areas = zeros(length(nuc.tri));
 
-    for i = 1:size(nuc.tri,1)
+    for i = eachindex(nuc.tri)
 
-        AB = nuc.tri21[i]
+        dotProduct = dot(nuc.edgeVectors[nuc.triEdge1[i]],nuc.edgeVectors[nuc.triEdge2[i]])
+
+        θ = acos(dotProduct/(nuc.edgeVectorNorms[nuc.triEdge1[i]]*nuc.edgeVectorNorms[nuc.triEdge2[i]]));
         
-        AC = nuc.tri31[i]
-
-        ABnorm = norm(AB);
-        ACnorm = norm(AC)
-
-        dotProduct = dot(AB,AC)
-
-        θ = acosd(dotProduct/(ABnorm*ACnorm));
-        
-        areas[i] = 1/2*ABnorm*ACnorm*sind(θ);
+        areas[i] = 1/2*nuc.edgeVectorNorms[nuc.triEdge1[i]]*nuc.edgeVectorNorms[nuc.triEdge2[i]]*sin(θ);
         
     end
 
@@ -46,14 +33,14 @@ end
 
 function get_local_curvatures!(nuc)
 
-    angles1 = zeros(Float64,size(nuc.edges,1));
-    angles2 = zeros(Float64,size(nuc.edges,1));
+    angles1 = zeros(Float64,length(nuc.edges));
+    angles2 = zeros(Float64,length(nuc.edges));
 
-    for i = 1:size(nuc.edges,1)
+    for i = eachindex(nuc.edges)
         
 
-        AB = nuc.vert[nuc.edges[i,1]] - nuc.vert[nuc.edges3vertex[i,1]]   
-        AC = nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges3vertex[i,1]]
+        AB = nuc.vert[nuc.edges[i][1]] - nuc.vert[nuc.edges3Vertex[i][1]]   
+        AC = nuc.vert[nuc.edges[i][2]] - nuc.vert[nuc.edges3Vertex[i][1]]
 
         ABnorm = norm(AB)
         ACnorm = norm(AC)
@@ -61,8 +48,8 @@ function get_local_curvatures!(nuc)
 
         angles1[i] = acosd(dotProduct/(ABnorm*ACnorm));
         
-        AB = nuc.vert[nuc.edges[i,1]] - nuc.vert[nuc.edges3vertex[i,2]]        
-        AC = nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges3vertex[i,2]]
+        AB = nuc.vert[nuc.edges[i][1]] - nuc.vert[nuc.edges3Vertex[i][2]]        
+        AC = nuc.vert[nuc.edges[i][2]] - nuc.vert[nuc.edges3Vertex[i][2]]
 
         ABnorm = norm(AB)
         ACnorm = norm(AC)
@@ -104,28 +91,9 @@ function get_voronoi_areas!(nuc)
 
         voronoiAreasTemp = 0;
 
-        for j = 1:length(nuc.vertexTri[i,1])
+        for j = 1:length(nuc.vertexTri[i])
 
-            # approximately correct, below is the full accuracy one
-
-            voronoiAreasTemp += nuc.triangleAreas[nuc.vertexTri[i,1][j]]/3
-            # v = circshift(nuc.tri[nuc.vertexTri[i,1][j],:],(-nuc.vertexTri[i,2][j]));
-            
-            # center3 = mean(nuc.vert[v]);
-            # tempArea = 0;
-
-            # for k = 2:3
-
-            #     center2 = (nuc.vert[i] + nuc.vert[v[k]])/2
-
-            #     dist1 = norm(center3 - center2)
-            #     dist2 = norm(nuc.vert[i] - center2)
-
-            #     tempArea += dist1*dist2/2;
-
-            # end
-
-            # voronoiAreasTemp[j] = tempArea;
+            voronoiAreasTemp += nuc.triangleAreas[nuc.vertexTri[i][j]]/3
 
         end
 
@@ -140,19 +108,19 @@ end
 function get_area_unit_vectors!(nuc)
 
 
-    baryocenters = Vector{Vec{3,Float64}}(undef, size(nuc.tri,1));
+    baryocenters = Vector{Vec{3,Float64}}(undef, length(nuc.tri));
 
-    for i = 1:size(nuc.tri,1)
-        baryocenters[i] = mean(nuc.vert[nuc.tri[i,:]]);
+    for i = eachindex(nuc.tri)
+        baryocenters[i] = mean(nuc.vert[nuc.tri[i]]);
     end
 
     nuc.areaUnitVectors = Vector{Vector{Vec{3,Float64}}}(undef, length(nuc.vert))
 
     for i = 1:length(nuc.vert)
 
-        areaUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.vertexTri[i,1]))
+        areaUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.vertexTri[i]))
         j2 = 1;
-        for j = nuc.vertexTri[i,1]
+        for j = nuc.vertexTri[i]
 
             vectorTemp = nuc.vert[i] - baryocenters[j]
 
@@ -172,13 +140,13 @@ end
 function get_triangle_normals!(nuc)
 
     #triangleNormalUnitVectors = zeros(Float64,size(nuc.tri,1),3);
-    triangleNormalUnitVectors = Vector{Vec{3,Float64}}(undef, size(nuc.tri,1));
+    triangleNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.tri));
 
-    for i = 1:size(nuc.tri,1)
+    for i = eachindex(nuc.tri)
 
         # tri = @view nuc.tri[i,:];
 
-        normalVector = cross(nuc.tri12[i][1],nuc.tri13[i][1])
+        normalVector = cross(nuc.edgeVectors[nuc.triEdge1[i]],nuc.edgeVectors[nuc.triEdge2[i]])
 
         #normalVector = cross_product(p1,p2,p3);
 
@@ -188,11 +156,11 @@ function get_triangle_normals!(nuc)
 
     nuc.triangleNormalUnitVectors = triangleNormalUnitVectors;
 
-    edgeNormalUnitVectors = Vector{Vec{3,Float64}}(undef, size(nuc.edges,1));
+    edgeNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.edges));
 
-    for i = 1:size(nuc.edges,1)
+    for i = eachindex(nuc.edges)
 
-        vector = nuc.triangleNormalUnitVectors[nuc.edgesTri[i,1]] + nuc.triangleNormalUnitVectors[nuc.edgesTri[i,2]]
+        vector = nuc.triangleNormalUnitVectors[nuc.edgesTri[i][1]] + nuc.triangleNormalUnitVectors[nuc.edgesTri[i][2]]
         edgeNormalUnitVectors[i] = vector./norm(vector);
 
     end
@@ -213,23 +181,13 @@ function get_triangle_normals!(nuc)
 
 end
 
-function cross_product(p1,p2,p3)
-
-    return [((p2[2] - p1[2]) * (p3[3] - p1[3])) - ((p2[3] - p1[3]) * (p3[2] - p1[2]))
-            ((p2[3] - p1[3]) * (p3[1] - p1[1])) - ((p2[1] - p1[1]) * (p3[3] - p1[3]))
-            ((p2[1] - p1[1]) * (p3[2] - p1[2])) - ((p2[2] - p1[2]) * (p3[1] - p1[1]))];
-
-end
-
 function get_triangle_angles(nuc)
 
-    angles = zeros(Float64,size(nuc.edges,1),1);
+    angles = zeros(Float64,length(nuc.edges));
     
-
-    normalVectors1 = nuc.triangleNormalUnitVectors[nuc.edgesTri[:,1]];
-    normalVectors2 = nuc.triangleNormalUnitVectors[nuc.edgesTri[:,2]];
-
-    angles = acos.(dot.(normalVectors1,normalVectors2))
+    for i = eachindex(angles)
+        angles[i] = acos(min(1.0,dot(nuc.triangleNormalUnitVectors[nuc.edgesTri[i][1]],nuc.triangleNormalUnitVectors[nuc.edgesTri[i][2]])))
+    end
 
     return angles
 
@@ -237,15 +195,16 @@ end
 
 function get_edge_vectors!(nuc)
 
-    edgeVectors = Vector{Vec{3,Float64}}(undef, size(nuc.edges,1));
-
-    for i = 1:size(nuc.edges,1)
-
-        edgeVectors[i] = nuc.vert[nuc.edges[i,2]] - nuc.vert[nuc.edges[i,1]];
-
+    for i = eachindex(nuc.edges)
+        if nuc.firstEdges[i] == 1
+            nuc.edgeVectors[i] = nuc.vert[nuc.edges[i][2]] - nuc.vert[nuc.edges[i][1]];
+            nuc.edgeVectors[nuc.mirrorEdges[i]] = -nuc.edgeVectors[i]
+            nuc.edgeVectorNorms[i] = norm(nuc.edgeVectors[i])
+            nuc.edgeVectorNorms[nuc.mirrorEdges[i]] = nuc.edgeVectorNorms[i]
+            nuc.edgeUnitVectors[i] = nuc.edgeVectors[i]/nuc.edgeVectorNorms[i]
+            nuc.edgeUnitVectors[nuc.mirrorEdges[i]] = -nuc.edgeUnitVectors[i]
+        end
     end
-
-    nuc.edgeVectors = edgeVectors;
 
 end
 
@@ -259,17 +218,17 @@ function vertex_triangle_distance(nuc, vertex, tri, pip = nothing)
 
     # based on https://gist.github.com/joshuashaffer/99d58e4ccbd37ca5d96e
 
-    if pip === nothing
-        tri = nuc.tri[tri,:];
+    # if pip === nothing
+        tri = nuc.tri[tri];
         B  = nuc.vert[tri[1]];
         E0 = nuc.vert[tri[2]] - B;
         E1 = nuc.vert[tri[3]] - B;   
-    else
-        tri = pip.tri[tri,:];
-        B  = pip.vert[tri[1]];
-        E0 = pip.vert[tri[2]] - B;
-        E1 = pip.vert[tri[3]] - B;
-    end
+    # else
+    #     tri = pip.tri[tri,:];
+    #     B  = pip.vert[tri[1]];
+    #     E0 = pip.vert[tri[2]] - B;
+    #     E1 = pip.vert[tri[3]] - B;
+    # end
 
     D = B - vertex
     
