@@ -264,7 +264,7 @@ end
 
 function get_random_enve_fluctuations(spar,nuc,dt)
 
-    strength = sqrt(2*spar.boltzmannConst*spar.temperature/(dt));
+    strength = sqrt(0*spar.boltzmannConst*spar.temperature/(dt));
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,length(nuc.vert))
     for i = 1:length(nuc.vert)
@@ -434,22 +434,34 @@ function get_lad_forces!(nuc,chro,spar)
 
 end
 
-function get_plane_repulsion(nuc,plane,spar)
+function get_plane_repulsion(nuc,ext,spar)
 
     planeRepulsion = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
     for i = eachindex(nuc.vert)
         planeRepulsion[i] = Vec(0.,0.,0.);
     end
+
     for i = eachindex(nuc.vert)
-        if plane - nuc.vert[i][3] < spar.repulsionDistance
-            distance = plane - nuc.vert[i][3];
-            planeRepulsion[i] += Vec(0.,0.,-spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2))
+        if ext[1] - nuc.vert[i][3] < spar.repulsionDistance
+            
+            if ext[1] - nuc.vert[i][3] < 0
+                planeRepulsion[i] = Vec(0.,0.,-spar.repulsionConstant*0.1)
+            else
+                distance = ext[1] - nuc.vert[i][3];
+                planeRepulsion[i] = Vec(0.,0.,-spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2))
+                ext[3][i] = true
+            end
         end
     end
+
     for i = eachindex(nuc.vert)
-        if abs(-spar.freeNucleusRadius - nuc.vert[i][3]) < spar.repulsionDistance
-            distance = abs(-spar.freeNucleusRadius - nuc.vert[i][3]);
-            planeRepulsion[i] += Vec(0.,0.,spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2))
+        if nuc.vert[i][3] - ext[2] < spar.repulsionDistance
+            if nuc.vert[i][3] - ext[2] < 0
+                planeRepulsion[i] = Vec(0.,0.,spar.repulsionConstant*0.1)
+            else
+                distance = nuc.vert[i][3] - ext[2];
+                planeRepulsion[i] = Vec(0.,0.,spar.repulsionConstant*(spar.repulsionDistance - distance)^(3/2))
+            end
         end
     end
 
@@ -484,17 +496,25 @@ function get_forces!(nuc,chro,spar,ext,simset)
     get_lad_forces!(nuc,chro,spar)
 
 
-    nuc.forces.total = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.bending .+ nuc.forces.chromationRepulsion;# .+ nuc.forces.ladEnveForces;  # .+ nuc.forces.envelopeRepulsion
+    nuc.forces.total = nuc.forces.volume .+ nuc.forces.area .+ nuc.forces.elastic .+ nuc.forces.bending .+ nuc.forces.chromationRepulsion .+ nuc.forces.ladEnveForces;  # .+ nuc.forces.envelopeRepulsion
     
     if cmp(simset.simType,"MA") == 0 
         nuc.forces.total .+=  repulsion .+ aspiration
     elseif cmp(simset.simType,"MM") == 0
         nuc.forces.total .+= micromanipulation
     elseif cmp(simset.simType,"PC") == 0
+
+        ext[4] = 0;
+        for i = findall(ext[3])
+            if nuc.forces.total[i][3] > 0
+                ext[4] += nuc.forces.total[i][3]
+            end
+        end
+
         nuc.forces.total .+= planeRepulsion
     end
 
-    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ chro.forces.enveRepulsion .+ crosslinkForces;# .+ chro.forces.ladChroForces
+    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ chro.forces.enveRepulsion .+ crosslinkForces .+ chro.forces.ladChroForces
 
 end
 

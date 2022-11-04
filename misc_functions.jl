@@ -309,7 +309,7 @@ function export_data(nuc,chro,spar,ex,ext,intTime,simset)
     end
 end
 
-function solve_system!(nuc,chro,spar,simset,dt)
+function solve_system!(nuc,chro,spar,simset,dt,ext)
 
     
     movements = Vector{Vec{3,Float64}}(undef,length(nuc.vert)+length(chro.vert))
@@ -358,6 +358,96 @@ function solve_system!(nuc,chro,spar,simset,dt)
     nuc.vert .+= movements[1:length(nuc.vert)]
     chro.vert .+= movements[length(nuc.vert)+1:end]
 
+    if simset.simType == "PC"
+        planeMovement = (9e5 - ext[4])*dt.*simset.timeStepMultiplier
+        if planeMovement > 0.001
+            ext[1] -= 10*dt.*simset.timeStepMultiplier
+        else
+            println((9e5 - ext[4]))
+            ext[1] -= planeMovement
+        end
+    end
+
+
+    multiplier::Rational = 1;
+    if simset.timeStepMultiplier != 1 && maxMovement <= 0.2
+        multiplier = 2;
+    end
+    
+    while true
+        if simset.timeStepProgress + simset.timeStepMultiplier*multiplier <= 1
+            simset.timeStepMultiplier = simset.timeStepMultiplier*multiplier
+            simset.timeStepProgress += simset.timeStepMultiplier
+            if simset.timeStepProgress == 1
+                simset.timeStepProgress = 0
+            end
+            break
+        else
+            simset.timeStepMultiplier = simset.timeStepMultiplier/2;
+        end
+    end
+end
+
+function solve_system_init!(nuc,chro,spar,simset,dt,ext,noEnve)
+
+    
+    movements = Vector{Vec{3,Float64}}(undef,length(nuc.vert)+length(chro.vert))
+
+    maxMovement::Float64 = 0;
+    maxMovInd::Int64 = 0;
+
+    while true
+
+        everythingIsFine = true
+        enveFlucs = get_random_enve_fluctuations(spar,nuc,dt)
+        fluctuationForces = get_random_fluctuations(spar,dt)
+        
+        totalEnve = nuc.forces.total .+ enveFlucs;
+        totalChro = chro.forces.total .+ fluctuationForces;
+
+        solX = cg(simset.frictionMatrix,[getindex.(totalEnve,1);getindex.(totalChro,1)],Pl = simset.iLU)
+        solY = cg(simset.frictionMatrix,[getindex.(totalEnve,2);getindex.(totalChro,2)],Pl = simset.iLU)
+        solZ = cg(simset.frictionMatrix,[getindex.(totalEnve,3);getindex.(totalChro,3)],Pl = simset.iLU)
+
+        movements = Vec.(solX,solY,solZ).*dt.*simset.timeStepMultiplier
+
+        maxMovement = 0;
+
+        for i = eachindex(movements)
+            
+            movementNorm = norm(movements[i]);
+            if movementNorm >= maxMovement
+                maxMovement = movementNorm
+                maxMovInd = i
+            end
+
+            if movementNorm >= 0.5
+                everythingIsFine = false
+                simset.timeStepMultiplier = simset.timeStepMultiplier/2
+                break
+            end
+        end
+
+        if everythingIsFine
+            break
+        end
+
+    end
+    if !noEnve
+        nuc.vert .+= movements[1:length(nuc.vert)]
+    end
+    chro.vert .+= movements[length(nuc.vert)+1:end]
+
+    if simset.simType == "PC"
+        planeMovement = (9e5 - ext[4])*dt.*simset.timeStepMultiplier
+        if planeMovement > 0.001
+            ext[1] -= 10*dt.*simset.timeStepMultiplier
+        else
+            println((9e5 - ext[4]))
+            ext[1] -= planeMovement
+        end
+    end
+
     multiplier::Rational = 1;
     if simset.timeStepMultiplier != 1 && maxMovement <= 0.2
         multiplier = 2;
@@ -379,25 +469,28 @@ end
 
 function get_nuclear_properties!(nuc,chro,simset,spar)
    
+    # form the trees for the vertex distance search
     simset.envelopeTree = KDTree(nuc.vert);
     simset.chromatinTree = KDTree(chro.vert);
+
+    # get various nuclear properties needed in the solution
     get_strand_vectors!(chro,spar)
-    
     get_edge_vectors!(nuc);
     nuc.triangleAreas = get_area!(nuc)
     get_voronoi_areas!(nuc);
+    get_triangle_normals!(nuc);
     get_area_unit_vectors!(nuc);
     # get_local_curvatures!(nuc);
-    get_triangle_normals!(nuc);
-
 end
 
 function save_specific_data!(nuc,ext,simset)
    
+    # save data for analysis
     if simset.timeStepProgress == 0
-        if cmp(simset.simType,"MA") == 0
+
+        if cmp(simset.simType,"MA") == 0 # for MA, save maximum x-coordinate
             push!(ext[2],maximum(getindex.(nuc.vert,1)));
-        elseif cmp(simset.simType,"MM") == 0
+        elseif cmp(simset.simType,"MM") == 0 # for MM, save distance between the manipulated vertices
             push!(ext[2],nuc.vert[ext[1].rightmostVertex][1] - nuc.vert[ext[1].leftmostVertex][1]);
         end
     end
@@ -405,36 +498,33 @@ end
 
 function check_simulation_type(simType)
 
+    # check that the simulation type is correct
     if cmp(simType,"MA") != 0 && cmp(simType,"MM") != 0 && cmp(simType,"PC") != 0 && cmp(simType,"INIT") != 0
         printstyled("Unknown simulation type"; color = :blue)
         return true
     end
 
     return false
-
 end
 
 function setup_simulation(initType::String,simType::String,importFolder::String,parameterFile::String)
 
-    # model parameters
+    # read model parameters from file
     ipar = inputParametersType();
     ipar = read_parameters(ipar,parameterFile);
 
-    if cmp(initType,"load") == 0
-        if importFolder == ""
-            importFolder = pick_folder(pwd()*"\\results")
-        else
-            importFolder = pwd()*"\\results\\"*importFolder
-        end
-    end
+    # get import folder
+    importFolder = get_import_folder(initType,importFolder)
 
     # create nucleus
     nuc = nucleusType();
-    if cmp(initType,"new") == 0
+    if cmp(initType,"new") == 0 # create a new nuclear envelope
+
         printstyled("Creating nuclear envelope..."; color = :blue)
         nuc = create_icosahedron!(nuc,ipar);
         nuc = subdivide_mesh!(nuc,ipar)
-    elseif cmp(initType,"load") == 0
+    elseif cmp(initType,"load") == 0 # load nuclear envelope from previous simulation
+        
         printstyled("Loading nuclear envelope..."; color = :blue)
         nuc,importNumber = import_envelope(nuc,importFolder)
     end
@@ -531,13 +621,14 @@ function setup_simulation(initType::String,simType::String,importFolder::String,
         nuclearLength = []
         ext = (mm,nuclearLength)
     elseif cmp(simType,"PC") == 0
-        plane = spar.freeNucleusRadius + spar.repulsionDistance;
-        ext = (plane)
+        topPlane = spar.freeNucleusRadius + spar.repulsionDistance;
+        bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance;
+        ext = [topPlane,bottomPlane,zeros(Bool,length(nuc.vert)),0]
     elseif cmp(simType,"INIT") == 0
         ext = ()
     end
 
-    return nuc, chro, spar, simset,ext
+    return nuc, chro, spar, simset, ext
 
 end
 
@@ -577,7 +668,7 @@ function import_envelope(nuc,importFolder)
     vert = get_points(vtk)
 
     nuc.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
-    for i = 1:size(vert,2)
+    for i = eachindex(vert[1,:])
         nuc.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
     end
 
@@ -588,7 +679,7 @@ function import_envelope(nuc,importFolder)
     tri = reshape(tri,(3,:))
     tri = tri' .+ 1
     nuc.tri = Vector{Vector{Int64}}(undef,size(tri,1))
-    for i = 1:size(tri,1)
+    for i = eachindex(tri[:,1])
         nuc.tri[i] = tri[i,:]
     end
 
@@ -604,7 +695,7 @@ function import_chromatin(chro,importFolder,importNumber)
     vert = get_points(vtk)
 
     chro.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
-    for i = 1:size(vert,2)
+    for i = eachindex(vert[1,:])
         chro.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
     end
 
@@ -748,7 +839,7 @@ function import_crosslinks(chro,importFolder,folderNumber,spar)
 
     chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
 
-    for i = 1:size(tempCrosslinks,1)
+    for i = eachindex(tempCrosslinks[:,1])
 
         push!(chro.crosslinks, tempCrosslinks[i,:])
         chro.crosslinked[tempCrosslinks[i,:]] .= 1
@@ -776,7 +867,7 @@ function progress_time!(simset,intTime)
 
 end
 
-function post_export(ex,ext)
+function post_export(ex,simset,ext)
 
     if ex.exportData
         if cmp(simset.simType, "MA") == 0
@@ -791,4 +882,19 @@ function post_export(ex,ext)
         end
     end
 
+end
+
+function get_import_folder(initType,importFolder)
+    
+    if initType == "load"
+        if importFolder == "" # open dialog if no folder was provided
+            importFolder = pick_folder(pwd()*"\\results")
+        else # get the path if folder was provided
+            importFolder = pwd()*"\\results\\"*importFolder;
+        end
+    else
+        importFolder = ""
+    end
+
+    return importFolder
 end

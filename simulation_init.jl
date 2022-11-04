@@ -1,4 +1,4 @@
-function simulation(simType::String, maxT, folderName::String, initState::String; importFolder::String="", nameDate::Bool=true, parameterFile::String="./parameters.txt", exportData::Bool=true)
+function simulation_init(simType::String, maxT, folderName::String, initState::String, noEnve::Bool; importFolder::String="", nameDate::Bool=true, parameterFile::String="./parameters.txt", exportData::Bool=true)
 
     if check_simulation_type(simType)
         return
@@ -32,7 +32,7 @@ function simulation(simType::String, maxT, folderName::String, initState::String
 
             export_data(nuc, chro, spar,ex ,ext, intTime, simset)
 
-            solve_system!(nuc, chro, spar, simset, dt, ext)
+            solve_system_init!(nuc, chro, spar, simset, dt, ext, noEnve)
 
             intTime = progress_time!(simset,intTime);
             
@@ -47,4 +47,6 @@ function simulation(simType::String, maxT, folderName::String, initState::String
     ##################################################################################################
     
     post_export(ex,simset,ext)
+
+    return ex.folderName
 end

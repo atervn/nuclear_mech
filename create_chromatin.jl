@@ -52,7 +52,6 @@ function create_all_chromsomes(chro,spar,ladCenterIdx)
             chro.forces.strandChroRepulsion = Vector{Any}(undef,spar.chromatinNumber)
             chro.forces.strandEnveRepulsion = Vector{Any}(undef,spar.chromatinNumber)
             chro.forces.strandLadChroForces = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.emptyForces = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
             initialize_chromatin_forces!(chro);
             
             for i = 1:spar.chromatinNumber

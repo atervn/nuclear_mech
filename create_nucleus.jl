@@ -1,10 +1,12 @@
 function create_icosahedron!(nuc,ipar)
 
+    # get the scaled radius
     radius = ipar.freeNucleusRadius/ipar.scalingLength;
 
     # define the icosahedron vertex coordinates
     a = (1 + sqrt(5))/2;
 
+    # add the icosahedron vertices
     push!(nuc.vert,Vec(-1, a, 0))
     push!(nuc.vert,Vec( 1, a, 0))
     push!(nuc.vert,Vec(-1,-a, 0))
@@ -18,13 +20,13 @@ function create_icosahedron!(nuc,ipar)
     push!(nuc.vert,Vec(-a, 0,-1))
     push!(nuc.vert,Vec(-a, 0, 1))
 
+    # normalize their distance from origo to the radius
     for i = eachindex(nuc.vert)
         nuc.vert[i] = nuc.vert[i]./norm(nuc.vert[i]).*radius
     end
 
+    # create a vector for the triangles and add the icosahedron triangles (defined counterclockwise)
     nuc.tri = Vector{Vector{Int64}}(undef,0)
-    # define the triangles so that they are defined 
-    # in counterclockwise direction
     push!(nuc.tri, [1, 12, 6])
     push!(nuc.tri, [1, 6, 2])
     push!(nuc.tri, [1, 2, 8])
@@ -51,11 +53,13 @@ end
 
 function get_edges(nuc)
 
-    # initialize a vector for the pairs
+    # a vector for the pairs
     nuc.edges = Vector{Vector{Int64}}(undef,0);
     
+    # a vector for the connected neighboring vertices
     nuc.neighbors = fill(Int[], length(nuc.vert));
 
+    # matrix form of the trignle vector
     triMatrix = [getindex.(nuc.tri,1) getindex.(nuc.tri,2) getindex.(nuc.tri,3)];
 
     # go through the vertices
@@ -78,9 +82,8 @@ function get_edges(nuc)
             end
         end
         
-        # get the unique neighbors
+        # get the unique neighbors and save them
         unique!(neighbors);
-        
         nuc.neighbors[i] = neighbors;
 
         # add the connections to the edges matrix
@@ -172,8 +175,10 @@ end
 
 function subdivide_mesh!(nuc,ipar)
     
+    # get the scaled radius
     radius = ipar.freeNucleusRadius/ipar.scalingLength;
 
+    # get triangle edges
     nuc = get_edges(nuc);
 
     for i = 1:ipar.nSubdivisions
