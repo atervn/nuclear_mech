@@ -1,69 +1,66 @@
-function create_icosahedron!(nuc,ipar)
-
-    # get the scaled radius
-    radius = ipar.freeNucleusRadius/ipar.scalingLength;
+function get_icosaherdon!(shellStruct,radius)
 
     # define the icosahedron vertex coordinates
     a = (1 + sqrt(5))/2;
 
     # add the icosahedron vertices
-    push!(nuc.vert,Vec(-1, a, 0))
-    push!(nuc.vert,Vec( 1, a, 0))
-    push!(nuc.vert,Vec(-1,-a, 0))
-    push!(nuc.vert,Vec( 1,-a, 0))
-    push!(nuc.vert,Vec( 0,-1, a))
-    push!(nuc.vert,Vec( 0, 1, a))
-    push!(nuc.vert,Vec( 0,-1,-a))
-    push!(nuc.vert,Vec( 0, 1,-a))
-    push!(nuc.vert,Vec( a, 0,-1))
-    push!(nuc.vert,Vec( a, 0, 1))
-    push!(nuc.vert,Vec(-a, 0,-1))
-    push!(nuc.vert,Vec(-a, 0, 1))
+    push!(shellStruct.vert,Vec(-1, a, 0))
+    push!(shellStruct.vert,Vec( 1, a, 0))
+    push!(shellStruct.vert,Vec(-1,-a, 0))
+    push!(shellStruct.vert,Vec( 1,-a, 0))
+    push!(shellStruct.vert,Vec( 0,-1, a))
+    push!(shellStruct.vert,Vec( 0, 1, a))
+    push!(shellStruct.vert,Vec( 0,-1,-a))
+    push!(shellStruct.vert,Vec( 0, 1,-a))
+    push!(shellStruct.vert,Vec( a, 0,-1))
+    push!(shellStruct.vert,Vec( a, 0, 1))
+    push!(shellStruct.vert,Vec(-a, 0,-1))
+    push!(shellStruct.vert,Vec(-a, 0, 1))
 
     # normalize their distance from origo to the radius
-    for i = eachindex(nuc.vert)
-        nuc.vert[i] = nuc.vert[i]./norm(nuc.vert[i]).*radius
+    for i = eachindex(shellStruct.vert)
+        shellStruct.vert[i] = shellStruct.vert[i]./norm(shellStruct.vert[i]).*radius
     end
 
     # create a vector for the triangles and add the icosahedron triangles (defined counterclockwise)
-    nuc.tri = Vector{Vector{Int64}}(undef,0)
-    push!(nuc.tri, [1, 12, 6])
-    push!(nuc.tri, [1, 6, 2])
-    push!(nuc.tri, [1, 2, 8])
-    push!(nuc.tri, [1, 8, 11])
-    push!(nuc.tri, [1, 11, 12])
-    push!(nuc.tri, [2, 6, 10])
-    push!(nuc.tri, [6, 12, 5])
-    push!(nuc.tri, [12, 11, 3])
-    push!(nuc.tri, [11, 8, 7])
-    push!(nuc.tri, [8, 2, 9])
-    push!(nuc.tri, [4, 10, 5])
-    push!(nuc.tri, [4, 5, 3])
-    push!(nuc.tri, [4, 3, 7])
-    push!(nuc.tri, [4, 7, 9])
-    push!(nuc.tri, [4, 9, 10])
-    push!(nuc.tri, [5, 10, 6])
-    push!(nuc.tri, [3, 5, 12])
-    push!(nuc.tri, [7, 3, 11])
-    push!(nuc.tri, [9, 7, 8])
-    push!(nuc.tri, [10, 9, 2])
+    shellStruct.tri = Vector{Vector{Int64}}(undef,0)
+    push!(shellStruct.tri, [1, 12, 6])
+    push!(shellStruct.tri, [1, 6, 2])
+    push!(shellStruct.tri, [1, 2, 8])
+    push!(shellStruct.tri, [1, 8, 11])
+    push!(shellStruct.tri, [1, 11, 12])
+    push!(shellStruct.tri, [2, 6, 10])
+    push!(shellStruct.tri, [6, 12, 5])
+    push!(shellStruct.tri, [12, 11, 3])
+    push!(shellStruct.tri, [11, 8, 7])
+    push!(shellStruct.tri, [8, 2, 9])
+    push!(shellStruct.tri, [4, 10, 5])
+    push!(shellStruct.tri, [4, 5, 3])
+    push!(shellStruct.tri, [4, 3, 7])
+    push!(shellStruct.tri, [4, 7, 9])
+    push!(shellStruct.tri, [4, 9, 10])
+    push!(shellStruct.tri, [5, 10, 6])
+    push!(shellStruct.tri, [3, 5, 12])
+    push!(shellStruct.tri, [7, 3, 11])
+    push!(shellStruct.tri, [9, 7, 8])
+    push!(shellStruct.tri, [10, 9, 2])
 
-    return nuc
+    return shellStruct
 end
 
-function get_edges(nuc)
+function get_edges(shellStruct)
 
     # a vector for the pairs
-    nuc.edges = Vector{Vector{Int64}}(undef,0);
+    shellStruct.edges = Vector{Vector{Int64}}(undef,0);
     
     # a vector for the connected neighboring vertices
-    nuc.neighbors = fill(Int[], length(nuc.vert));
+    shellStruct.neighbors = fill(Int[], length(shellStruct.vert));
 
     # matrix form of the trignle vector
-    triMatrix = [getindex.(nuc.tri,1) getindex.(nuc.tri,2) getindex.(nuc.tri,3)];
+    triMatrix = [getindex.(shellStruct.tri,1) getindex.(shellStruct.tri,2) getindex.(shellStruct.tri,3)];
 
     # go through the vertices
-    @inbounds for i = 1:length(nuc.vert)
+    for i = 1:length(shellStruct.vert)
         
         # find in which triangles vertex i is included
         hasVertex = triMatrix .== i;
@@ -72,93 +69,93 @@ function get_edges(nuc)
         neighbors = [];
         
         # go through the triangles
-        @inbounds for j = eachindex(nuc.tri)
+        for j = eachindex(shellStruct.tri)
             
             # check if vertex i is included in the triangle
             if any(hasVertex[j,:])
                 
                 # add the other vertices in the triangle to the list of neighboring vertices
-                append!(neighbors,nuc.tri[j][.!hasVertex[j,:]]);
+                append!(neighbors,shellStruct.tri[j][.!hasVertex[j,:]]);
             end
         end
         
         # get the unique neighbors and save them
         unique!(neighbors);
-        nuc.neighbors[i] = neighbors;
+        shellStruct.neighbors[i] = neighbors;
 
         # add the connections to the edges matrix
         for j = eachindex(neighbors)
-            push!(nuc.edges, [i, neighbors[j]]);
+            push!(shellStruct.edges, [i, neighbors[j]]);
         end  
     end
         
     # vector to store the first time the a pair vector is seen
-    nuc.mirrorEdges = zeros(Int64,length(nuc.edges));
+    shellStruct.mirrorEdges = zeros(Int64,length(shellStruct.edges));
     
     # vector to store the corresponding edge pairs
-    nuc.firstEdges = zeros(Int64,length(nuc.edges));
+    shellStruct.firstEdges = zeros(Int64,length(shellStruct.edges));
     
-    @inbounds for i = eachindex(nuc.edges)
+    for i = eachindex(shellStruct.edges)
             
-        mirrorIdx = findall(getindex.(nuc.edges,1) .== nuc.edges[i][2] .&& getindex.(nuc.edges,2) .== nuc.edges[i][1]);
+        mirrorIdx = findall(getindex.(shellStruct.edges,1) .== shellStruct.edges[i][2] .&& getindex.(shellStruct.edges,2) .== shellStruct.edges[i][1]);
         
-        nuc.mirrorEdges[i] = mirrorIdx[1];
-        nuc.mirrorEdges[mirrorIdx[1]] = i;
-        if nuc.firstEdges[i] == 0 && nuc.firstEdges[mirrorIdx[1]] == 0 
-            nuc.firstEdges[i] = 1;
+        shellStruct.mirrorEdges[i] = mirrorIdx[1];
+        shellStruct.mirrorEdges[mirrorIdx[1]] = i;
+        if shellStruct.firstEdges[i] == 0 && shellStruct.firstEdges[mirrorIdx[1]] == 0 
+            shellStruct.firstEdges[i] = 1;
         end
     end
 
-    nuc.vertexEdges = fill(Int[], length(nuc.vert));
+    shellStruct.vertexEdges = fill(Int[], length(shellStruct.vert));
     
-    for i = 1:length(nuc.vert)
-        nuc.vertexEdges[i] = findall(getindex(nuc.edges,1) .== i);
+    for i = 1:length(shellStruct.vert)
+        shellStruct.vertexEdges[i] = findall(getindex(shellStruct.edges,1) .== i);
     end
 
-    nuc.edgesTri = Vector{Vector{Int64}}(undef,length(nuc.edges));
+    shellStruct.edgesTri = Vector{Vector{Int64}}(undef,length(shellStruct.edges));
 
-    for i = eachindex(nuc.edges)
-        neighboringTriangles = findall(sum(triMatrix .== nuc.edges[i][1],dims=2) .> 0 .&& sum(triMatrix .== nuc.edges[i][2],dims=2) .> 0);
-        nuc.edgesTri[i] = [j[1] for j in neighboringTriangles];
+    for i = eachindex(shellStruct.edges)
+        neighboringTriangles = findall(sum(triMatrix .== shellStruct.edges[i][1],dims=2) .> 0 .&& sum(triMatrix .== shellStruct.edges[i][2],dims=2) .> 0);
+        shellStruct.edgesTri[i] = [j[1] for j in neighboringTriangles];
     end
-    return nuc
+    return shellStruct
         
 end
 
-function add_middle_vertices!(nuc,i,radius)
-    p1 = nuc.edges[i][1];
-    p2 = nuc.edges[i][2];
+function add_middle_vertices!(shellStruct,i,radius)
+    p1 = shellStruct.edges[i][1];
+    p2 = shellStruct.edges[i][2];
     
-    newVertex = (nuc.vert[p1] + nuc.vert[p2])./2;
+    newVertex = (shellStruct.vert[p1] + shellStruct.vert[p2])./2;
 
-    push!(nuc.vert,newVertex.*radius/norm(newVertex));
-    return nuc
+    push!(shellStruct.vert,newVertex.*radius/norm(newVertex));
+    return shellStruct
 end
 
-function subdivide_triangles(nuc,radius)
+function subdivide_triangles(shellStruct,radius)
 
-    newVertexIdx = zeros(Int64,length(nuc.edges));
+    newVertexIdx = zeros(Int64,length(shellStruct.edges));
 
-    @inbounds for i = eachindex(nuc.edges)
-        if nuc.firstEdges[i] == 1
-            nuc = add_middle_vertices!(nuc,i,radius);
-            newVertexIdx[i] = length(nuc.vert);
-            newVertexIdx[nuc.mirrorEdges[i]] = length(nuc.vert);
+    for i = eachindex(shellStruct.edges)
+        if shellStruct.firstEdges[i] == 1
+            shellStruct = add_middle_vertices!(shellStruct,i,radius);
+            newVertexIdx[i] = length(shellStruct.vert);
+            newVertexIdx[shellStruct.mirrorEdges[i]] = length(shellStruct.vert);
         end
     end
     
     newTriangles = Vector{Vector{Int64}}(undef,0);
     
-    @inbounds for i = eachindex(nuc.tri)
+    for i = eachindex(shellStruct.tri)
 
-        nextNeighbors = circshift(nuc.tri[i],-1);
-        prevNeighbors = circshift(nuc.tri[i],1);
+        nextNeighbors = circshift(shellStruct.tri[i],-1);
+        prevNeighbors = circshift(shellStruct.tri[i],1);
 
         middleTriangle = zeros(Int64,3);
-        @inbounds for j = 1:3
-            firstVertex = nuc.tri[i][j];
-            secondVertex = newVertexIdx[findall(getindex.(nuc.edges,1) .== nuc.tri[i][j] .&& getindex.(nuc.edges,2) .== nextNeighbors[j])[1]];
-            thirdVertex = newVertexIdx[findall(getindex.(nuc.edges,1) .== nuc.tri[i][j] .&& getindex.(nuc.edges,2) .== prevNeighbors[j])[1]];
+        for j = 1:3
+            firstVertex = shellStruct.tri[i][j];
+            secondVertex = newVertexIdx[findall(getindex.(shellStruct.edges,1) .== shellStruct.tri[i][j] .&& getindex.(shellStruct.edges,2) .== nextNeighbors[j])[1]];
+            thirdVertex = newVertexIdx[findall(getindex.(shellStruct.edges,1) .== shellStruct.tri[i][j] .&& getindex.(shellStruct.edges,2) .== prevNeighbors[j])[1]];
             middleTriangle[j] = secondVertex;
             
             push!(newTriangles, [firstVertex, secondVertex, thirdVertex]);
@@ -168,92 +165,35 @@ function subdivide_triangles(nuc,radius)
         push!(newTriangles, middleTriangle)
     end
 
-    nuc.tri = newTriangles;
-    nuc = get_vertex_triangles(nuc) 
-    return nuc
+    shellStruct.tri = newTriangles;
+    shellStruct = get_vertex_triangles(shellStruct) 
+    return shellStruct
 end
 
-function subdivide_mesh!(nuc,ipar)
+function subdivide_mesh!(shellStruct,radius,nSubdivisions)
     
-    # get the scaled radius
-    radius = ipar.freeNucleusRadius/ipar.scalingLength;
-
     # get triangle edges
-    nuc = get_edges(nuc);
+    shellStruct = get_edges(shellStruct);
 
-    for i = 1:ipar.nSubdivisions
-        nuc = subdivide_triangles(nuc,radius);
-        nuc = get_edges(nuc);
+    for i = 1:nSubdivisions
+        shellStruct = subdivide_triangles(shellStruct,radius);
+        shellStruct = get_edges(shellStruct);
     end
 
-    return nuc
+    return shellStruct
 end
 
-function setup_nucleus_data(nuc)
-
-    nuc.edgeVectors = Vector{Vec{3,Float64}}(undef, length(nuc.edges));
-    nuc.edgeUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.edges));
-    nuc.edgeVectorNorms = Vector{Float64}(undef, length(nuc.edges));
-    get_edge_vectors!(nuc);
-
-    nuc.edges3Vertex = Vector{Vector{Int64}}(undef,length(nuc.edges));
-    for i = eachindex(nuc.edges)
-        thirdVertex1 = nuc.tri[nuc.edgesTri[i][1]][.!(nuc.tri[nuc.edgesTri[i][1]] .== nuc.edges[i][1] .|| nuc.tri[nuc.edgesTri[i][1]] .== nuc.edges[i][2])][1];
-        thirdVertex2 = nuc.tri[nuc.edgesTri[i][2]][.!(nuc.tri[nuc.edgesTri[i][2]] .== nuc.edges[i][1] .|| nuc.tri[nuc.edgesTri[i][2]] .== nuc.edges[i][2])][1];
-
-        nuc.edges3Vertex[i] = [thirdVertex1, thirdVertex2]
-    end
-
-    nuc.triEdge1 = Vector{Int64}(undef,length(nuc.tri))
-    nuc.triEdge2 = Vector{Int64}(undef,length(nuc.tri))
-    nuc.edgeThirdVertices = Vector{Vector{Int64}}(undef,length(nuc.edges))
+function get_vertex_triangles(shellStruct)
     
+    shellStruct.vertexTri = Vector{Vector{Int64}}(undef, length(shellStruct.vert));
 
-    for i = eachindex(nuc.tri)
+    triMatrix = [getindex.(shellStruct.tri,1) getindex.(shellStruct.tri,2) getindex.(shellStruct.tri,3)];
 
-        nuc.triEdge1[i] = findall(getindex.(nuc.edges,1) .== nuc.tri[i][1] .&& getindex.(nuc.edges,2) .== nuc.tri[i][2])[1]
-
-        nuc.triEdge2[i] = findall(getindex.(nuc.edges,1) .== nuc.tri[i][1] .&& getindex.(nuc.edges,2) .== nuc.tri[i][3])[1]
-
-    end
-
-    get_triangle_normals!(nuc);
-
-    for i = eachindex(nuc.edges)
-
-        firstNeighbor = findall(getindex.(nuc.edges,1) .== nuc.edges[i][1] .&& getindex.(nuc.edges,2) .== nuc.edges3Vertex[i][1])[1]
-        secondNeighbor = findall(getindex.(nuc.edges,1) .== nuc.edges[i][1] .&& getindex.(nuc.edges,2) .== nuc.edges3Vertex[i][2])[1]
-
-        nuc.edgeThirdVertices[i] = [firstNeighbor, secondNeighbor]
-
-    end
-
-    nuc.normalVolume = get_volume!(nuc);
-    nuc.normalTriangleAreas = get_area!(nuc);
-    nuc.normalArea = sum(nuc.normalTriangleAreas);
-    nuc.normalAngle = mean(get_triangle_angles(nuc));
-    lengths = zeros(Float64,length(nuc.edges));
-
-    for i = eachindex(nuc.edges)  
-        lengths[i] = norm(nuc.vert[nuc.edges[i][2]] - nuc.vert[nuc.edges[i][1]]);
-    end
-    nuc.normalLengths = lengths;
-
-    return nuc
-
-end
-
-function get_vertex_triangles(nuc)
-    
-    nuc.vertexTri = Vector{Vector{Int64}}(undef, length(nuc.vert));
-
-    triMatrix = [getindex.(nuc.tri,1) getindex.(nuc.tri,2) getindex.(nuc.tri,3)];
-
-    for i = 1:length(nuc.vert)
+    for i = 1:length(shellStruct.vert)
         aa = findall(triMatrix  .== i);
-        nuc.vertexTri[i] = [i[1] for i in aa];
+        shellStruct.vertexTri[i] = [i[1] for i in aa];
     end
 
-    return nuc
+    return shellStruct
 
 end

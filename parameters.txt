@@ -22,6 +22,6 @@ crosslinkingBindingProbability,0.0
 crosslinkingUnbindingProbability,0.
 scalingLength,1e-6
 scalingTime,60
-pullingForce,2e-9
+pullingForce,5e-9
 iLUCutoff,0.001
 exportStep,20

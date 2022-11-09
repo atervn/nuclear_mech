@@ -12,6 +12,7 @@ include("mesh_generation.jl")
 include("create_chromatin.jl")
 include("simulation.jl")
 include("lad_creation.jl")
+include("setup_functions.jl")
 
 if !(@isdefined nucleusType)
     include("NuclearMechTypes.jl")
@@ -19,5 +20,5 @@ if !(@isdefined nucleusType)
 end
 
 
-# simulation("INIT",0.1,"fggfg","new";exportData = false)
-simulation("MM",5,"MM_TEST","load")
+simulation("VRC",0.1,"fggfg","load")
+# simulation("INIT",0.5,"MM_TEST","new")

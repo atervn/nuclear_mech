@@ -4,7 +4,7 @@ using WriteVTK
 using Meshes
 using SparseArrays
 
-export nucleusType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType
+export nucleusType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType, replicationCompartmentType
 
 Base.@kwdef mutable struct forcesType
     volume::Vector{Vec{3,Float64}} = []
@@ -179,6 +179,49 @@ Base.@kwdef mutable struct simulationSettingsType
     timeStepProgress::Rational = 0;
     timeStepMultiplier::Rational = 1;
     iLU::Any = []
+end
+
+Base.@kwdef mutable struct virusforcesType
+    volume::Vector{Vec{3,Float64}} = []
+    area::Vector{Vec{3,Float64}} = []
+    bending::Vector{Vec{3,Float64}} = []
+    elastic::Vector{Vec{3,Float64}} = []
+    envelopeRepulsion::Vector{Vec{3,Float64}} = []
+    chromationRepulsion::Vector{Vec{3,Float64}} = []
+    total::Vector{Vec{3,Float64}} = []
+end
+
+Base.@kwdef mutable struct replicationCompartmentType
+    vert::Vector{Vec{3,Float64}} = []
+    neighbors::Vector{Vector{Int64}} = []
+    tri::Vector{Vector{Int64}} = []
+    edges::Vector{Vector{Int64}} = []
+    edges2::Vector{Vector{Int64}} = []
+    edgeVectors::Vector{Vec{3,Float64}} = []
+    edgeVectorNorms::Vector{Float64} = []
+    edgeUnitVectors::Vector{Vec{3,Float64}} = []
+    mirrorEdges::Vector{Int64} = []
+    firstEdges::Vector{Int64} = []
+    vertexEdges::Vector{Vector{Int64}} = []
+    vertexTri::Vector{Vector{Int64}} = []
+    edgesTri::Vector{Vector{Int64}} = []
+    edges3Vertex::Vector{Vector{Int64}} = []
+    voronoiAreas::Vector{Float64} = []
+    triangleAreas::Vector{Float64} = []
+    curvatures::Vector{Float64} = []
+    vertexNormalUnitVectors::Vector{Vec{3,Float64}} = []
+    edgeNormalUnitVectors::Vector{Vec{3,Float64}} = []
+    triangleNormalUnitVectors::Vector{Vec{3,Float64}} = []
+    areaUnitVectors::Vector{Vector{Vec{3,Float64}}} = []
+    normalVolume::Float64 = 0
+    normalArea::Float64 = 0
+    normalAngle::Float64 = 0
+    normalLengths::Vector{Float64} = []
+    normalTriangleAreas::Vector{Float64} = []
+    edgeThirdVertices::Vector{Vector{Int64}} = []
+    forces = virusforcesType()
+    triEdge1::Vector{Int64} = []
+    triEdge2::Vector{Int64} = []
 end
 
 end

@@ -24,13 +24,13 @@ function simulation(simType::String, maxT, folderName::String, initState::String
     try
         while intTime <= intMaxTime
 
-            get_nuclear_properties!(nuc, chro, simset, spar)
+            get_nuclear_properties!(nuc, chro, simset, spar, ext)
 
             get_crosslinks!(nuc, chro, simset, spar)
 
             get_forces!(nuc, chro, spar, ext, simset)
 
-            export_data(nuc, chro, spar,ex ,ext, intTime, simset)
+            export_data(nuc, chro, spar, ex, ext, intTime, simset)
 
             solve_system!(nuc, chro, spar, simset, dt, ext)
 
