@@ -109,8 +109,12 @@ function import_crosslinks(chro,importFolder,spar)
 
     importNumber = get_import_number(importFolder)
 
-    tempCrosslinks = readdlm(importFolder*"\\crosslinks_" * importNumber * ".csv", ',', Int64, '\n')
-
+    tempCrosslinks = []
+    try
+        tempCrosslinks = readdlm(importFolder*"\\crosslinks_" * importNumber * ".csv", ',', Int64, '\n')
+        println("blob1")
+    catch
+    end
     chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
 
     for i = eachindex(tempCrosslinks[:,1])

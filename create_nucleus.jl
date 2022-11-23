@@ -127,8 +127,11 @@ function add_middle_vertices!(shellStruct,i,radius)
     p2 = shellStruct.edges[i][2];
     
     newVertex = (shellStruct.vert[p1] + shellStruct.vert[p2])./2;
-
-    push!(shellStruct.vert,newVertex.*radius/norm(newVertex));
+    if radius != 0
+        push!(shellStruct.vert,newVertex.*radius/norm(newVertex));
+    else
+        push!(shellStruct.vert,newVertex);
+    end
     return shellStruct
 end
 

@@ -39,7 +39,7 @@ function setup_simulation(initType::String,simType::String,importFolder::String,
     elseif cmp(simType,"INIT") == 0
         ext = ()
     elseif cmp(simType,"VRC") == 0
-        ext = create_replication_compartment(spar)
+        ext = create_replication_compartment(nuc,spar)
     end
 
     return nuc, chro, spar, simset, ext
@@ -405,4 +405,99 @@ function get_model_parameters(ipar,spar,nuc)
     spar.exportStep = ipar.exportStep
 
     return spar
+end
+
+function get_repl_comp_friction_matrix(replComp,spar)
+
+    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(replComp.vert),length(replComp.vert));
+
+    
+    for j = 1:length(replComp.vert)
+        frictionMatrix[j,j] = 1 + 20*spar.laminaFriction*length(replComp.neighbors[j]);
+        frictionMatrix[j,replComp.neighbors[j]] .= -20*spar.laminaFriction;
+    end
+    
+    return frictionMatrix
+end
+
+function setup_simulation_adh_init(initType::String,simType::String,importFolder::String,parameterFile::String)
+
+    # read model parameters from file
+    ipar = inputParametersType();
+    ipar = read_parameters(ipar,parameterFile);
+
+    # get import folder
+    importFolder = get_import_folder(initType,importFolder)
+
+    nuc = setup_nucleus(ipar,initType,importFolder)
+    
+    # scale parameters
+    spar = scaledParametersType();
+    spar = get_model_parameters(ipar,spar,nuc);
+    
+    simset = simulationSettingsType()
+    simset.frictionMatrix = get_friction_matrix_adh_init(nuc,spar)
+    simset.iLU = ilu(simset.frictionMatrix, τ=spar.iLUCutoff)
+    simset.simType = simType;
+
+    topPlane = spar.freeNucleusRadius + spar.repulsionDistance;
+    bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance;
+    ext = [topPlane,bottomPlane,zeros(Bool,length(nuc.vert)),0]
+
+    return nuc, spar, simset, ext
+
+end
+
+function get_friction_matrix_adh_init(nuc,spar)
+
+    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.vert),length(nuc.vert));
+
+    for j = 1:length(nuc.vert)
+        frictionMatrix[j,j] = 1 + spar.laminaFriction*length(nuc.neighbors[j]);
+        frictionMatrix[j,nuc.neighbors[j]] .= -spar.laminaFriction;
+    end
+
+    return frictionMatrix
+end
+
+function setup_export_adh_init(folderName::String,nuc,spar,nameDate::Bool,exportData::Bool)
+
+    ex = exportSettingsType()
+
+    ex.exportData = exportData
+
+    if ex.exportData
+        if nameDate
+            ex.folderName = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")*folderName
+        else
+            ex.folderName = folderName
+        end
+
+        try
+            mkdir(".\\results\\"*ex.folderName)
+        catch
+            for i = 1:1000
+                try
+                    mkdir(".\\results\\"*ex.folderName*"_"*string(i))
+                    ex.folderName = ex.folderName*"_"*string(i)
+                    break
+                catch
+                end
+            end
+        end
+
+        open(".\\results\\"*ex.folderName*"\\adh.txt", "w") do file
+            write(file, "adh")
+        end
+
+        ex.enveCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,length(nuc.tri))
+        for i = eachindex(nuc.tri)
+            ex.enveCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, nuc.tri[i]);
+        end
+
+        ex.step = spar.exportStep
+    end
+    
+    return ex
+
 end

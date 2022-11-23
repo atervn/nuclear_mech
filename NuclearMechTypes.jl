@@ -5,7 +5,6 @@ using Meshes
 using SparseArrays
 
 export nucleusType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType, replicationCompartmentType
-
 Base.@kwdef mutable struct forcesType
     volume::Vector{Vec{3,Float64}} = []
     area::Vector{Vec{3,Float64}} = []
@@ -16,7 +15,6 @@ Base.@kwdef mutable struct forcesType
     ladEnveForces::Vector{Vec{3,Float64}} = []
     total::Vector{Vec{3,Float64}} = []
 end
-
 Base.@kwdef mutable struct nucleusType
     vert::Vector{Vec{3,Float64}} = []
     neighbors::Vector{Vector{Int64}} = []
@@ -50,7 +48,6 @@ Base.@kwdef mutable struct nucleusType
     triEdge2::Vector{Int64} = []
     lads::Vector{Vector{Int64}} = []
 end
-
 Base.@kwdef mutable struct inputParametersType
     
     freeNucleusRadius::Float64 = 0;
@@ -83,7 +80,6 @@ Base.@kwdef mutable struct inputParametersType
     iLUCutoff::Float64 = 0
     exportStep::Int64 = 0
 end
-
 Base.@kwdef mutable struct scaledParametersType
     
     bulkModulus::Float64 = 0;
@@ -115,7 +111,6 @@ Base.@kwdef mutable struct scaledParametersType
     iLUCutoff::Float64 = 0
     exportStep::Int64 = 0
 end
-
 Base.@kwdef mutable struct chromatinForceType
     linear::Vector{Vec{3,Float64}} = []
     bending::Vector{Vec{3,Float64}} = []
@@ -129,7 +124,6 @@ Base.@kwdef mutable struct chromatinForceType
     ladChroForces::Vector{Vec{3,Float64}} = []
     total::Vector{Vec{3,Float64}} = []
 end
-
 Base.@kwdef mutable struct chromatinType
     vert::Vector{Vec{3,Float64}} = []
     strandIdx::Vector{Vector{Int64}} = []
@@ -142,13 +136,11 @@ Base.@kwdef mutable struct chromatinType
     crosslinked::Vector{Int64} = []
     neighbors::Vector{Vector{Int64}} = []
 end
-
 Base.@kwdef mutable struct pipetteType
     vert::Vector{Vec{3,Float64}} = []
     tri::Array{Int64} = Array{Int64}[]
     vertexTri::Array{Vector{Int64}} = Array{Int64}[]
 end
-
 Base.@kwdef mutable struct micromanipulationType
     rightmostVertex::Int64 = 0
     leftmostVertex::Int64 = 0
@@ -157,7 +149,6 @@ Base.@kwdef mutable struct micromanipulationType
     leftNeighbors::Vector{Int64} = []
     leftNeigborPositions::Vector{Vec{3,Float64}} = []
 end
-
 Base.@kwdef mutable struct exportSettingsType
     exportData::Bool = true
     enveCells::Vector{MeshCell{VTKCellType, Vector{Int64}}} = []
@@ -169,7 +160,6 @@ Base.@kwdef mutable struct exportSettingsType
     folderName::String = ""
     step::Int64 = 1
 end
-
 Base.@kwdef mutable struct simulationSettingsType
     frictionMatrix::Any = []
     envelopeTree::Any = []
@@ -179,8 +169,8 @@ Base.@kwdef mutable struct simulationSettingsType
     timeStepProgress::Rational = 0;
     timeStepMultiplier::Rational = 1;
     iLU::Any = []
+    adh::Bool = false
 end
-
 Base.@kwdef mutable struct virusforcesType
     volume::Vector{Vec{3,Float64}} = []
     area::Vector{Vec{3,Float64}} = []
@@ -222,6 +212,10 @@ Base.@kwdef mutable struct replicationCompartmentType
     forces = virusforcesType()
     triEdge1::Vector{Int64} = []
     triEdge2::Vector{Int64} = []
+    frictionMatrix::Any = []
+    iLU::Any = []
+    baseArea::Float64 = 0;
+    tree::Any = []
 end
 
 end

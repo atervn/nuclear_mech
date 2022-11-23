@@ -1,6 +1,6 @@
 using NativeFileDialog, Plots, DelimitedFiles, ReadVTK
 
-function calculate_strain(yMax::Integer = 0)
+function calculate_strain(yMax = 0)
 
     folder = pick_folder(pwd()*"\\results")
 
@@ -59,81 +59,4 @@ function calculate_strain(yMax::Integer = 0)
     println("Final strain: " * string(strain[end]))
 
     return p
-end
-
-function calculate_strain(baseName::String = "")
-
-    if baseName == ""
-        return
-    end 
-
-    resultsFolder = pick_folder(pwd()*"\\results")
-
-    if resultsFolder == ""
-        return
-    end
-
-    stringLength = length(baseName)
-
-    folders = readdir(resultsFolder)
-
-    nFolders = 0
-    for i = eachindex(folders)
-        if length(folders[i]) >= stringLength
-            if folders[i][1:stringLength] == baseName
-                nFolders += 1
-            end
-        end
-    end
-
-    strains = Matrix{Float64}(undef,nFolders,1)
-
-    for k = 1:nFolders
-
-        folder = resultsFolder * "\\" * baseName * "_" * string(k)
-
-        nuclearLengths = []
-        try
-            nuclearLengths = readdlm(folder * "\\nuclearLength.csv");
-        catch
-
-            files = readdir(folder)
-            ifNucFile = zeros(Bool,length(files))
-            for i = eachindex(ifNucFile)
-                ifNucFile[i] = cmp(files[i][1:4],"nucl") == 0
-            end
-
-            nucFileIdx = findall(ifNucFile)
-
-            numTimePoints = length(nucFileIdx)
-
-            numOfDigitsInName = sum(.!isempty.([filter(isdigit, collect(s)) for s in files[nucFileIdx[1]]]))
-
-            nuclearLengths = zeros(Float64,numTimePoints)
-
-            for i = eachindex(nuclearLengths)
-
-                tempNum = [filter(isdigit, collect(s)) for s in files[nucFileIdx[i]]][end-(numOfDigitsInName+3):end-4]
-
-                numString = ""
-                for j = 1:numOfDigitsInName
-                    numString = numString*string(tempNum[j][1])
-                end
-
-                timePointNumber = parse(Int64,numString)
-                importNumber = lpad(timePointNumber,numOfDigitsInName,"0")
-
-                vtk = VTKFile(folder*"\\nucl_" * importNumber * ".vtu")
-
-                vert = get_points(vtk)
-
-                nuclearLengths[i] = maximum(vert[1,:]) - minimum(vert[1,:])
-
-            end
-        end
-        strains[k] = ((nuclearLengths .- nuclearLengths[1])./nuclearLengths[1])[end];
-
-    end
-
-    return strains
 end

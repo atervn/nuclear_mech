@@ -13,6 +13,8 @@ include("create_chromatin.jl")
 include("simulation.jl")
 include("lad_creation.jl")
 include("setup_functions.jl")
+include("import_functions.jl")
+include("solve_system.jl")
 
 if !(@isdefined nucleusType)
     include("NuclearMechTypes.jl")
@@ -20,5 +22,5 @@ if !(@isdefined nucleusType)
 end
 
 
-simulation("VRC",0.1,"fggfg","load")
+simulation("VRC",0.1,"fggfg","new")
 # simulation("INIT",0.5,"MM_TEST","new")

@@ -24,4 +24,4 @@ scalingLength,1e-6
 scalingTime,60
 pullingForce,5e-9
 iLUCutoff,0.001
-exportStep,20
+exportStep,1
