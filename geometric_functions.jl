@@ -1,29 +1,29 @@
-function get_volume!(nuc)
+function get_volume!(shellStruct)
     #=
     based on https://stackoverflow.com/questions/1406029/how-to-calculate-the-volume-of-a-3d-mesh-object-the-surface-of-which-is-made-up
     and http://chenlab.ece.cornell.edu/Publication/Cha/icip01_Cha.pdf
     =#
-    volumes = zeros(length(nuc.tri));
+    volumes = zeros(length(shellStruct.tri));
 
-    for i = eachindex(nuc.tri)
-        volumes[i] = 1/6*dot(nuc.vert[nuc.tri[i][1]],cross(nuc.vert[nuc.tri[i][2]],nuc.vert[nuc.tri[i][3]]))
+    for i = eachindex(shellStruct.tri)
+        volumes[i] = 1/6*dot(shellStruct.vert[shellStruct.tri[i][1]],cross(shellStruct.vert[shellStruct.tri[i][2]],shellStruct.vert[shellStruct.tri[i][3]]))
     end
 
     return sum(volumes)
 
 end
 
-function get_area!(nuc)
+function get_area!(shellStruct)
 
-    areas = zeros(length(nuc.tri));
+    areas = zeros(length(shellStruct.tri));
 
-    for i = eachindex(nuc.tri)
+    for i = eachindex(shellStruct.tri)
 
-        dotProduct = dot(nuc.edgeVectors[nuc.triEdge1[i]],nuc.edgeVectors[nuc.triEdge2[i]])
+        dotProduct = dot(shellStruct.edgeVectors[shellStruct.triEdge1[i]],shellStruct.edgeVectors[shellStruct.triEdge2[i]])
 
-        θ = acos(dotProduct/(nuc.edgeVectorNorms[nuc.triEdge1[i]]*nuc.edgeVectorNorms[nuc.triEdge2[i]]));
+        θ = acos(dotProduct/(shellStruct.edgeVectorNorms[shellStruct.triEdge1[i]]*shellStruct.edgeVectorNorms[shellStruct.triEdge2[i]]));
         
-        areas[i] = 1/2*nuc.edgeVectorNorms[nuc.triEdge1[i]]*nuc.edgeVectorNorms[nuc.triEdge2[i]]*sin(θ);
+        areas[i] = 1/2*shellStruct.edgeVectorNorms[shellStruct.triEdge1[i]]*shellStruct.edgeVectorNorms[shellStruct.triEdge2[i]]*sin(θ);
         
     end
 
@@ -31,16 +31,16 @@ function get_area!(nuc)
 
 end
 
-function get_local_curvatures!(nuc)
+function get_local_curvatures!(shellStruct)
 
-    angles1 = zeros(Float64,length(nuc.edges));
-    angles2 = zeros(Float64,length(nuc.edges));
+    angles1 = zeros(Float64,length(shellStruct.edges));
+    angles2 = zeros(Float64,length(shellStruct.edges));
 
-    for i = eachindex(nuc.edges)
+    for i = eachindex(shellStruct.edges)
         
 
-        AB = nuc.vert[nuc.edges[i][1]] - nuc.vert[nuc.edges3Vertex[i][1]]   
-        AC = nuc.vert[nuc.edges[i][2]] - nuc.vert[nuc.edges3Vertex[i][1]]
+        AB = shellStruct.vert[shellStruct.edges[i][1]] - shellStruct.vert[shellStruct.edges3Vertex[i][1]]   
+        AC = shellStruct.vert[shellStruct.edges[i][2]] - shellStruct.vert[shellStruct.edges3Vertex[i][1]]
 
         ABnorm = norm(AB)
         ACnorm = norm(AC)
@@ -48,8 +48,8 @@ function get_local_curvatures!(nuc)
 
         angles1[i] = acosd(dotProduct/(ABnorm*ACnorm));
         
-        AB = nuc.vert[nuc.edges[i][1]] - nuc.vert[nuc.edges3Vertex[i][2]]        
-        AC = nuc.vert[nuc.edges[i][2]] - nuc.vert[nuc.edges3Vertex[i][2]]
+        AB = shellStruct.vert[shellStruct.edges[i][1]] - shellStruct.vert[shellStruct.edges3Vertex[i][2]]        
+        AC = shellStruct.vert[shellStruct.edges[i][2]] - shellStruct.vert[shellStruct.edges3Vertex[i][2]]
 
         ABnorm = norm(AB)
         ACnorm = norm(AC)
@@ -58,42 +58,42 @@ function get_local_curvatures!(nuc)
         angles2[i] = acosd(dotProduct/(ABnorm*ACnorm));
     end
 
-    curvatures = zeros(length(nuc.vert));
+    curvatures = zeros(length(shellStruct.vert));
 
     # https://computergraphics.stackexchange.com/a/1721
 
-    for i = 1:length(nuc.vert)
+    for i = 1:length(shellStruct.vert)
 
         cotangentSum = zeros(Float64,3);
 
-        for j = nuc.vertexEdges[i]
+        for j = shellStruct.vertexEdges[i]
 
-            cotangentSum .+= (cotd(angles1[j]) + cotd(angles2[j])).*nuc.edgeVectors[j]
+            cotangentSum .+= (cotd(angles1[j]) + cotd(angles2[j])).*shellStruct.edgeVectors[j]
 
         end
 
-        LaplaceBeltrami = 1/(2*sum(nuc.voronoiAreas[i]))*cotangentSum;
+        LaplaceBeltrami = 1/(2*sum(shellStruct.voronoiAreas[i]))*cotangentSum;
 
         LaplaceBeltramiNorm = norm(LaplaceBeltrami)
 
         curvatures[i] = LaplaceBeltramiNorm/2;
     end
 
-    nuc.curvatures = curvatures;
+    shellStruct.curvatures = curvatures;
 
 end
 
-function get_voronoi_areas!(nuc)
+function get_voronoi_areas!(shellStruct)
 
-    voronoiAreas = Vector{Float64}(undef,length(nuc.vert))
+    voronoiAreas = Vector{Float64}(undef,length(shellStruct.vert))
 
-    for i = 1:length(nuc.vert)
+    for i = 1:length(shellStruct.vert)
 
         voronoiAreasTemp = 0;
 
-        for j = 1:length(nuc.vertexTri[i])
+        for j = 1:length(shellStruct.vertexTri[i])
 
-            voronoiAreasTemp += nuc.triangleAreas[nuc.vertexTri[i][j]]/3
+            voronoiAreasTemp += shellStruct.triangleAreas[shellStruct.vertexTri[i][j]]/3
 
         end
 
@@ -101,28 +101,28 @@ function get_voronoi_areas!(nuc)
 
     end
 
-    nuc.voronoiAreas = voronoiAreas;
+    shellStruct.voronoiAreas = voronoiAreas;
 
 end
 
-function get_area_unit_vectors!(nuc)
+function get_area_unit_vectors!(shellStruct)
 
 
-    baryocenters = Vector{Vec{3,Float64}}(undef, length(nuc.tri));
+    baryocenters = Vector{Vec{3,Float64}}(undef, length(shellStruct.tri));
 
-    for i = eachindex(nuc.tri)
-        baryocenters[i] = mean(nuc.vert[nuc.tri[i]]);
+    for i = eachindex(shellStruct.tri)
+        baryocenters[i] = mean(shellStruct.vert[shellStruct.tri[i]]);
     end
 
-    nuc.areaUnitVectors = Vector{Vector{Vec{3,Float64}}}(undef, length(nuc.vert))
+    shellStruct.areaUnitVectors = Vector{Vector{Vec{3,Float64}}}(undef, length(shellStruct.vert))
 
-    for i = 1:length(nuc.vert)
+    for i = 1:length(shellStruct.vert)
 
-        areaUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.vertexTri[i]))
+        areaUnitVectors = Vector{Vec{3,Float64}}(undef, length(shellStruct.vertexTri[i]))
         j2 = 1;
-        for j = nuc.vertexTri[i]
+        for j = shellStruct.vertexTri[i]
 
-            vectorTemp = nuc.vert[i] - baryocenters[j]
+            vectorTemp = shellStruct.vert[i] - baryocenters[j]
 
             vectorNorm = norm(vectorTemp);
 
@@ -131,22 +131,22 @@ function get_area_unit_vectors!(nuc)
             j2 += 1
         end
 
-        nuc.areaUnitVectors[i] = areaUnitVectors;
+        shellStruct.areaUnitVectors[i] = areaUnitVectors;
 
     end
 
 end
 
-function get_triangle_normals!(nuc)
+function get_triangle_normals!(shellStruct)
 
-    #triangleNormalUnitVectors = zeros(Float64,size(nuc.tri,1),3);
-    triangleNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.tri));
+    #triangleNormalUnitVectors = zeros(Float64,size(shellStruct.tri,1),3);
+    triangleNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(shellStruct.tri));
 
-    for i = eachindex(nuc.tri)
+    for i = eachindex(shellStruct.tri)
 
-        # tri = @view nuc.tri[i,:];
+        # tri = @view shellStruct.tri[i,:];
 
-        normalVector = cross(nuc.edgeVectors[nuc.triEdge1[i]],nuc.edgeVectors[nuc.triEdge2[i]])
+        normalVector = cross(shellStruct.edgeVectors[shellStruct.triEdge1[i]],shellStruct.edgeVectors[shellStruct.triEdge2[i]])
 
         #normalVector = cross_product(p1,p2,p3);
 
@@ -154,55 +154,55 @@ function get_triangle_normals!(nuc)
 
     end
 
-    nuc.triangleNormalUnitVectors = triangleNormalUnitVectors;
+    shellStruct.triangleNormalUnitVectors = triangleNormalUnitVectors;
 
-    edgeNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.edges));
+    edgeNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(shellStruct.edges));
 
-    for i = eachindex(nuc.edges)
+    for i = eachindex(shellStruct.edges)
 
-        vector = nuc.triangleNormalUnitVectors[nuc.edgesTri[i][1]] + nuc.triangleNormalUnitVectors[nuc.edgesTri[i][2]]
+        vector = shellStruct.triangleNormalUnitVectors[shellStruct.edgesTri[i][1]] + shellStruct.triangleNormalUnitVectors[shellStruct.edgesTri[i][2]]
         edgeNormalUnitVectors[i] = vector./norm(vector);
 
     end
     
-    nuc.edgeNormalUnitVectors = edgeNormalUnitVectors;
+    shellStruct.edgeNormalUnitVectors = edgeNormalUnitVectors;
 
 
-    vertexNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(nuc.vert));
+    vertexNormalUnitVectors = Vector{Vec{3,Float64}}(undef, length(shellStruct.vert));
     
-    for i = 1:length(nuc.vert)
+    for i = 1:length(shellStruct.vert)
 
-        vector = sum(nuc.triangleNormalUnitVectors[nuc.vertexTri[i]]);
+        vector = sum(shellStruct.triangleNormalUnitVectors[shellStruct.vertexTri[i]]);
         vertexNormalUnitVectors[i] = vector./norm(vector);
 
     end
 
-    nuc.vertexNormalUnitVectors = vertexNormalUnitVectors;
+    shellStruct.vertexNormalUnitVectors = vertexNormalUnitVectors;
 
 end
 
-function get_triangle_angles(nuc)
+function get_triangle_angles(shellStruct)
 
-    angles = zeros(Float64,length(nuc.edges));
+    angles = zeros(Float64,length(shellStruct.edges));
     
     for i = eachindex(angles)
-        angles[i] = acos(min(1.0,dot(nuc.triangleNormalUnitVectors[nuc.edgesTri[i][1]],nuc.triangleNormalUnitVectors[nuc.edgesTri[i][2]])))
+        angles[i] = acos(min(1.0,dot(shellStruct.triangleNormalUnitVectors[shellStruct.edgesTri[i][1]],shellStruct.triangleNormalUnitVectors[shellStruct.edgesTri[i][2]])))
     end
 
     return angles
 
 end
 
-function get_edge_vectors!(nuc)
+function get_edge_vectors!(shellStruct)
 
-    for i = eachindex(nuc.edges)
-        if nuc.firstEdges[i] == 1
-            nuc.edgeVectors[i] = nuc.vert[nuc.edges[i][2]] - nuc.vert[nuc.edges[i][1]];
-            nuc.edgeVectors[nuc.mirrorEdges[i]] = -nuc.edgeVectors[i]
-            nuc.edgeVectorNorms[i] = norm(nuc.edgeVectors[i])
-            nuc.edgeVectorNorms[nuc.mirrorEdges[i]] = nuc.edgeVectorNorms[i]
-            nuc.edgeUnitVectors[i] = nuc.edgeVectors[i]/nuc.edgeVectorNorms[i]
-            nuc.edgeUnitVectors[nuc.mirrorEdges[i]] = -nuc.edgeUnitVectors[i]
+    for i = eachindex(shellStruct.edges)
+        if shellStruct.firstEdges[i] == 1
+            shellStruct.edgeVectors[i] = shellStruct.vert[shellStruct.edges[i][2]] - shellStruct.vert[shellStruct.edges[i][1]];
+            shellStruct.edgeVectors[shellStruct.mirrorEdges[i]] = -shellStruct.edgeVectors[i]
+            shellStruct.edgeVectorNorms[i] = norm(shellStruct.edgeVectors[i])
+            shellStruct.edgeVectorNorms[shellStruct.mirrorEdges[i]] = shellStruct.edgeVectorNorms[i]
+            shellStruct.edgeUnitVectors[i] = shellStruct.edgeVectors[i]/shellStruct.edgeVectorNorms[i]
+            shellStruct.edgeUnitVectors[shellStruct.mirrorEdges[i]] = -shellStruct.edgeUnitVectors[i]
         end
     end
 
@@ -214,15 +214,15 @@ function line_point_distance(AB::Vec{3,Float64},AC::Vec{3,Float64})
  
 end
 
-function vertex_triangle_distance(nuc, vertex, tri, pip = nothing)
+function vertex_triangle_distance(shellStruct, vertex, tri, pip = nothing)
 
     # based on https://gist.github.com/joshuashaffer/99d58e4ccbd37ca5d96e
 
     # if pip === nothing
-        tri = nuc.tri[tri];
-        B  = nuc.vert[tri[1]];
-        E0 = nuc.vert[tri[2]] - B;
-        E1 = nuc.vert[tri[3]] - B;   
+        tri = shellStruct.tri[tri];
+        B  = shellStruct.vert[tri[1]];
+        E0 = shellStruct.vert[tri[2]] - B;
+        E1 = shellStruct.vert[tri[3]] - B;   
     # else
     #     tri = pip.tri[tri,:];
     #     B  = pip.vert[tri[1]];

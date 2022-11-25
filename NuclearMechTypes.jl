@@ -5,7 +5,7 @@ using Meshes
 using SparseArrays
 
 export nucleusType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType, replicationCompartmentType
-Base.@kwdef mutable struct forcesType
+Base.@kwdef mutable struct envelopeForcesType
     volume::Vector{Vec{3,Float64}} = []
     area::Vector{Vec{3,Float64}} = []
     bending::Vector{Vec{3,Float64}} = []
@@ -15,7 +15,7 @@ Base.@kwdef mutable struct forcesType
     ladEnveForces::Vector{Vec{3,Float64}} = []
     total::Vector{Vec{3,Float64}} = []
 end
-Base.@kwdef mutable struct nucleusType
+Base.@kwdef mutable struct envelopeType
     vert::Vector{Vec{3,Float64}} = []
     neighbors::Vector{Vector{Int64}} = []
     tri::Vector{Vector{Int64}} = []
@@ -43,7 +43,7 @@ Base.@kwdef mutable struct nucleusType
     normalLengths::Vector{Float64} = []
     normalTriangleAreas::Vector{Float64} = []
     edgeThirdVertices::Vector{Vector{Int64}} = []
-    forces = forcesType()
+    forces = envelopeForcesType()
     triEdge1::Vector{Int64} = []
     triEdge2::Vector{Int64} = []
     lads::Vector{Vector{Int64}} = []
@@ -114,10 +114,12 @@ end
 Base.@kwdef mutable struct chromatinForceType
     linear::Vector{Vec{3,Float64}} = []
     bending::Vector{Vec{3,Float64}} = []
+    crosslink::Vector{Vec{3,Float64}} = []
     chroRepulsion::Vector{Vec{3,Float64}} = []
     enveRepulsion::Vector{Vec{3,Float64}} = []
     strandLinear::Vector{Any} = []
     strandBending::Vector{Any} = []
+    strandCrosslink::Vector{Any} = []
     strandChroRepulsion::Vector{Any} = []
     strandEnveRepulsion::Vector{Any} = []
     strandLadChroForces::Vector{Any} = []
@@ -169,7 +171,6 @@ Base.@kwdef mutable struct simulationSettingsType
     timeStepProgress::Rational = 0;
     timeStepMultiplier::Rational = 1;
     iLU::Any = []
-    adh::Bool = false
 end
 Base.@kwdef mutable struct virusforcesType
     volume::Vector{Vec{3,Float64}} = []
@@ -182,6 +183,7 @@ Base.@kwdef mutable struct virusforcesType
 end
 
 Base.@kwdef mutable struct replicationCompartmentType
+    infected::Bool = false
     vert::Vector{Vec{3,Float64}} = []
     neighbors::Vector{Vector{Int64}} = []
     tri::Vector{Vector{Int64}} = []
@@ -216,6 +218,21 @@ Base.@kwdef mutable struct replicationCompartmentType
     iLU::Any = []
     baseArea::Float64 = 0;
     tree::Any = []
+end
+
+Base.@kwdef mutable struct adherensType
+    adherent::Bool = false
+    topPlane::Float64 = 0
+    bottomPlane::Float64 = 0
+    touchingTop::Vector{Int64} = []
+    cellForcesOnPlane::Float64 = 0
+end
+
+Base.@kwdef mutable struct nucleusType
+    enve = envelopeType()
+    chro = chromatinType()
+    repl = replicationCompartmentType()
+    adh = adherensType()
 end
 
 end

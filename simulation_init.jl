@@ -9,7 +9,7 @@ function simulation_init(simType::String, maxT, folderName::String, initState::S
     ex = setup_export(folderName, nuc, chro, spar, nameDate,exportData)
     extTemp = check_adhesion_file!(ex,initState,importFolder,simset)
     println(extTemp)    
-    ext = [extTemp[1],extTemp[2],zeros(Bool,length(nuc.vert)),0]
+    ext = [extTemp[1],extTemp[2],zeros(Bool,length(nuc.enve.vert)),0]
     simset.prog = Progress(Int64(round(maxT/(spar.scalingTime*spar.maxDt))), 0.1, "Simulating...", 100)
 
     # timestepping variables
@@ -39,7 +39,7 @@ function simulation_init(simType::String, maxT, folderName::String, initState::S
 
             intTime = progress_time!(simset,intTime);
             
-            push!(nCrosslinks,length(chro.crosslinks[:,1]))
+            push!(nCrosslinks,length(nuc.chro.crosslinks[:,1]))
 
         end
     catch error

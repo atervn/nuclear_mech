@@ -2,9 +2,9 @@ function create_lads(chro,nuc,spar)
 
     ladCenterIdx = get_lad_centers(nuc,spar)
 
-    nuc.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar)
+    nuc.enve.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar)
 
-    chro.lads = get_lad_chro_vertices(nuc,spar)
+    nuc.chro.lads = get_lad_chro_vertices(nuc,spar)
 
     return nuc,chro
 
@@ -24,12 +24,12 @@ function get_lad_centers(nuc,spar)
             reDoChromosomeCounter = 0
             while true
                 
-                tempIdx = rand(1:length(nuc.vert))
+                tempIdx = rand(1:length(nuc.enve.vert))
                 allGood = true
 
                 for j = 1:i-1
 
-                    if norm(nuc.vert[tempIdx] - nuc.vert[ladCenterIdx[j]]) < minDistance
+                    if norm(nuc.enve.vert[tempIdx] - nuc.enve.vert[ladCenterIdx[j]]) < minDistance
                         allGood = false
                         break
                     end
@@ -78,12 +78,12 @@ function get_lad_enve_vertices(ladCenterIdx,nuc,spar)
         closeVertices[i] = []
     end
 
-    for i = 1:length(nuc.vert)
+    for i = 1:length(nuc.enve.vert)
         closestDistance = 1000;
         closestVertex = 0;
         for j = 1:spar.chromatinNumber
-            if norm(nuc.vert[i] - nuc.vert[ladCenterIdx[j]]) < closestDistance
-                closestDistance = norm(nuc.vert[i] - nuc.vert[ladCenterIdx[j]])
+            if norm(nuc.enve.vert[i] - nuc.enve.vert[ladCenterIdx[j]]) < closestDistance
+                closestDistance = norm(nuc.enve.vert[i] - nuc.enve.vert[ladCenterIdx[j]])
                 closestVertex = j
             end
         end
@@ -110,7 +110,7 @@ function get_lad_chro_vertices(nuc,spar)
 
     for i = 1:spar.chromatinNumber
 
-        nLads = length(nuc.lads[i]);
+        nLads = length(nuc.enve.lads[i]);
         
         vertPerLad = floor(spar.chromatinLength/nLads)
 
@@ -136,7 +136,7 @@ function get_lad_chro_vertices(nuc,spar)
                 while true
                     tempVertex = rand(possibleLadVertices[j])
                     if tempVertex - ladVertices[i][end] > 4
-                        distanceEnve = norm(nuc.vert[nuc.lads[i][j]] - nuc.vert[nuc.lads[i][j-1]])
+                        distanceEnve = norm(nuc.enve.vert[nuc.enve.lads[i][j]] - nuc.enve.vert[nuc.enve.lads[i][j-1]])
                         distanceChro = (tempVertex - ladVertices[i][end])*spar.chroVertexDistance
                         if distanceChro > distanceEnve
                             break
@@ -149,6 +149,7 @@ function get_lad_chro_vertices(nuc,spar)
         end
     end
 
-    return ladVertices
+    nuc.chro.lads = ladVertices;
 
+    return nuc
 end

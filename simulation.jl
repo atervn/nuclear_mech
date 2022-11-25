@@ -5,8 +5,8 @@ function simulation(simType::String, maxT, folderName::String, initState::String
     end
 
     # setup
-    nuc, chro, spar, simset, ext = setup_simulation(initState, simType, importFolder, parameterFile)
-    ex = setup_export(folderName, nuc, chro, spar, nameDate,exportData)
+     nuc, spar, simset, ext = setup_simulation(initState, simType, importFolder, parameterFile)
+    ex = setup_export(folderName, nuc, spar, nameDate,exportData)
     simset.prog = Progress(Int64(round(maxT/(spar.scalingTime*spar.maxDt))), 0.1, "Simulating...", 100)
 
     # timestepping variables
@@ -24,19 +24,20 @@ function simulation(simType::String, maxT, folderName::String, initState::String
     try
         while intTime <= intMaxTime
 
-            get_nuclear_properties!(nuc, chro, simset, spar, ext)
+            
+            get_nuclear_properties!(nuc, simset, spar)
+            
+            get_crosslinks!(nuc, simset, spar)
+            
+            get_forces!(nuc, spar, ext, simset)
 
-            get_crosslinks!(nuc, chro, simset, spar)
+            export_data(nuc, spar, ex, ext, intTime, simset)
 
-            get_forces!(nuc, chro, spar, ext, simset)
-
-            export_data(nuc, chro, spar, ex, ext, intTime, simset)
-
-            solve_system!(nuc, chro, spar, simset, dt, ext)
+            solve_system!(nuc, spar, simset, dt, ext)
 
             intTime = progress_time!(simset,intTime);
             
-            push!(nCrosslinks,length(chro.crosslinks[:,1]))
+            push!(nCrosslinks,length(nuc.chro.crosslinks[:,1]))
 
         end
     catch error

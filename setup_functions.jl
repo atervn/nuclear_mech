@@ -7,16 +7,17 @@ function setup_simulation(initType::String,simType::String,importFolder::String,
     # get import folder
     importFolder = get_import_folder(initType,importFolder)
 
-    nuc = setup_nucleus(ipar,initType,importFolder)
+    nuc = nucleusType()
+    nuc = setup_shell(nuc,ipar,initType,importFolder)
     
     # scale parameters
     spar = scaledParametersType();
     spar = get_model_parameters(ipar,spar,nuc);
     
-    nuc, chro = setup_chromatin(nuc,spar,initType,importFolder)
+    nuc = setup_chromatin(nuc,spar,initType,importFolder)
 
     simset = simulationSettingsType()
-    simset.frictionMatrix = get_friction_matrix(nuc,chro,spar)
+    simset.frictionMatrix = get_friction_matrix(nuc,spar)
     simset.iLU = ilu(simset.frictionMatrix, τ=spar.iLUCutoff)
     simset.simType = simType;
 
@@ -32,43 +33,35 @@ function setup_simulation(initType::String,simType::String,importFolder::String,
         mm = setup_micromanipulation(nuc)
         nuclearLength = []
         ext = (mm,nuclearLength)
-    elseif cmp(simType,"PC") == 0
-        topPlane = spar.freeNucleusRadius + spar.repulsionDistance;
-        bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance;
-        ext = [topPlane,bottomPlane,zeros(Bool,length(nuc.vert)),0]
     elseif cmp(simType,"INIT") == 0
         ext = ()
-    elseif cmp(simType,"VRC") == 0
-        ext = create_replication_compartment(nuc,spar)
     end
 
-    return nuc, chro, spar, simset, ext
+    return nuc, spar, simset, ext
 
 end
 
-function setup_nucleus(ipar,initType,importFolder)
+function setup_shell(nuc,ipar,initType,importFolder)
 
-    # create nucleus
-    nuc = nucleusType();
     if cmp(initType,"new") == 0 # create a new nuclear envelope
 
         printstyled("Creating nuclear envelope..."; color = :blue)
         radius = ipar.freeNucleusRadius/ipar.scalingLength
-        nuc = get_icosaherdon!(nuc,radius);
-        nuc = subdivide_mesh!(nuc,radius,ipar.nSubdivisions)
+        nuc.enve = get_icosaherdon!(nuc.enve,radius);
+        nuc.enve = subdivide_mesh!(nuc.enve,radius,ipar.nSubdivisions)
     elseif cmp(initType,"load") == 0 # load nuclear envelope from previous simulation
         printstyled("Loading nuclear envelope..."; color = :blue)
         nuc = import_envelope(nuc,importFolder)
     end
 
-    nuc.forces.volume = Vector{Vec{3,Float64}}(undef, length(nuc.vert))
-    nuc.forces.area = Vector{Vec{3,Float64}}(undef, length(nuc.vert))
-    nuc.forces.bending = Vector{Vec{3,Float64}}(undef, length(nuc.vert))
-    nuc.forces.elastic = Vector{Vec{3,Float64}}(undef, length(nuc.vert))
-    nuc.forces.ladEnveForces = Vector{Vec{3,Float64}}(undef, length(nuc.vert))
-    nuc.forces.chromationRepulsion = Vector{Vec{3,Float64}}(undef, length(nuc.vert))
+    nuc.enve.forces.volume = Vector{Vec{3,Float64}}(undef, length(nuc.enve.vert))
+    nuc.enve.forces.area = Vector{Vec{3,Float64}}(undef, length(nuc.enve.vert))
+    nuc.enve.forces.bending = Vector{Vec{3,Float64}}(undef, length(nuc.enve.vert))
+    nuc.enve.forces.elastic = Vector{Vec{3,Float64}}(undef, length(nuc.enve.vert))
+    nuc.enve.forces.ladEnveForces = Vector{Vec{3,Float64}}(undef, length(nuc.enve.vert))
+    nuc.enve.forces.chromationRepulsion = Vector{Vec{3,Float64}}(undef, length(nuc.enve.vert))
 
-    nuc = setup_shell_data(nuc)
+    nuc.enve = setup_shell_data(nuc.enve)
     printstyled("Done!\n"; color = :blue)
 
     return nuc
@@ -130,57 +123,56 @@ end
 
 function setup_chromatin(nuc,spar,initType,importFolder)
 
-    chro = chromatinType();
     if cmp(initType,"new") == 0
         ladCenterIdx = get_lad_centers(nuc,spar)
-        nuc.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar)
+        nuc.enve.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar)
 
         printstyled("Creating chromatin..."; color = :blue)
 
-        chro = create_all_chromsomes(chro,spar,nuc.vert[ladCenterIdx])
+        nuc = create_all_chromsomes(nuc,spar,nuc.enve.vert[ladCenterIdx])
         
-        chro.lads = get_lad_chro_vertices(nuc,spar)
+        nuc = get_lad_chro_vertices(nuc,spar)
 
-        chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+        nuc.chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
 
         for i = 1:spar.chromatinNumber
 
-            chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
+            nuc.chro.crosslinked[nuc.chro.strandIdx[i][nuc.chro.lads[i]]] .= -1
 
         end
     elseif cmp(initType,"load") == 0
         printstyled("Loading chromatin..."; color = :blue)
 
-        chro = import_chromatin(chro,importFolder)
+        nuc = import_chromatin(nuc,importFolder)
 
-        nuc,chro = import_lads(nuc,chro,importFolder,spar)
+        nuc = import_lads(nuc,importFolder,spar)
 
-        chro = import_crosslinks(chro,importFolder,spar)
+        nuc = import_crosslinks(nuc,importFolder,spar)
 
-        chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+        nuc.chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
 
         for i = 1:spar.chromatinNumber
 
-            chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
+            nuc.chro.crosslinked[nuc.chro.strandIdx[i][nuc.chro.lads[i]]] .= -1
 
         end
     end
 
-    chro.neighbors = Vector{Vector{Int64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+    nuc.chro.neighbors = Vector{Vector{Int64}}(undef,spar.chromatinNumber*spar.chromatinLength)
     ind = 1
-    for i = 1:spar.chromatinNumber
+    for _ = 1:spar.chromatinNumber
         for j = 1:spar.chromatinLength
 
             if j == 1
-                chro.neighbors[ind] = [ind, ind+1, ind+2]
+                nuc.chro.neighbors[ind] = [ind, ind+1, ind+2]
             elseif j == 2
-                chro.neighbors[ind] = [ind-1, ind, ind+1, ind+2]
+                nuc.chro.neighbors[ind] = [ind-1, ind, ind+1, ind+2]
             elseif j == spar.chromatinLength-1
-                chro.neighbors[ind] = [ind-2, ind-1, ind, ind+1]
+                nuc.chro.neighbors[ind] = [ind-2, ind-1, ind, ind+1]
             elseif j == spar.chromatinLength
-                chro.neighbors[ind] = [ind-2, ind-1, ind]
+                nuc.chro.neighbors[ind] = [ind-2, ind-1, ind]
             else
-                chro.neighbors[ind] = [ind-2, ind-1, ind, ind+1, ind+2]
+                nuc.chro.neighbors[ind] = [ind-2, ind-1, ind, ind+1, ind+2]
             end
             
             ind += 1
@@ -189,27 +181,27 @@ function setup_chromatin(nuc,spar,initType,importFolder)
 
     printstyled("Done!\n"; color = :blue)
 
-    return nuc,chro
+    return nuc
 end
 
 function setup_micromanipulation(nuc)
 
     mm = micromanipulationType();
 
-    mm.leftmostVertex = argmin(getindex.(nuc.vert,1));
-    mm.rightmostVertex = argmax(getindex.(nuc.vert,1));
+    mm.leftmostVertex = argmin(getindex.(nuc.enve.vert,1));
+    mm.rightmostVertex = argmax(getindex.(nuc.enve.vert,1));
 
-    mm.leftNeighbors = nuc.neighbors[mm.leftmostVertex];
-    mm.rightNeighbors = nuc.neighbors[mm.rightmostVertex];
+    mm.leftNeighbors = nuc.enve.neighbors[mm.leftmostVertex];
+    mm.rightNeighbors = nuc.enve.neighbors[mm.rightmostVertex];
 
-    mm.leftmostVertexPosition = nuc.vert[mm.leftmostVertex]
-    mm.leftNeigborPositions = nuc.vert[mm.leftNeighbors]
+    mm.leftmostVertexPosition = nuc.enve.vert[mm.leftmostVertex]
+    mm.leftNeigborPositions = nuc.enve.vert[mm.leftNeighbors]
 
     return mm
 
 end
 
-function setup_export(folderName::String,nuc,chro,spar,nameDate::Bool,exportData::Bool)
+function setup_export(folderName::String,nuc,spar,nameDate::Bool,exportData::Bool)
 
     ex = exportSettingsType()
 
@@ -235,18 +227,18 @@ function setup_export(folderName::String,nuc,chro,spar,nameDate::Bool,exportData
             end
         end
 
-        ex.enveCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,length(nuc.tri))
-        for i = eachindex(nuc.tri)
-            ex.enveCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, nuc.tri[i]);
+        ex.enveCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,length(nuc.enve.tri))
+        for i = eachindex(nuc.enve.tri)
+            ex.enveCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, nuc.enve.tri[i]);
         end
 
         ex.chroCells = Vector{MeshCell{PolyData.Lines, Vector{Int64}}}(undef,spar.chromatinNumber)
         for i = 1:spar.chromatinNumber
-            ex.chroCells[i] = MeshCell(PolyData.Lines(), chro.strandIdx[i]);
+            ex.chroCells[i] = MeshCell(PolyData.Lines(), nuc.chro.strandIdx[i]);
         end
 
 
-        totalNum = sum(length.(nuc.lads));
+        totalNum = sum(length.(nuc.enve.lads));
 
         ex.ladCells = Vector{MeshCell{PolyData.Lines, Vector{Int64}}}(undef,totalNum)
 
@@ -257,9 +249,9 @@ function setup_export(folderName::String,nuc,chro,spar,nameDate::Bool,exportData
         ex.ladIdx = []
         ex.ladEnveVertices = []
         for i = 1:spar.chromatinNumber
-            for j = 1:length(nuc.lads[i])
+            for j = 1:length(nuc.enve.lads[i])
                 push!(ex.ladIdx, i)
-                push!(ex.ladEnveVertices, nuc.lads[i][j])
+                push!(ex.ladEnveVertices, nuc.enve.lads[i][j])
             end
         end
 
@@ -267,16 +259,16 @@ function setup_export(folderName::String,nuc,chro,spar,nameDate::Bool,exportData
 
         ex.ladChroVertices = []
         for i = 1:spar.chromatinNumber
-            for j = 1:length(chro.lads[i])
-                push!(ex.ladChroVertices, chro.strandIdx[i][chro.lads[i][j]])
+            for j = 1:length(nuc.chro.lads[i])
+                push!(ex.ladChroVertices, nuc.chro.strandIdx[i][nuc.chro.lads[i][j]])
             end
         end
 
         # export lad indices
         ladExport = Matrix{Int64}[];
         for i = 1:spar.chromatinNumber
-            for j = 1:length(nuc.lads[i])
-                newLine = [i nuc.lads[i][j] chro.lads[i][j]]
+            for j = 1:length(nuc.enve.lads[i])
+                newLine = [i nuc.enve.lads[i][j] nuc.chro.lads[i][j]]
                 push!(ladExport,newLine)
             end
         end
@@ -287,19 +279,18 @@ function setup_export(folderName::String,nuc,chro,spar,nameDate::Bool,exportData
     end
     
     return ex
-
 end
 
-function get_friction_matrix(nuc,chro,spar)
+function get_friction_matrix(nuc,spar)
 
-    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.vert)+spar.chromatinLength*spar.chromatinNumber,length(nuc.vert)+spar.chromatinLength*spar.chromatinNumber);
+    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.enve.vert)+spar.chromatinLength*spar.chromatinNumber,length(nuc.enve.vert)+spar.chromatinLength*spar.chromatinNumber);
 
-    for j = 1:length(nuc.vert)
-        frictionMatrix[j,j] = 1 + spar.laminaFriction*length(nuc.neighbors[j]);
-        frictionMatrix[j,nuc.neighbors[j]] .= -spar.laminaFriction;
+    for j = 1:length(nuc.enve.vert)
+        frictionMatrix[j,j] = 1 + spar.laminaFriction*length(nuc.enve.neighbors[j]);
+        frictionMatrix[j,nuc.enve.neighbors[j]] .= -spar.laminaFriction;
     end
 
-    chroStart = length(nuc.vert)+1
+    chroStart = length(nuc.enve.vert)+1
     for j = chroStart:chroStart+spar.chromatinLength*spar.chromatinNumber-1
         frictionMatrix[j,j] = 1
     end
@@ -326,10 +317,10 @@ function get_friction_matrix(nuc,chro,spar)
         end
 
         constant = 0.0001;
-        for k = 1:length(chro.lads[j])
+        for k = 1:length(nuc.chro.lads[j])
 
-            nucVertex = nuc.lads[j][k]
-            chroVertex = startIdx + chro.lads[j][k] - 1
+            nucVertex = nuc.enve.lads[j][k]
+            chroVertex = startIdx + nuc.chro.lads[j][k] - 1
 
             frictionMatrix[nucVertex,chroVertex] = -spar.laminaFriction*constant
             frictionMatrix[chroVertex,nucVertex] = -spar.laminaFriction*constant
@@ -361,7 +352,7 @@ function get_model_parameters(ipar,spar,nuc)
 
     spar.laminaFriction = ipar.laminaFriction/ipar.viscosity;
 
-    spar.areaCompressionStiffness = ipar.areaCompressionModulus/(mean(nuc.normalLengths).*ipar.scalingLength);
+    spar.areaCompressionStiffness = ipar.areaCompressionModulus/(mean(nuc.enve.normalLengths).*ipar.scalingLength);
     spar.areaCompressionStiffness = spar.areaCompressionStiffness/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
     # spar.bendingStiffness = ipar.laminaYoung*ipar.laminaThickness^3/(12*(1-ipar.poissonsRatio^2));
@@ -397,7 +388,7 @@ function get_model_parameters(ipar,spar,nuc)
     spar.crosslinkingBindingProbability = ipar.crosslinkingBindingProbability
     spar.crosslinkingUnbindingProbability = ipar.crosslinkingUnbindingProbability
 
-    spar.meanLaminaLength = mean(nuc.normalLengths)
+    spar.meanLaminaLength = mean(nuc.enve.normalLengths)
 
     spar.pullingForce = ipar.pullingForce/ipar.viscosity/ipar.scalingLength*ipar.scalingTime;
 
@@ -407,14 +398,14 @@ function get_model_parameters(ipar,spar,nuc)
     return spar
 end
 
-function get_repl_comp_friction_matrix(replComp,spar)
+function get_repl_comp_friction_matrix(nuc,spar)
 
-    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(replComp.vert),length(replComp.vert));
+    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.repl.vert),length(nuc.repl.vert));
 
     
-    for j = 1:length(replComp.vert)
-        frictionMatrix[j,j] = 1 + 20*spar.laminaFriction*length(replComp.neighbors[j]);
-        frictionMatrix[j,replComp.neighbors[j]] .= -20*spar.laminaFriction;
+    for j = 1:length(nuc.repl.vert)
+        frictionMatrix[j,j] = 1 + 20*spar.laminaFriction*length(nuc.repl.neighbors[j]);
+        frictionMatrix[j,nuc.repl.neighbors[j]] .= -20*spar.laminaFriction;
     end
     
     return frictionMatrix
@@ -429,7 +420,7 @@ function setup_simulation_adh_init(initType::String,simType::String,importFolder
     # get import folder
     importFolder = get_import_folder(initType,importFolder)
 
-    nuc = setup_nucleus(ipar,initType,importFolder)
+    nuc.enve = setup_envelope(ipar,initType,importFolder)
     
     # scale parameters
     spar = scaledParametersType();
@@ -442,7 +433,7 @@ function setup_simulation_adh_init(initType::String,simType::String,importFolder
 
     topPlane = spar.freeNucleusRadius + spar.repulsionDistance;
     bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance;
-    ext = [topPlane,bottomPlane,zeros(Bool,length(nuc.vert)),0]
+    ext = [topPlane,bottomPlane,zeros(Bool,length(nuc.enve.vert)),0]
 
     return nuc, spar, simset, ext
 
@@ -450,11 +441,11 @@ end
 
 function get_friction_matrix_adh_init(nuc,spar)
 
-    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.vert),length(nuc.vert));
+    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.enve.vert),length(nuc.enve.vert));
 
-    for j = 1:length(nuc.vert)
-        frictionMatrix[j,j] = 1 + spar.laminaFriction*length(nuc.neighbors[j]);
-        frictionMatrix[j,nuc.neighbors[j]] .= -spar.laminaFriction;
+    for j = 1:length(nuc.enve.vert)
+        frictionMatrix[j,j] = 1 + spar.laminaFriction*length(nuc.enve.neighbors[j]);
+        frictionMatrix[j,nuc.enve.neighbors[j]] .= -spar.laminaFriction;
     end
 
     return frictionMatrix
@@ -490,9 +481,9 @@ function setup_export_adh_init(folderName::String,nuc,spar,nameDate::Bool,export
             write(file, "adh")
         end
 
-        ex.enveCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,length(nuc.tri))
-        for i = eachindex(nuc.tri)
-            ex.enveCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, nuc.tri[i]);
+        ex.enveCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,length(nuc.enve.tri))
+        for i = eachindex(nuc.enve.tri)
+            ex.enveCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, nuc.enve.tri[i]);
         end
 
         ex.step = spar.exportStep

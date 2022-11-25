@@ -63,24 +63,17 @@ function get_edges(shellStruct)
     for i = 1:length(shellStruct.vert)
         
         # find in which triangles vertex i is included
-        hasVertex = triMatrix .== i;
-    
+        hasVertex = findall(triMatrix .== i);
         # initialize a vector for the neighbors
-        neighbors = [];
+        neighbors = Array{Int64}(undef, 0);
         
         # go through the triangles
-        for j = eachindex(shellStruct.tri)
-            
-            # check if vertex i is included in the triangle
-            if any(hasVertex[j,:])
-                
-                # add the other vertices in the triangle to the list of neighboring vertices
-                append!(neighbors,shellStruct.tri[j][.!hasVertex[j,:]]);
-            end
+        for j = eachindex(hasVertex)
+            append!(neighbors,shellStruct.tri[hasVertex[j][1]][shellStruct.tri[hasVertex[j][1]] .!= i ]);
         end
         
         # get the unique neighbors and save them
-        unique!(neighbors);
+        unique!(neighbors)
         shellStruct.neighbors[i] = neighbors;
 
         # add the connections to the edges matrix
@@ -88,13 +81,14 @@ function get_edges(shellStruct)
             push!(shellStruct.edges, [i, neighbors[j]]);
         end  
     end
-        
+
+ 
     # vector to store the first time the a pair vector is seen
     shellStruct.mirrorEdges = zeros(Int64,length(shellStruct.edges));
     
     # vector to store the corresponding edge pairs
     shellStruct.firstEdges = zeros(Int64,length(shellStruct.edges));
-    
+
     for i = eachindex(shellStruct.edges)
             
         mirrorIdx = findall(getindex.(shellStruct.edges,1) .== shellStruct.edges[i][2] .&& getindex.(shellStruct.edges,2) .== shellStruct.edges[i][1]);
@@ -105,9 +99,9 @@ function get_edges(shellStruct)
             shellStruct.firstEdges[i] = 1;
         end
     end
-
-    shellStruct.vertexEdges = fill(Int[], length(shellStruct.vert));
     
+    shellStruct.vertexEdges = fill(Int[], length(shellStruct.vert));
+
     for i = 1:length(shellStruct.vert)
         shellStruct.vertexEdges[i] = findall(getindex(shellStruct.edges,1) .== i);
     end
@@ -115,9 +109,11 @@ function get_edges(shellStruct)
     shellStruct.edgesTri = Vector{Vector{Int64}}(undef,length(shellStruct.edges));
 
     for i = eachindex(shellStruct.edges)
-        neighboringTriangles = findall(sum(triMatrix .== shellStruct.edges[i][1],dims=2) .> 0 .&& sum(triMatrix .== shellStruct.edges[i][2],dims=2) .> 0);
-        shellStruct.edgesTri[i] = [j[1] for j in neighboringTriangles];
+
+        # neighboringTriangles = findall(any(triMatrix .== shellStruct.edges[i][1],dims=2) .&& any(triMatrix .== shellStruct.edges[i][2],dims=2));
+        shellStruct.edgesTri[i] = [j[1] for j in findall(any(triMatrix .== shellStruct.edges[i][1],dims=2) .&& any(triMatrix .== shellStruct.edges[i][2],dims=2))];
     end
+
     return shellStruct
         
 end

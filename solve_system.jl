@@ -1,10 +1,10 @@
-function solve_system!(nuc,chro,spar,simset,dt,ext)
+function solve_system!(nuc,spar,simset,dt,ext)
 
     
-    movements = Vector{Vec{3,Float64}}(undef,length(nuc.vert)+length(chro.vert))
+    movements = Vector{Vec{3,Float64}}(undef,length(nuc.enve.vert)+length(nuc.chro.vert))
 
     if simset.simType == "VRC"
-        replCompMovements = Vector{Vec{3,Float64}}(undef,length(ext.vert))
+        replCompMovements = Vector{Vec{3,Float64}}(undef,length(nuc.repl.vert))
     end
     maxMovement::Float64 = 0;
  
@@ -14,8 +14,8 @@ function solve_system!(nuc,chro,spar,simset,dt,ext)
         enveFlucs = get_random_enve_fluctuations(spar,nuc,dt)
         fluctuationForces = get_random_fluctuations(spar,dt)
         
-        totalEnve = nuc.forces.total .+ enveFlucs;
-        totalChro = chro.forces.total .+ fluctuationForces;
+        totalEnve = nuc.enve.forces.total .+ enveFlucs;
+        totalChro = nuc.chro.forces.total .+ fluctuationForces;
 
         solX = cg(simset.frictionMatrix,[getindex.(totalEnve,1);getindex.(totalChro,1)],Pl = simset.iLU)
         solY = cg(simset.frictionMatrix,[getindex.(totalEnve,2);getindex.(totalChro,2)],Pl = simset.iLU)
@@ -40,9 +40,9 @@ function solve_system!(nuc,chro,spar,simset,dt,ext)
         end
 
         if simset.simType == "VRC"
-            solX = cg(ext.frictionMatrix,getindex.(ext.forces.total,1),Pl = ext.iLU)
-            solY = cg(ext.frictionMatrix,getindex.(ext.forces.total,2),Pl = ext.iLU)
-            solZ = cg(ext.frictionMatrix,getindex.(ext.forces.total,3),Pl = ext.iLU)
+            solX = cg(nuc.repl.frictionMatrix,getindex.(nuc.repl.forces.total,1),Pl = nuc.repl.iLU)
+            solY = cg(nuc.repl.frictionMatrix,getindex.(nuc.repl.forces.total,2),Pl = nuc.repl.iLU)
+            solZ = cg(nuc.repl.frictionMatrix,getindex.(nuc.repl.forces.total,3),Pl = nuc.repl.iLU)
 
             replCompMovements = Vec.(solX,solY,solZ).*dt.*simset.timeStepMultiplier
 
@@ -67,12 +67,12 @@ function solve_system!(nuc,chro,spar,simset,dt,ext)
 
     end
 
-    nuc.vert .+= movements[1:length(nuc.vert)]
-    chro.vert .+= movements[length(nuc.vert)+1:end]
+    nuc.enve.vert .+= movements[1:length(nuc.enve.vert)]
+    nuc.chro.vert .+= movements[length(nuc.enve.vert)+1:end]
 
     if simset.simType == "VRC"
-        ext.vert .+= replCompMovements
-        ext.normalVolume += 5000*dt*simset.timeStepMultiplier
+        nuc.repl.vert .+= replCompMovements
+        nuc.repl.normalVolume += 5000*dt*simset.timeStepMultiplier
     elseif simset.simType == "PC"
         planeMovement = (9e5 - ext[4])*dt*simset.timeStepMultiplier
         if planeMovement > 0.001
@@ -103,10 +103,10 @@ function solve_system!(nuc,chro,spar,simset,dt,ext)
     end
 end
 
-function solve_system_init!(nuc,chro,spar,simset,dt,ext,noEnve)
+function solve_system_init!(nuc,spar,simset,dt,ext,noEnve)
 
     
-    movements = Vector{Vec{3,Float64}}(undef,length(nuc.vert)+length(chro.vert))
+    movements = Vector{Vec{3,Float64}}(undef,length(nuc.enve.vert)+length(nuc.chro.vert))
 
     maxMovement::Float64 = 0;
 
@@ -116,8 +116,8 @@ function solve_system_init!(nuc,chro,spar,simset,dt,ext,noEnve)
         enveFlucs = get_random_enve_fluctuations(spar,nuc,dt)
         fluctuationForces = get_random_fluctuations(spar,dt)
         
-        totalEnve = nuc.forces.total .+ enveFlucs;
-        totalChro = chro.forces.total .+ fluctuationForces;
+        totalEnve = nuc.enve.forces.total .+ enveFlucs;
+        totalChro = nuc.chro.forces.total .+ fluctuationForces;
 
         solX = cg(simset.frictionMatrix,[getindex.(totalEnve,1);getindex.(totalChro,1)],Pl = simset.iLU)
         solY = cg(simset.frictionMatrix,[getindex.(totalEnve,2);getindex.(totalChro,2)],Pl = simset.iLU)
@@ -147,9 +147,9 @@ function solve_system_init!(nuc,chro,spar,simset,dt,ext,noEnve)
 
     end
     if !noEnve
-        nuc.vert .+= movements[1:length(nuc.vert)]
+        nuc.enve.vert .+= movements[1:length(nuc.enve.vert)]
     end
-    chro.vert .+= movements[length(nuc.vert)+1:end]
+    nuc.chro.vert .+= movements[length(nuc.enve.vert)+1:end]
 
     if simset.simType == "PC"
         planeMovement = (9e5 - ext[4])*dt.*simset.timeStepMultiplier
@@ -182,7 +182,7 @@ end
 
 function solve_system_adh_init!(nuc,spar,simset,dt,ext,forceToPlate)
 
-    movements = Vector{Vec{3,Float64}}(undef,length(nuc.vert))
+    movements = Vector{Vec{3,Float64}}(undef,length(nuc.enve.vert))
 
     maxMovement::Float64 = 0;
 
@@ -191,7 +191,7 @@ function solve_system_adh_init!(nuc,spar,simset,dt,ext,forceToPlate)
         everythingIsFine = true
         enveFlucs = get_random_enve_fluctuations(spar,nuc,dt)
         
-        totalEnve = nuc.forces.total .+ enveFlucs;
+        totalEnve = nuc.enve.forces.total .+ enveFlucs;
         
         solX = cg(simset.frictionMatrix,getindex.(totalEnve,1),Pl = simset.iLU)
         solY = cg(simset.frictionMatrix,getindex.(totalEnve,2),Pl = simset.iLU)
@@ -221,13 +221,13 @@ function solve_system_adh_init!(nuc,spar,simset,dt,ext,forceToPlate)
 
     end
 
-    nuc.vert .+= movements
+    nuc.enve.vert .+= movements
 
         F = 50e-9/spar.viscosity*spar.scalingTime/spar.scalingLength;
         forceDifference = (F - forceToPlate)/F
         planeMovement = dt.*simset.timeStepMultiplier
         # if planeMovement > 0.001
-    ext[1] -= 1*forceDifference*dt.*simset.timeStepMultiplier
+        ext[1] -= 1*forceDifference*dt.*simset.timeStepMultiplier
         # else
         #     println((9e5 - ext[4]))
         #     ext[1] -= planeMovement

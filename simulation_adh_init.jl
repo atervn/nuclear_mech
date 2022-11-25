@@ -28,11 +28,11 @@ function simulation_adh_init(simType::String, maxT, folderName::String, initStat
 
             planeRepulsion,touchTop = get_forces_adh_init!(nuc, spar, ext)
 
-            push!(topForces,sum(getindex.(nuc.forces.volume[touchTop],3)))
+            push!(topForces,sum(getindex.(nuc.enve.forces.volume[touchTop],3)))
 
             export_data_adh_init(nuc, ex, intTime, simset, planeRepulsion, ext)
 
-            solve_system_adh_init!(nuc, spar, simset, dt, ext, sum(getindex.(nuc.forces.volume[touchTop],3)))
+            solve_system_adh_init!(nuc, spar, simset, dt, ext, sum(getindex.(nuc.enve.forces.volume[touchTop],3)))
 
             intTime = progress_time!(simset,intTime);
 

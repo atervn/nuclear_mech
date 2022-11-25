@@ -1,8 +1,8 @@
-function create_all_chromsomes(chro,spar,ladCenterIdx)
+function create_all_chromsomes(nuc,spar,ladCenterIdx)
 
-    chro.vert = Vector{Vec{3,Float64}}(undef, spar.chromatinNumber*spar.chromatinLength);
-    chro.strandIdx = Vector{Vector{Int64}}(undef,spar.chromatinNumber)
-    chro.strandVert = Vector{Any}(undef,spar.chromatinNumber)
+    nuc.chro.vert = Vector{Vec{3,Float64}}(undef, spar.chromatinNumber*spar.chromatinLength);
+    nuc.chro.strandIdx = Vector{Vector{Int64}}(undef,spar.chromatinNumber)
+    nuc.chro.strandVert = Vector{Any}(undef,spar.chromatinNumber)
 
     reDoAllCounter = 0;    
     while true
@@ -17,13 +17,13 @@ function create_all_chromsomes(chro,spar,ladCenterIdx)
             reDoCounter = 0;
             while true
 
-                vert = create_chromatin_polymer(chro,spar,startInd,ladCenterIdx,k)
+                vert = create_chromatin_polymer(nuc,spar,startInd,ladCenterIdx,k)
 
                 if vert isa Bool
                     reDoCounter += 1
                 else
-                    chro.vert[startInd:endInd] = vert;
-                    chro.strandIdx[k] = collect(startInd:endInd);
+                    nuc.chro.vert[startInd:endInd] = vert;
+                    nuc.chro.strandIdx[k] = collect(startInd:endInd);
                     break
                 end
                 if reDoCounter > 1000
@@ -40,45 +40,48 @@ function create_all_chromsomes(chro,spar,ladCenterIdx)
 
         if !reDoAll
 
-            chro.forces.linear = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.forces.bending = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,spar.chromatinNumber)
-            chro.vectorNorms = Vector{Vector{Float64}}(undef,spar.chromatinNumber)
-            chro.forces.strandLinear = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.strandBending = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.strandChroRepulsion = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.strandEnveRepulsion = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.strandLadChroForces = Vector{Any}(undef,spar.chromatinNumber)
-            initialize_chromatin_forces!(chro);
+            nuc.chro.forces.linear = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.forces.bending = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,spar.chromatinNumber)
+            nuc.chro.vectorNorms = Vector{Vector{Float64}}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandLinear = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandBending = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandChroRepulsion = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandEnveRepulsion = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandLadChroForces = Vector{Any}(undef,spar.chromatinNumber)
+            initialize_chromatin_forces!(nuc);
             
             for i = 1:spar.chromatinNumber
-                chro.strandVert[i] = @view chro.vert[chro.strandIdx[i]];
-                chro.vectors[i] = chro.strandVert[i][2:end] .- chro.strandVert[i][1:end-1];
-                chro.vectorNorms[i] = norm.(chro.vectors[i])
-                chro.forces.strandLinear[i] = @view chro.forces.linear[chro.strandIdx[i]];
-                chro.forces.strandBending[i] = @view chro.forces.bending[chro.strandIdx[i]];
-                chro.forces.strandChroRepulsion[i] = @view chro.forces.chroRepulsion[chro.strandIdx[i]];
-                chro.forces.strandEnveRepulsion[i] = @view chro.forces.enveRepulsion[chro.strandIdx[i]];
-                chro.forces.strandLadChroForces[i] = @view chro.forces.ladChroForces[chro.strandIdx[i]];
+                nuc.chro.strandVert[i] = @view nuc.chro.vert[nuc.chro.strandIdx[i]];
+                nuc.chro.vectors[i] = nuc.chro.strandVert[i][2:end] .- nuc.chro.strandVert[i][1:end-1];
+                nuc.chro.vectorNorms[i] = norm.(nuc.chro.vectors[i])
+                nuc.chro.forces.strandLinear[i] = @view nuc.chro.forces.linear[nuc.chro.strandIdx[i]];
+                nuc.chro.forces.strandBending[i] = @view nuc.chro.forces.bending[nuc.chro.strandIdx[i]];
+                nuc.chro.forces.strandChroRepulsion[i] = @view nuc.chro.forces.chroRepulsion[nuc.chro.strandIdx[i]];
+                nuc.chro.forces.strandEnveRepulsion[i] = @view nuc.chro.forces.enveRepulsion[nuc.chro.strandIdx[i]];
+                nuc.chro.forces.strandLadChroForces[i] = @view nuc.chro.forces.ladChroForces[nuc.chro.strandIdx[i]];
             end
 
 
-            return chro
+            return nuc
         elseif reDoAllCounter > 100
             return false
         end
 
     end
+
+    return nuc
+
 end
 
-function create_chromatin_polymer(chro,spar,startInd,ladCenterIdx,k)
+function create_chromatin_polymer(nuc,spar,startInd,ladCenterIdx,k)
     
     vert = Vector{Vec{3,Float64}}(undef,spar.chromatinLength)
 
-    newVertex = get_first_vertex(chro,spar,startInd,ladCenterIdx[k])
+    newVertex = get_first_vertex(nuc,spar,startInd,ladCenterIdx[k])
 
     if newVertex isa Bool
         return false
@@ -89,7 +92,7 @@ function create_chromatin_polymer(chro,spar,startInd,ladCenterIdx,k)
     # get the other vertices
     for i = 2:spar.chromatinLength
         
-        newVertex = get_other_vertices(chro,spar,vert,startInd,i,ladCenterIdx,k)
+        newVertex = get_other_vertices(nuc,spar,vert,startInd,i,ladCenterIdx,k)
 
         if newVertex isa Bool
             return false
@@ -102,7 +105,7 @@ function create_chromatin_polymer(chro,spar,startInd,ladCenterIdx,k)
     return vert
 end
 
-function get_first_vertex(chro,spar,startInd,ladCenterIdx)
+function get_first_vertex(nuc,spar,startInd,ladCenterIdx)
     
     reDoCounter = 0;
 
@@ -121,7 +124,7 @@ function get_first_vertex(chro,spar,startInd,ladCenterIdx)
 
         # check if this is too close to any existing vertex
         for j = 1:startInd-1
-            if norm(vertex - chro.vert[j]) < spar.repulsionDistance
+            if norm(vertex - nuc.chro.vert[j]) < spar.repulsionDistance
                 reDoStart = true
                 break
             end
@@ -142,7 +145,7 @@ function get_first_vertex(chro,spar,startInd,ladCenterIdx)
     end
 end
 
-function get_other_vertices(chro,spar,vert,startInd,currentInd,ladCenterIdx,k)
+function get_other_vertices(nuc,spar,vert,startInd,currentInd,ladCenterIdx,k)
 
     reDoCounter = 0;
     
@@ -159,7 +162,7 @@ function get_other_vertices(chro,spar,vert,startInd,currentInd,ladCenterIdx,k)
 
         # check if other vertices are too close (in other chromatins)
         for j = 1:startInd-1
-            if norm(newPoint - chro.vert[j]) < spar.repulsionDistance
+            if norm(newPoint - nuc.chro.vert[j]) < spar.repulsionDistance
                 reDoVert = true
                 break
             end
@@ -220,22 +223,22 @@ function add_chromatin_adh_init(importFolder,exportFolder; parameterFile::String
     ipar = inputParametersType();
     ipar = read_parameters(ipar,parameterFile);
 
-    nuc = setup_nucleus(ipar,"load",importFolder)
+    nuc.enve = setup_nucleus(ipar,"load",importFolder)
 
     # scale parameters
     spar = scaledParametersType();
     spar = get_model_parameters(ipar,spar,nuc);
 
-    chro = chromatinType();
+    nuc.chro = chromatinType();
 
     ladCenterIdx = get_lad_centers(nuc,spar);
-    nuc.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar);
+    nuc.enve.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar);
 
-    chro = create_all_chromsomes_adh_init(chro,spar,nuc.vert[ladCenterIdx],nuc);
+    nuc.chro = create_all_chromsomes_adh_init(nuc.chro,spar,nuc.enve.vert[ladCenterIdx],nuc);
 
-    chro.lads = get_lad_chro_vertices(nuc,spar)
+    nuc.chro.lads = get_lad_chro_vertices(nuc,spar)
 
-    chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+    nuc.chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
 
     ex = setup_export(exportFolder,nuc,chro,spar,true,true)
 
@@ -252,11 +255,11 @@ end
 
 function create_all_chromsomes_adh_init(chro,spar,ladCenterIdx,nuc)
 
-    chro.vert = Vector{Vec{3,Float64}}(undef, spar.chromatinNumber*spar.chromatinLength);
-    chro.strandIdx = Vector{Vector{Int64}}(undef,spar.chromatinNumber)
-    chro.strandVert = Vector{Any}(undef,spar.chromatinNumber)
+    nuc.chro.vert = Vector{Vec{3,Float64}}(undef, spar.chromatinNumber*spar.chromatinLength);
+    nuc.chro.strandIdx = Vector{Vector{Int64}}(undef,spar.chromatinNumber)
+    nuc.chro.strandVert = Vector{Any}(undef,spar.chromatinNumber)
 
-    envelopeTree = KDTree(nuc.vert);
+    envelopeTree = KDTree(nuc.enve.vert);
 
     reDoAllCounter = 0;    
     while true
@@ -276,8 +279,8 @@ function create_all_chromsomes_adh_init(chro,spar,ladCenterIdx,nuc)
                 if vert isa Bool
                     reDoCounter += 1
                 else
-                    chro.vert[startInd:endInd] = vert;
-                    chro.strandIdx[k] = collect(startInd:endInd);
+                    nuc.chro.vert[startInd:endInd] = vert;
+                    nuc.chro.strandIdx[k] = collect(startInd:endInd);
                     break
                 end
                 if reDoCounter > 1000
@@ -295,29 +298,29 @@ function create_all_chromsomes_adh_init(chro,spar,ladCenterIdx,nuc)
 
         if !reDoAll
 
-            chro.forces.linear = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.forces.bending = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
-            chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,spar.chromatinNumber)
-            chro.vectorNorms = Vector{Vector{Float64}}(undef,spar.chromatinNumber)
-            chro.forces.strandLinear = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.strandBending = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.strandChroRepulsion = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.strandEnveRepulsion = Vector{Any}(undef,spar.chromatinNumber)
-            chro.forces.strandLadChroForces = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.linear = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.forces.bending = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,spar.chromatinNumber*spar.chromatinLength)
+            nuc.chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,spar.chromatinNumber)
+            nuc.chro.vectorNorms = Vector{Vector{Float64}}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandLinear = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandBending = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandChroRepulsion = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandEnveRepulsion = Vector{Any}(undef,spar.chromatinNumber)
+            nuc.chro.forces.strandLadChroForces = Vector{Any}(undef,spar.chromatinNumber)
             initialize_chromatin_forces!(chro);
             
             for i = 1:spar.chromatinNumber
-                chro.strandVert[i] = @view chro.vert[chro.strandIdx[i]];
-                chro.vectors[i] = chro.strandVert[i][2:end] .- chro.strandVert[i][1:end-1];
-                chro.vectorNorms[i] = norm.(chro.vectors[i])
-                chro.forces.strandLinear[i] = @view chro.forces.linear[chro.strandIdx[i]];
-                chro.forces.strandBending[i] = @view chro.forces.bending[chro.strandIdx[i]];
-                chro.forces.strandChroRepulsion[i] = @view chro.forces.chroRepulsion[chro.strandIdx[i]];
-                chro.forces.strandEnveRepulsion[i] = @view chro.forces.enveRepulsion[chro.strandIdx[i]];
-                chro.forces.strandLadChroForces[i] = @view chro.forces.ladChroForces[chro.strandIdx[i]];
+                nuc.chro.strandVert[i] = @view nuc.chro.vert[nuc.chro.strandIdx[i]];
+                nuc.chro.vectors[i] = nuc.chro.strandVert[i][2:end] .- nuc.chro.strandVert[i][1:end-1];
+                nuc.chro.vectorNorms[i] = norm.(nuc.chro.vectors[i])
+                nuc.chro.forces.strandLinear[i] = @view nuc.chro.forces.linear[nuc.chro.strandIdx[i]];
+                nuc.chro.forces.strandBending[i] = @view nuc.chro.forces.bending[nuc.chro.strandIdx[i]];
+                nuc.chro.forces.strandChroRepulsion[i] = @view nuc.chro.forces.chroRepulsion[nuc.chro.strandIdx[i]];
+                nuc.chro.forces.strandEnveRepulsion[i] = @view nuc.chro.forces.enveRepulsion[nuc.chro.strandIdx[i]];
+                nuc.chro.forces.strandLadChroForces[i] = @view nuc.chro.forces.ladChroForces[nuc.chro.strandIdx[i]];
             end
 
 
@@ -358,9 +361,9 @@ end
 
 function get_first_vertex_adh_init(chro,spar,startInd,ladCenterIdx,envelopeTree,nuc)
     
-    xLimits = [minimum(getindex.(nuc.vert,1)) maximum(getindex.(nuc.vert,1))]
-    yLimits = [minimum(getindex.(nuc.vert,2)) maximum(getindex.(nuc.vert,2))]
-    zLimits = [minimum(getindex.(nuc.vert,3)) maximum(getindex.(nuc.vert,3))]
+    xLimits = [minimum(getindex.(nuc.enve.vert,1)) maximum(getindex.(nuc.enve.vert,1))]
+    yLimits = [minimum(getindex.(nuc.enve.vert,2)) maximum(getindex.(nuc.enve.vert,2))]
+    zLimits = [minimum(getindex.(nuc.enve.vert,3)) maximum(getindex.(nuc.enve.vert,3))]
     
     reDoCounter = 0;
 
@@ -382,7 +385,7 @@ function get_first_vertex_adh_init(chro,spar,startInd,ladCenterIdx,envelopeTree,
 
         # check if this is too close to any existing vertex
         for j = 1:startInd-1
-            if norm(vertex - chro.vert[j]) < spar.repulsionDistance
+            if norm(vertex - nuc.chro.vert[j]) < spar.repulsionDistance
                 reDoStart = true
                 break
             end
@@ -412,32 +415,32 @@ function check_if_outside_envelope(nuc,envelopeTree,vertex,spar)
 
     closest,distance = knn(envelopeTree, vertex,1,true)
 
-    nTri = length(nuc.vertexTri[closest[1]]);
+    nTri = length(nuc.enve.vertexTri[closest[1]]);
 
-    neighbors = nuc.neighbors[closest[1]]
-    neigborsCoords = nuc.vert[neighbors]
+    neighbors = nuc.enve.neighbors[closest[1]]
+    neigborsCoords = nuc.enve.vert[neighbors]
 
-    triangles = nuc.tri[nuc.vertexTri[closest[1]]]
+    triangles = nuc.enve.tri[nuc.enve.vertexTri[closest[1]]]
     distanceVector = zeros(size(triangles,1))
     for j = 1:nTri
         for k = 1:3
-            distanceVector[j] += norm(nuc.vert[triangles[j][k]] - vertex)
+            distanceVector[j] += norm(nuc.enve.vert[triangles[j][k]] - vertex)
         end
     end
 
-    tri = nuc.vertexTri[closest[1]][argmin(distanceVector)]
+    tri = nuc.enve.vertexTri[closest[1]][argmin(distanceVector)]
 
-    closePointDistance,closeCoords,closeVertices = vertex_triangle_distance(nuc, vertex, tri)
+    closePointDistance,closeCoords,closeVertices = vertex_triangle_distance(nuc.enve, vertex, tri)
 
     unitVector = (vertex - closeCoords)/closePointDistance;
 
     if length(closeVertices) == 1
-        enveUnitVector = nuc.vertexNormalUnitVectors[closeVertices[1]];
+        enveUnitVector = nuc.enve.vertexNormalUnitVectors[closeVertices[1]];
     elseif length(closeVertices) == 2
-        edge = findall((getindex.(nuc.edges,1) .== closeVertices[1] .&& getindex.(nuc.edges,2) .== closeVertices[2]))[1]
-        enveUnitVector = nuc.edgeNormalUnitVectors[edge]
+        edge = findall((getindex.(nuc.enve.edges,1) .== closeVertices[1] .&& getindex.(nuc.enve.edges,2) .== closeVertices[2]))[1]
+        enveUnitVector = nuc.enve.edgeNormalUnitVectors[edge]
     else
-        enveUnitVector = nuc.triangleNormalUnitVectors[tri]
+        enveUnitVector = nuc.enve.triangleNormalUnitVectors[tri]
     end
 
     if dot(unitVector,enveUnitVector) <= 0
@@ -467,7 +470,7 @@ function get_other_vertices_adh_init(chro,spar,vert,startInd,currentInd,ladCente
 
         # check if other vertices are too close (in other chromatins)
         for j = 1:startInd-1
-            if norm(newPoint - chro.vert[j]) < spar.repulsionDistance
+            if norm(newPoint - nuc.chro.vert[j]) < spar.repulsionDistance
                 reDoVert = true
                 break
             end

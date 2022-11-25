@@ -21,6 +21,5 @@ if !(@isdefined nucleusType)
     using .NuclearMechTypes
 end
 
-
-simulation("VRC",0.1,"fggfg","new")
+simulation("INIT",1,"fggfg","new")
 # simulation("INIT",0.5,"MM_TEST","new")

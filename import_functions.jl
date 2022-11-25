@@ -8,9 +8,9 @@ function import_envelope(nuc,importFolder)
 
     vert = get_points(vtk)
 
-    nuc.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+    nuc.enve.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
     for i = eachindex(vert[1,:])
-        nuc.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
+        nuc.enve.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
     end
 
     VTKCelldata = get_cells(vtk)
@@ -19,93 +19,94 @@ function import_envelope(nuc,importFolder)
     # convert data to the required format
     tri = reshape(tri,(3,:))
     tri = tri' .+ 1
-    nuc.tri = Vector{Vector{Int64}}(undef,size(tri,1))
+    nuc.enve.tri = Vector{Vector{Int64}}(undef,size(tri,1))
     for i = eachindex(tri[:,1])
-        nuc.tri[i] = tri[i,:]
+        nuc.enve.tri[i] = tri[i,:]
     end
 
-    nuc = get_edges(nuc)
-    nuc = get_vertex_triangles(nuc)
+    nuc.enve = get_edges(nuc.enve)
+    nuc.enve = get_vertex_triangles(nuc.enve)
     
     return nuc
 end
 
-function import_chromatin(chro,importFolder)
+function import_chromatin(nuc,importFolder)
 
     importNumber = get_import_number(importFolder)
 
     vtk = VTKFile(importFolder*"\\chro_"*importNumber*".vtp")
     vert = get_points(vtk)
 
-    chro.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+    nuc.chro.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
     for i = eachindex(vert[1,:])
-        chro.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
+        nuc.chro.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
     end
 
     endPoints = get_primitives(vtk,"Lines").offsets
 
-    chro.strandIdx = Vector{Vector{Int64}}(undef,length(endPoints))
+    nuc.chro.strandIdx = Vector{Vector{Int64}}(undef,length(endPoints))
     for i = eachindex(endPoints)
         if i == 1
-            chro.strandIdx[i] = collect(1:endPoints[i])
+            nuc.chro.strandIdx[i] = collect(1:endPoints[i])
         else
-            chro.strandIdx[i] = collect(endPoints[i-1] + 1:endPoints[i])
+            nuc.chro.strandIdx[i] = collect(endPoints[i-1] + 1:endPoints[i])
         end
     end
 
     chromatinLength = endPoints[1]
     chromatinNumber = length(endPoints);
 
-    chro.forces.linear = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.bending = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,chromatinNumber)
-    chro.vectorNorms = Vector{Vector{Float64}}(undef,chromatinNumber)
-    chro.forces.strandLinear = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandBending = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandChroRepulsion = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandEnveRepulsion = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandLadChroForces = Vector{Any}(undef,chromatinNumber)
+    nuc.chro.forces.linear = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    nuc.chro.forces.bending = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    nuc.chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    nuc.chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    nuc.chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
+    nuc.chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,chromatinNumber)
+    nuc.chro.vectorNorms = Vector{Vector{Float64}}(undef,chromatinNumber)
+    nuc.chro.forces.strandLinear = Vector{Any}(undef,chromatinNumber)
+    nuc.chro.forces.strandBending = Vector{Any}(undef,chromatinNumber)
+    nuc.chro.forces.strandChroRepulsion = Vector{Any}(undef,chromatinNumber)
+    nuc.chro.forces.strandEnveRepulsion = Vector{Any}(undef,chromatinNumber)
+    nuc.chro.forces.strandLadChroForces = Vector{Any}(undef,chromatinNumber)
     initialize_chromatin_forces!(chro);
     
-    chro.strandVert = Vector{Any}(undef,chromatinNumber)
+    nuc.chro.strandVert = Vector{Any}(undef,chromatinNumber)
 
     for i = 1:chromatinNumber
-        chro.strandVert[i] = @view chro.vert[chro.strandIdx[i]];
-        chro.vectors[i] = chro.strandVert[i][2:end] .- chro.strandVert[i][1:end-1];
-        chro.vectorNorms[i] = norm.(chro.vectors[i])
-        chro.forces.strandLinear[i] = @view chro.forces.linear[chro.strandIdx[i]];
-        chro.forces.strandBending[i] = @view chro.forces.bending[chro.strandIdx[i]];
-        chro.forces.strandChroRepulsion[i] = @view chro.forces.chroRepulsion[chro.strandIdx[i]];
-        chro.forces.strandEnveRepulsion[i] = @view chro.forces.enveRepulsion[chro.strandIdx[i]];
-        chro.forces.strandLadChroForces[i] = @view chro.forces.ladChroForces[chro.strandIdx[i]];
+        nuc.chro.strandVert[i] = @view nuc.chro.vert[nuc.chro.strandIdx[i]];
+        nuc.chro.vectors[i] = nuc.chro.strandVert[i][2:end] .- nuc.chro.strandVert[i][1:end-1];
+        nuc.chro.vectorNorms[i] = norm.(nuc.chro.vectors[i])
+        nuc.chro.forces.strandLinear[i] = @view nuc.chro.forces.linear[nuc.chro.strandIdx[i]];
+        nuc.chro.forces.strandCrosslink[i] = @view nuc.chro.forces.crosslink[nuc.chro.strandIdx[i]];
+        nuc.chro.forces.strandBending[i] = @view nuc.chro.forces.bending[nuc.chro.strandIdx[i]];
+        nuc.chro.forces.strandChroRepulsion[i] = @view nuc.chro.forces.chroRepulsion[nuc.chro.strandIdx[i]];
+        nuc.chro.forces.strandEnveRepulsion[i] = @view nuc.chro.forces.enveRepulsion[nuc.chro.strandIdx[i]];
+        nuc.chro.forces.strandLadChroForces[i] = @view nuc.chro.forces.ladChroForces[nuc.chro.strandIdx[i]];
     end
 
-    return chro
+    return nuc
 
 end
 
-function import_lads(nuc,chro,importFolder,spar)
+function import_lads(nuc,importFolder,spar)
 
-    nuc.lads = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
-    chro.lads = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
+    nuc.enve.lads = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
+    nuc.chro.lads = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
 
     tempLads = readdlm(importFolder*"\\lads.csv", ',', Int64, '\n')
 
     for i = 1:spar.chromatinNumber
 
         tempIdx = findall(tempLads[:,1] .== i)
-        nuc.lads[i] = tempLads[tempIdx,2]
-        chro.lads[i] = tempLads[tempIdx,3]
+        nuc.enve.lads[i] = tempLads[tempIdx,2]
+        nuc.chro.lads[i] = tempLads[tempIdx,3]
 
     end
 
-    return nuc,chro
+    return nuc
 end
 
-function import_crosslinks(chro,importFolder,spar)
+function import_crosslinks(nuc,importFolder,spar)
 
     importNumber = get_import_number(importFolder)
 
@@ -115,22 +116,22 @@ function import_crosslinks(chro,importFolder,spar)
         println("blob1")
     catch
     end
-    chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+    nuc.chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
 
     for i = eachindex(tempCrosslinks[:,1])
 
-        push!(chro.crosslinks, tempCrosslinks[i,:])
-        chro.crosslinked[tempCrosslinks[i,:]] .= 1
+        push!(nuc.chro.crosslinks, tempCrosslinks[i,:])
+        nuc.chro.crosslinked[tempCrosslinks[i,:]] .= 1
 
     end
 
     for i = 1:spar.chromatinNumber
 
-        chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
+        nuc.chro.crosslinked[nuc.chro.strandIdx[i][nuc.chro.lads[i]]] .= -1
 
     end
 
-    return chro
+    return nuc
 
 end
 
