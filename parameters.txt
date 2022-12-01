@@ -16,12 +16,12 @@ chroVertexDistance,0.6e-6
 chromatinNumber,46
 chromatinLength,128
 nSubdivisions,4
-maxDt,0.005
+maxDt,0.0005
 temperature,300
 crosslinkingBindingProbability,0.0
 crosslinkingUnbindingProbability,0.
 scalingLength,1e-6
 scalingTime,60
-pullingForce,5e-9
+pullingForce,1e-9
 iLUCutoff,0.001
 exportStep,1

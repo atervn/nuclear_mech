@@ -3,8 +3,9 @@ module NuclearMechTypes
 using WriteVTK
 using Meshes
 using SparseArrays
+using Dates
 
-export nucleusType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType, replicationCompartmentType
+export envelopeType, adherensType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType, replicationCompartmentType
 Base.@kwdef mutable struct envelopeForcesType
     volume::Vector{Vec{3,Float64}} = []
     area::Vector{Vec{3,Float64}} = []
@@ -13,6 +14,7 @@ Base.@kwdef mutable struct envelopeForcesType
     envelopeRepulsion::Vector{Vec{3,Float64}} = []
     chromationRepulsion::Vector{Vec{3,Float64}} = []
     ladEnveForces::Vector{Vec{3,Float64}} = []
+    planeRepulsion::Vector{Vec{3,Float64}} = []
     total::Vector{Vec{3,Float64}} = []
 end
 Base.@kwdef mutable struct envelopeType
@@ -81,7 +83,6 @@ Base.@kwdef mutable struct inputParametersType
     exportStep::Int64 = 0
 end
 Base.@kwdef mutable struct scaledParametersType
-    
     bulkModulus::Float64 = 0;
     laminaStiffness::Float64 = 0;
     areaCompressionStiffness::Float64 = 0;
@@ -162,6 +163,15 @@ Base.@kwdef mutable struct exportSettingsType
     folderName::String = ""
     step::Int64 = 1
 end
+
+Base.@kwdef mutable struct adherensType
+    adherent::Bool = false
+    topPlane::Float64 = 0
+    bottomPlane::Float64 = 0
+    touchingTop::Vector{Bool} = []
+    cellForcesOnPlane::Float64 = 0
+end
+
 Base.@kwdef mutable struct simulationSettingsType
     frictionMatrix::Any = []
     envelopeTree::Any = []
@@ -170,7 +180,9 @@ Base.@kwdef mutable struct simulationSettingsType
     prog::Any = []
     timeStepProgress::Rational = 0;
     timeStepMultiplier::Rational = 1;
+    timeStepTiming::DateTime = now();
     iLU::Any = []
+    adh = adherensType();
 end
 Base.@kwdef mutable struct virusforcesType
     volume::Vector{Vec{3,Float64}} = []
@@ -218,21 +230,6 @@ Base.@kwdef mutable struct replicationCompartmentType
     iLU::Any = []
     baseArea::Float64 = 0;
     tree::Any = []
-end
-
-Base.@kwdef mutable struct adherensType
-    adherent::Bool = false
-    topPlane::Float64 = 0
-    bottomPlane::Float64 = 0
-    touchingTop::Vector{Int64} = []
-    cellForcesOnPlane::Float64 = 0
-end
-
-Base.@kwdef mutable struct nucleusType
-    enve = envelopeType()
-    chro = chromatinType()
-    repl = replicationCompartmentType()
-    adh = adherensType()
 end
 
 end

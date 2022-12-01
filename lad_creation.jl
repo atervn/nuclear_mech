@@ -1,16 +1,4 @@
-function create_lads(chro,nuc,spar)
-
-    ladCenterIdx = get_lad_centers(nuc,spar)
-
-    nuc.enve.lads = get_lad_enve_vertices(ladCenterIdx,nuc,spar)
-
-    nuc.chro.lads = get_lad_chro_vertices(nuc,spar)
-
-    return nuc,chro
-
-end
-
-function get_lad_centers(nuc,spar)
+function get_lad_centers(enve,spar)
 
     nucleusArea = 4*pi*spar.freeNucleusRadius^2;
     minDistance = 1.4*sqrt(nucleusArea/spar.chromatinNumber/pi)
@@ -24,12 +12,12 @@ function get_lad_centers(nuc,spar)
             reDoChromosomeCounter = 0
             while true
                 
-                tempIdx = rand(1:length(nuc.enve.vert))
+                tempIdx = rand(1:length(enve.vert))
                 allGood = true
 
                 for j = 1:i-1
 
-                    if norm(nuc.enve.vert[tempIdx] - nuc.enve.vert[ladCenterIdx[j]]) < minDistance
+                    if norm(enve.vert[tempIdx] - enve.vert[ladCenterIdx[j]]) < minDistance
                         allGood = false
                         break
                     end
@@ -67,7 +55,7 @@ function get_lad_centers(nuc,spar)
 
 end
 
-function get_lad_enve_vertices(ladCenterIdx,nuc,spar)
+function get_lad_enve_vertices(ladCenterIdx,enve,spar)
 
     ladVertices = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
 
@@ -78,12 +66,12 @@ function get_lad_enve_vertices(ladCenterIdx,nuc,spar)
         closeVertices[i] = []
     end
 
-    for i = 1:length(nuc.enve.vert)
+    for i = 1:length(enve.vert)
         closestDistance = 1000;
         closestVertex = 0;
         for j = 1:spar.chromatinNumber
-            if norm(nuc.enve.vert[i] - nuc.enve.vert[ladCenterIdx[j]]) < closestDistance
-                closestDistance = norm(nuc.enve.vert[i] - nuc.enve.vert[ladCenterIdx[j]])
+            if norm(enve.vert[i] - enve.vert[ladCenterIdx[j]]) < closestDistance
+                closestDistance = norm(enve.vert[i] - enve.vert[ladCenterIdx[j]])
                 closestVertex = j
             end
         end
@@ -104,13 +92,13 @@ function get_lad_enve_vertices(ladCenterIdx,nuc,spar)
 
 end
 
-function get_lad_chro_vertices(nuc,spar)
+function get_lad_chro_vertices(enve,chro,spar)
 
     ladVertices = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
 
     for i = 1:spar.chromatinNumber
 
-        nLads = length(nuc.enve.lads[i]);
+        nLads = length(enve.lads[i]);
         
         vertPerLad = floor(spar.chromatinLength/nLads)
 
@@ -136,7 +124,7 @@ function get_lad_chro_vertices(nuc,spar)
                 while true
                     tempVertex = rand(possibleLadVertices[j])
                     if tempVertex - ladVertices[i][end] > 4
-                        distanceEnve = norm(nuc.enve.vert[nuc.enve.lads[i][j]] - nuc.enve.vert[nuc.enve.lads[i][j-1]])
+                        distanceEnve = norm(enve.vert[enve.lads[i][j]] - enve.vert[enve.lads[i][j-1]])
                         distanceChro = (tempVertex - ladVertices[i][end])*spar.chroVertexDistance
                         if distanceChro > distanceEnve
                             break
@@ -149,7 +137,7 @@ function get_lad_chro_vertices(nuc,spar)
         end
     end
 
-    nuc.chro.lads = ladVertices;
+    chro.lads = ladVertices;
 
-    return nuc
+    return chro
 end

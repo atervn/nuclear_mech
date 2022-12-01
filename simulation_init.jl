@@ -1,15 +1,16 @@
-function simulation_init(simType::String, maxT, folderName::String, initState::String, noEnve::Bool; importFolder::String="", nameDate::Bool=true, parameterFile::String="./parameters.txt", exportData::Bool=true)
+function simulation_init(simType::String, maxT, folderName::String, initState::String, noEnve::Bool;
+    importFolder::String="", nameDate::Bool=true, parameterFile::String="./parameters.txt",
+    exportData::Bool=true; replComp = false,)
 
     if check_simulation_type(simType)
         return
     end
 
     # setup
-    nuc, chro, spar, simset, ext = setup_simulation(initState, simType, importFolder, parameterFile)
-    ex = setup_export(folderName, nuc, chro, spar, nameDate,exportData)
-    extTemp = check_adhesion_file!(ex,initState,importFolder,simset)
-    println(extTemp)    
-    ext = [extTemp[1],extTemp[2],zeros(Bool,length(nuc.enve.vert)),0]
+    enve, chro, spar, simset, ext = setup_simulation(initState, simType, importFolder, parameterFile)
+    ex = setup_export(folderName, enve, chro, spar, nameDate,exportData)
+    simset = check_adhesion_file!(ex,initState,importFolder,simset)
+
     simset.prog = Progress(Int64(round(maxT/(spar.scalingTime*spar.maxDt))), 0.1, "Simulating...", 100)
 
     # timestepping variables
@@ -27,19 +28,19 @@ function simulation_init(simType::String, maxT, folderName::String, initState::S
     try
         while intTime <= intMaxTime
 
-            get_nuclear_properties!(nuc, chro, simset, spar, ext)
+            get_nuclear_properties!(enve, chro, simset, spar)
 
-            get_crosslinks!(nuc, chro, simset, spar)
+            get_crosslinks!(enve, chro, simset, spar)
 
-            get_forces!(nuc, chro, spar, ext, simset)
+            get_forces!(enve, chro, spar, ext, simset)
 
-            export_data(nuc, chro, spar,ex ,ext, intTime, simset)
+            export_data(enve, chro, spar,ex ,ext, intTime, simset,adh)
 
-            solve_system_init!(nuc, chro, spar, simset, dt, ext, noEnve)
+            solve_system_init!(enve, chro, spar, simset, dt, ext, noEnve)
 
             intTime = progress_time!(simset,intTime);
             
-            push!(nCrosslinks,length(nuc.chro.crosslinks[:,1]))
+            push!(nCrosslinks,length(chro.crosslinks[:,1]))
 
         end
     catch error

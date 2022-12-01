@@ -19,16 +19,12 @@ function simulation_adh_init(simType::String, maxT, folderName::String, initStat
     ####################################################################################################
     # run the simulation
 
-    topForces = [];
-
     try
         while intTime <= intMaxTime
 
             get_nuclear_properties_adh_init!(nuc, simset)
 
             planeRepulsion,touchTop = get_forces_adh_init!(nuc, spar, ext)
-
-            push!(topForces,sum(getindex.(nuc.enve.forces.volume[touchTop],3)))
 
             export_data_adh_init(nuc, ex, intTime, simset, planeRepulsion, ext)
 

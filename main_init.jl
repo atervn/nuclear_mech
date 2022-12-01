@@ -18,13 +18,13 @@ include("solve_system.jl")
 include("import_functions.jl")
 include("simulation_init.jl")
 
-if !(@isdefined nucleusType)
+if !(@isdefined envelopeType)
     include("NuclearMechTypes.jl")
     using .NuclearMechTypes
 end
 
 # simulation("INIT",0.1,"fggfg","new";exportData = false)
-    fileName1 = simulation_init("INIT",10,"initP1","load",true; parameterFile = "parameters_init_1.txt")
+    fileName1 = simulation_init("INIT",10,"initP1","new",true; parameterFile = "parameters_init_1.txt")
     fileName2 = simulation_init("INIT",1000,"initP2","load",false; importFolder = fileName1, parameterFile = "parameters_init_2.txt")
     simulation_init("INIT",10,"init_final_test","load",false; importFolder = fileName2, parameterFile = "parameters_init_1.txt")
     # rm(".\\results\\"*fileName1; recursive = true)
