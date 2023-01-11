@@ -108,10 +108,28 @@ function get_edges(shellStruct)
 
     shellStruct.edgesTri = Vector{Vector{Int64}}(undef,length(shellStruct.edges));
 
+    bufferedDoubleTriMatrix = [triMatrix[:,3] triMatrix triMatrix[:,1]]
+
     for i = eachindex(shellStruct.edges)
 
         # neighboringTriangles = findall(any(triMatrix .== shellStruct.edges[i][1],dims=2) .&& any(triMatrix .== shellStruct.edges[i][2],dims=2));
-        shellStruct.edgesTri[i] = [j[1] for j in findall(any(triMatrix .== shellStruct.edges[i][1],dims=2) .&& any(triMatrix .== shellStruct.edges[i][2],dims=2))];
+        # shellStruct.edgesTri[i] = [j[1] for j in findall(any(triMatrix .== shellStruct.edges[i][1],dims=2) .&& any(triMatrix .== shellStruct.edges[i][2],dims=2))];
+    
+        shellStruct.edgesTri[i] = [0,0]
+
+        firstEdges = findall(triMatrix .== shellStruct.edges[i][1])
+
+        for j = 1:length(firstEdges)
+
+            if bufferedDoubleTriMatrix[firstEdges[j][1],firstEdges[j][2]+2] == shellStruct.edges[i][2]
+                shellStruct.edgesTri[i][1] = firstEdges[j][1]
+            elseif bufferedDoubleTriMatrix[firstEdges[j][1],firstEdges[j][2]] == shellStruct.edges[i][2]
+                shellStruct.edgesTri[i][2] = firstEdges[j][1]
+            end
+
+        end
+
+    
     end
 
     return shellStruct

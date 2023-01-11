@@ -29,7 +29,6 @@ function setup_simulation(initType::String,simType::String,importFolder::String,
     # setup aspiration
     if cmp(simType,"MA") == 0
         pip = generate_pipette_mesh();
-        export_pipette_mesh(folderName,pip)
         # vector to store the aspiration lengths
         maxX = []
         ext = (pip,maxX)
@@ -215,7 +214,7 @@ function setup_micromanipulation(enve)
 
 end
 
-function setup_export(folderName::String,enve,chro,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool)
+function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool)
 
     ex = exportSettingsType()
 
@@ -298,6 +297,10 @@ function setup_export(folderName::String,enve,chro,spar,simset,nameDate::Bool,ex
         ex.step = spar.exportStep
     end
     
+    if cmp(simType,"MA") == 0
+        export_pipette_mesh(ex.folderName,ext[1])
+        # vector to store the aspiration lengths
+    end
     return ex
 end
 
@@ -317,14 +320,14 @@ function get_friction_matrix(enve,chro,spar,noChromatin)
     if !noChromatin
         chroStart = length(enve.vert)+1
         for j = chroStart:chroStart+spar.chromatinLength*spar.chromatinNumber-1
-            frictionMatrix[j,j] = 1
+            frictionMatrix[j,j] = 50
         end
 
         for j = 1:spar.chromatinNumber
             startIdx = chroStart + spar.chromatinLength*(j-1)
             endIdx = chroStart + spar.chromatinLength*(j)-1
 
-            constant = 0.0001;
+            constant = 0.05;
             for k = startIdx:endIdx
                 if k == startIdx
                     frictionMatrix[k,k+1] = -spar.laminaFriction*constant
@@ -339,7 +342,7 @@ function get_friction_matrix(enve,chro,spar,noChromatin)
                 end
             end
 
-            constant = 0.0001;
+            constant = 0.05;
             for k = 1:length(chro.lads[j])
 
                 nucVertex = enve.lads[j][k]
@@ -379,7 +382,7 @@ function get_model_parameters(ipar,spar,enve)
     spar.areaCompressionStiffness = spar.areaCompressionStiffness/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
     # spar.bendingStiffness = ipar.laminaYoung*ipar.laminaThickness^3/(12*(1-ipar.poissonsRatio^2));
-    spar.bendingStiffness = 3e-19/ipar.viscosity*ipar.scalingTime/ipar.scalingLength^2;
+    spar.bendingStiffness = 3e-17/ipar.viscosity*ipar.scalingTime/ipar.scalingLength^2;
 
     spar.bulkModulus = ipar.bulkModulus/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
@@ -421,99 +424,17 @@ function get_model_parameters(ipar,spar,enve)
     return spar
 end
 
-function get_repl_comp_friction_matrix(nuc,spar)
+function get_repl_comp_friction_matrix(repl,spar)
 
-    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.repl.vert),length(nuc.repl.vert));
+    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(repl.vert),length(repl.vert));
 
     
-    for j = 1:length(nuc.repl.vert)
-        frictionMatrix[j,j] = 1 + 20*spar.laminaFriction*length(nuc.repl.neighbors[j]);
-        frictionMatrix[j,nuc.repl.neighbors[j]] .= -20*spar.laminaFriction;
+    for j = 1:length(repl.vert)
+        frictionMatrix[j,j] = 1 + 20*spar.laminaFriction*length(repl.neighbors[j]);
+        frictionMatrix[j,repl.neighbors[j]] .= -20*spar.laminaFriction;
     end
     
     return frictionMatrix
-end
-
-function setup_simulation_adh_init(initType::String,simType::String,importFolder::String,parameterFile::String)
-
-    # read model parameters from file
-    ipar = inputParametersType();
-    ipar = read_parameters(ipar,parameterFile);
-
-    # get import folder
-    importFolder = get_import_folder(initType,importFolder)
-
-    nuc.enve = setup_envelope(ipar,initType,importFolder)
-    
-    # scale parameters
-    spar = scaledParametersType();
-    spar = get_model_parameters(ipar,spar,nuc);
-    
-    simset = simulationSettingsType()
-    simset.frictionMatrix = get_friction_matrix_adh_init(nuc,spar)
-    simset.iLU = ilu(simset.frictionMatrix, τ=spar.iLUCutoff)
-    simset.simType = simType;
-
-    topPlane = spar.freeNucleusRadius + spar.repulsionDistance;
-    bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance;
-    ext = [topPlane,bottomPlane,zeros(Bool,length(nuc.enve.vert)),0]
-
-    return nuc, spar, simset, ext
-
-end
-
-function get_friction_matrix_adh_init(nuc,spar)
-
-    frictionMatrix = sparse(Int64[],Int64[],Float64[],length(nuc.enve.vert),length(nuc.enve.vert));
-
-    for j = 1:length(nuc.enve.vert)
-        frictionMatrix[j,j] = 1 + spar.laminaFriction*length(nuc.enve.neighbors[j]);
-        frictionMatrix[j,nuc.enve.neighbors[j]] .= -spar.laminaFriction;
-    end
-
-    return frictionMatrix
-end
-
-function setup_export_adh_init(folderName::String,nuc,spar,nameDate::Bool,exportData::Bool)
-
-    ex = exportSettingsType()
-
-    ex.exportData = exportData
-
-    if ex.exportData
-        if nameDate
-            ex.folderName = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")*folderName
-        else
-            ex.folderName = folderName
-        end
-
-        try
-            mkdir(".\\results\\"*ex.folderName)
-        catch
-            for i = 1:1000
-                try
-                    mkdir(".\\results\\"*ex.folderName*"_"*string(i))
-                    ex.folderName = ex.folderName*"_"*string(i)
-                    break
-                catch
-                end
-            end
-        end
-
-        open(".\\results\\"*ex.folderName*"\\adh.txt", "w") do file
-            write(file, "adh")
-        end
-
-        ex.enveCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,length(nuc.enve.tri))
-        for i = eachindex(nuc.enve.tri)
-            ex.enveCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, nuc.enve.tri[i]);
-        end
-
-        ex.step = spar.exportStep
-    end
-    
-    return ex
-
 end
 
 function check_adhesion!(initType,spar,enve,importFolder,simset,adherent)

@@ -187,6 +187,10 @@ function get_triangle_angles(shellStruct)
     
     for i = eachindex(angles)
         angles[i] = acos(min(1.0,dot(shellStruct.triangleNormalUnitVectors[shellStruct.edgesTri[i][1]],shellStruct.triangleNormalUnitVectors[shellStruct.edgesTri[i][2]])))
+        # println(shellStruct.edgeVectors[i])
+        if dot(shellStruct.edgeVectors[i],cross(shellStruct.triangleNormalUnitVectors[shellStruct.edgesTri[i][1]],shellStruct.triangleNormalUnitVectors[shellStruct.edgesTri[i][2]])) > 0
+            angles[i] = -angles[i]
+        end
     end
 
     return angles
@@ -214,7 +218,7 @@ function line_point_distance(AB::Vec{3,Float64},AC::Vec{3,Float64})
  
 end
 
-function vertex_triangle_distance(shellStruct, vertex, tri, pip = nothing)
+function vertex_triangle_distance(shellStruct, vertex::Vec3, tri::Int)
 
     # based on https://gist.github.com/joshuashaffer/99d58e4ccbd37ca5d96e
 
@@ -229,6 +233,217 @@ function vertex_triangle_distance(shellStruct, vertex, tri, pip = nothing)
     #     E0 = pip.vert[tri[2]] - B;
     #     E1 = pip.vert[tri[3]] - B;
     # end
+
+    D = B - vertex
+    
+    a = dot(E0,E0);
+    b = dot(E0,E1);
+    c = dot(E1,E1);
+    d = dot(E0,D);
+    e = dot(E1,D);;
+    f = dot(D,D); 
+    
+    #print "{0} {1} {2} ".format(B,E1,E0)
+    det = a * c - b * b
+    s = b * e - c * d
+    t = b * d - a * e
+    
+    if (s + t) <= det
+        if s < 0
+            if t < 0
+                # region4
+                if d < 0
+                    t = 0
+                    if -d >= a
+                        s = 1;
+                        sqrdistance = a + 2*d + f;
+                    else
+                        s = -d / a;
+                        sqrdistance = d*s + f;
+                    end
+                else
+                    s = 0;
+                    if e >= 0;
+                        t = 0;
+                        sqrdistance = f;
+                    else
+                        if -e >= c
+                            t = 1;
+                            sqrdistance = c + 2*e + f;
+                        else
+                            t = -e/c;
+                            sqrdistance = e*t + f;
+                        end
+                    end
+                end
+
+                vertices = [tri[1]]
+
+            else
+                # region 3
+                s = 0;
+                if e >= 0
+                    t = 0;
+                    sqrdistance = f;
+                else
+                    if -e >= c
+                        t = 1;
+                        sqrdistance = c + 2*e + f;
+                    else
+                        t = -e/c;
+                        sqrdistance = e*t + f;
+                    end
+                end
+
+                vertices = tri[[1,3]]
+
+            end
+        else
+            if t < 0
+                # region 5
+                t = 0
+                if d >= 0
+                    s = 0;
+                    sqrdistance = f;
+                else
+                    if -d >= a
+                        s = 1;
+                        sqrdistance = a + 2*d + f;
+                    else
+                        s = -d/a;
+                        sqrdistance = d*s + f;
+                    end
+                end
+
+                vertices = tri[[1,2]]
+
+            else
+                # region 0
+                invDet = 1/det;
+                s = s*invDet;
+                t = t*invDet;
+                sqrdistance = s*(a*s + b*t + 2*d) + t*(b*s + c*t + 2*e) + f;
+
+                vertices = tri[[1,2,3]]
+
+            end
+        end
+    else
+        if s < 0
+            # region 2
+            tmp0 = b + d;
+            tmp1 = c + e;
+            if tmp1 > tmp0  # minimum on edge s+t=1
+                numer = tmp1 - tmp0;
+                denom = a - 2*b + c;
+                if numer >= denom
+                    s = 1;
+                    t = 0;
+                    sqrdistance = a + 2*d + f;
+                else
+                    s = numer/denom;
+                    t = 1 - s;
+                    sqrdistance = s*(a*s + b*t + 2*d) + t*(b*s + c*t + 2*e) + f;
+                end
+    
+            else  # minimum on edge s=0
+                s = 0.0
+                if tmp1 <= 0
+                    t = 1;
+                    sqrdistance = c + 2*e + f;
+                else
+                    if e >= 0
+                        t = 0;
+                        sqrdistance = f;
+                    else
+                        t = -e/c;
+                        sqrdistance = e*t + f;
+                    end
+                end
+            end
+            vertices = [tri[3]]
+        else
+            if t < 0
+                # region6
+                tmp0 = b + e;
+                tmp1 = a + d;
+                if tmp1 > tmp0
+                    numer = tmp1 - tmp0;
+                    denom = a - 2*b + c;
+                    if numer >= denom
+                        t = 1;
+                        s = 0;
+                        sqrdistance = c + 2*e + f;
+                    else
+                        t = numer / denom;
+                        s = 1 - t;
+                        sqrdistance = s*(a*s + b*t + 2*d) + t*(b*s + c*t + 2*e) + f;
+                    end
+                else
+                    t = 0;
+                    if tmp1 <= 0
+                        s = 1;
+                        sqrdistance = a + 2*d + f;
+                    else
+                        if d >= 0
+                            s = 0;
+                            sqrdistance = f;
+                        else
+                            s = -d/a;
+                            sqrdistance = d*s + f;
+                        end
+                    end
+                end
+
+                vertices = [tri[2]]
+            
+            else
+                # region 1
+                numer = c + e - b - d;
+                if numer <= 0
+                    s = 0
+                    t = 1
+                    sqrdistance = c + 2*e + f;
+                else
+                    denom = a - 2*b + c;
+                    if numer >= denom
+                        s = 1;
+                        t = 0;
+                        sqrdistance = a + 2*d + f;
+                    else
+                        s = numer/denom;
+                        t = 1 - s;
+                        sqrdistance = s*(a*s + b*t + 2*d) + t*(b*s + c*t + 2*e) + f;
+                    end
+                end
+
+                vertices = tri[[2,3]]
+
+            end
+        end
+    end
+    
+    # account for numerical round-off error
+    if sqrdistance < 0
+        sqrdistance = 0
+    end
+    
+    dist = sqrt(sqrdistance);
+
+
+    PP0 = B + s*E0 + t*E1
+    return dist, PP0, vertices
+    
+end
+
+function vertex_triangle_distance(vertex::Vec3, tri::Int, pip::pipetteType)
+
+    # based on https://gist.github.com/joshuashaffer/99d58e4ccbd37ca5d96e
+
+    tri = pip.tri[tri];
+    B  = pip.vert[tri[1]];
+    E0 = pip.vert[tri[2]] - B;
+    E1 = pip.vert[tri[3]] - B;
 
     D = B - vertex
     

@@ -13,6 +13,7 @@ Base.@kwdef mutable struct envelopeForcesType
     elastic::Vector{Vec{3,Float64}} = []
     envelopeRepulsion::Vector{Vec{3,Float64}} = []
     chromationRepulsion::Vector{Vec{3,Float64}} = []
+    replCompRepulsion::Vector{Vec{3,Float64}} = []
     ladEnveForces::Vector{Vec{3,Float64}} = []
     planeRepulsion::Vector{Vec{3,Float64}} = []
     total::Vector{Vec{3,Float64}} = []
@@ -118,6 +119,7 @@ Base.@kwdef mutable struct chromatinForceType
     crosslink::Vector{Vec{3,Float64}} = []
     chroRepulsion::Vector{Vec{3,Float64}} = []
     enveRepulsion::Vector{Vec{3,Float64}} = []
+    replCompRepulsion::Vector{Vec{3,Float64}} = []
     strandLinear::Vector{Any} = []
     strandBending::Vector{Any} = []
     strandCrosslink::Vector{Any} = []
@@ -141,8 +143,19 @@ Base.@kwdef mutable struct chromatinType
 end
 Base.@kwdef mutable struct pipetteType
     vert::Vector{Vec{3,Float64}} = []
-    tri::Array{Int64} = Array{Int64}[]
+    tri::Vector{Vector{Int64}} = []
     vertexTri::Array{Vector{Int64}} = Array{Int64}[]
+    neighbors::Vector{Vector{Int64}} = []
+    edges::Vector{Vector{Int64}} = []
+    vertexNormalUnitVectors::Vector{Vec{3,Float64}} = []
+    edgeNormalUnitVectors::Vector{Vec{3,Float64}} = []
+    triangleNormalUnitVectors::Vector{Vec{3,Float64}} = []
+    edgeVectors::Vector{Vec{3,Float64}} = []
+    firstEdges::Vector{Int64} = []
+    triEdge1::Vector{Int64} = []
+    triEdge2::Vector{Int64} = []
+    mirrorEdges::Vector{Int64} = []
+    edgesTri::Vector{Vector{Int64}} = []
 end
 Base.@kwdef mutable struct micromanipulationType
     rightmostVertex::Int64 = 0

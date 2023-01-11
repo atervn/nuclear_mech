@@ -2,7 +2,7 @@ function get_volume_forces!(enve,spar)
 
     nucleusVolume = get_volume!(enve);
 
-    pressure = -spar.bulkModulus*log10(nucleusVolume/enve.normalVolume);
+    pressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));#180000;-spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));
 
     enve.forces.volume = pressure*enve.voronoiAreas.*enve.vertexNormalUnitVectors
 
@@ -10,18 +10,19 @@ end
 
 function get_area_forces!(enve, spar)
 
-    nucleusArea = sum(enve.triangleAreas);
+    # nucleusArea = sum(enve.triangleAreas);
 
-    forceMagnitude = spar.areaCompressionStiffness*(nucleusArea - enve.normalArea)/enve.normalArea;
+    # forceMagnitude = spar.areaCompressionStiffness*(nucleusArea - enve.normalArea)/enve.normalArea;
 
     for i = 1:length(enve.vert)
-        enve.forces.area[i] = -forceMagnitude*mean(enve.areaUnitVectors[i])
+        # enve.forces.area[i] = -forceMagnitude*mean(enve.areaUnitVectors[i])
+        enve.forces.area[i] = Vec(0.,0.,0.)
     end
 
     for i = eachindex(enve.tri)
 
         baryocenter = mean(enve.vert[enve.tri[i]]);
-        magnitude = 0.1*spar.areaCompressionStiffness*(enve.triangleAreas[i] - enve.normalTriangleAreas[i])/enve.normalTriangleAreas[i];
+        magnitude = 1*spar.areaCompressionStiffness*(enve.triangleAreas[i] - enve.normalTriangleAreas[i])/enve.normalTriangleAreas[i];
         
         for j = 1:3
 
@@ -134,41 +135,74 @@ function get_aspiration_repulsion_forces(enve,pip,spar)
 
 
     repulsion = Vector{Vec{3,Float64}}(undef, length(enve.vert));
+    for i = eachindex(repulsion)
+        repulsion[i] = Vec(0.,0.,0.);
+    end
 
     tree = KDTree(pip.vert);
 
     for i = 1:length(enve.vert)
 
-        closest = knn(tree, enve.vert[i],1,true)
+        closest, distance = knn(tree, enve.vert[i],1,true)
 
-        nTri = length(pip.vertexTri[closest[1]][1]);
-        closePointDistances = Vector{Float64}(undef,nTri);
-        closePointCoordinates = Vector{Any}(undef,nTri);
+        if distance[1] < spar.meanLaminaLength*2
 
-        for j = 1:nTri
+            nTri = length(pip.vertexTri[closest[1]]);
+            neighbors = pip.neighbors[closest[1]]
+            neigborsCoords = pip.vert[neighbors]
+        
+            triangles = pip.tri[pip.vertexTri[closest[1]]]
+        
+            distanceVector = zeros(size(triangles,1))
 
-            tri = pip.vertexTri[closest[1]][1][j];
+            for j = 1:nTri
+                for k = 1:3
+                    distanceVector[j] += norm(pip.vert[triangles[j][k]] - enve.vert[i])
+                end
+            end
 
-            closePointDistances[j],closePointCoordinates[j] = vertex_triangle_distance(enve, enve.vert[i], tri, pip);
+            tri = pip.vertexTri[closest[1]][argmin(distanceVector)]
+
+            closePointDistance,closeCoords,closeVertices = vertex_triangle_distance(enve.vert[i], tri, pip)
+
+            getForce = false
+
+            unitVector = (enve.vert[i] - closeCoords)/closePointDistance;
+            if closePointDistance < spar.repulsionDistance
+                getForce = true
+                
+            else
+                pipUnitVector = pip.vertexNormalUnitVectors[closest[1]];
+                if dot(unitVector,pipUnitVector) >= 0
+                    getForce = true
+                end
+            end
+
+            if getForce
+
+                # unitVector = (chro.vert[i] - closeCoords)/closePointDistance;
+                
+                if length(closeVertices) == 1
+                    pipUnitVector = pip.vertexNormalUnitVectors[closeVertices[1]];
+                elseif length(closeVertices) == 2
+                    edge = findall((getindex.(pip.edges,1) .== closeVertices[1] .&& getindex.(pip.edges,2) .== closeVertices[2]))[1]
+                    pipUnitVector = pip.edgeNormalUnitVectors[edge]
+                else
+                    pipUnitVector = pip.triangleNormalUnitVectors[tri]
+                end
+
+                if dot(unitVector,pipUnitVector) >= 0
+                    unitVector = -unitVector
+                    forceMagnitude = 0.5*spar.repulsionConstant
+                else
+                    forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closePointDistance)
+                end
+
+                repulsion[i] = forceMagnitude*unitVector;
+            end
         end
 
-        closestPoint = findmin(closePointDistances);
-        closestDistance = closestPoint[1];
-
-        if closestDistance < spar.repulsionDistance
-
-            closeCoords = closePointCoordinates[closestPoint[2]];
-
-            unitVector = (enve.vert[i] - closeCoords)./closestDistance;
-            
-            forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closestDistance)^(3/2);
-
-            repulsion[i] = forceMagnitude*unitVector;
-        else
-            repulsion[i] = Vec(0.,0.,0.)
-        end
     end
-
     return repulsion
 
 end
@@ -179,7 +213,7 @@ function get_aspiration_forces(enve,pip,spar)
 
     for i = eachindex(enve.vert)
         if enve.vert[i][1]>0 && sqrt(enve.vert[i][2]^2 + enve.vert[i][3]^2) < 3
-            forceMagnitude = 1*sum(enve.voronoiAreas[i]);
+            forceMagnitude = 6000000*sum(enve.voronoiAreas[i]);
             force[i] = forceMagnitude*enve.vertexNormalUnitVectors[i]
         else
             force[i] = Vec(0.,0.,0.);
@@ -251,7 +285,7 @@ end
 
 function get_random_fluctuations(spar,dt)
 
-    strength = sqrt(2*spar.boltzmannConst*spar.temperature/(dt));
+    strength = sqrt(2*spar.boltzmannConst*spar.temperature/dt);
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
@@ -264,7 +298,7 @@ end
 
 function get_random_enve_fluctuations(spar,enve,dt)
 
-    strength = sqrt(0*spar.boltzmannConst*spar.temperature/(dt));
+    strength = sqrt(2*spar.boltzmannConst*spar.temperature/dt);
 
     fluctuationForces = Vector{Vec{3,Float64}}(undef,length(enve.vert))
     for i = 1:length(enve.vert)
@@ -468,143 +502,6 @@ function get_plane_repulsion(enve,simset,spar)
     end
 end
 
-function get_forces!(enve, chro , spar, ext, simset)
-
-    get_volume_forces!(enve,spar);
-    get_area_forces!(enve,spar);
-    get_bending_forces!(enve,spar);
-    get_elastic_forces!(enve,spar);
-
-    # get_repulsion_forces!(nuc,spar,simset.envelopeTree);
-    # enveFlucs = get_random_enve_fluctuations(spar,nuc)
-
-
-    if cmp(simset.simType,"MA") == 0 
-        repulsion = get_aspiration_repulsion_forces(nuc,ext[1],spar);
-        aspiration = get_aspiration_forces(nuc,ext[1],spar);
-    elseif cmp(simset.simType,"MM") == 0
-        micromanipulation = get_micromanipulation_forces(enve,ext[1],spar)
-    end
-
-    get_linear_chromatin_forces!(chro,spar);
-    get_bending_chromatin_forces!(chro,spar)
-    get_chromation_chromation_repulsion_forces!(chro,spar,simset.chromatinTree)
-    get_envelope_chromatin_repulsion_forces!(enve,chro,spar,simset.envelopeTree)
-    get_crosslink_forces!(chro,spar)
-    get_lad_forces!(enve,chro,spar)
-
-    if simset.adh.adherent
-        get_plane_repulsion(enve,simset,spar)
-    end
-
-    enve.forces.total = enve.forces.volume .+ enve.forces.area .+ enve.forces.elastic .+ enve.forces.bending .+ enve.forces.chromationRepulsion .+ enve.forces.ladEnveForces;  # .+ enve.forces.envelopeRepulsion
-    
-    if simset.adh.adherent
-        enve.forces.total .+= enve.forces.planeRepulsion;
-    end
-
-    if cmp(simset.simType,"MA") == 0 
-        enve.forces.total .+=  repulsion .+ aspiration
-    elseif cmp(simset.simType,"MM") == 0
-        enve.forces.total .+= micromanipulation
-    end
-
-    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ chro.forces.enveRepulsion .+ chro.forces.crosslink .+ chro.forces.ladChroForces
-end
-
-function get_forces!(enve, chro, repl, spar, ext, simset)
-
-    get_volume_forces!(enve,spar);
-    get_area_forces!(enve,spar);
-    get_bending_forces!(enve,spar);
-    get_elastic_forces!(enve,spar);
-
-    # get_repulsion_forces!(nuc,spar,simset.envelopeTree);
-    # enveFlucs = get_random_enve_fluctuations(spar,nuc)
-
-
-    if cmp(simset.simType,"MA") == 0 
-        repulsion = get_aspiration_repulsion_forces(nuc,ext[1],spar);
-        aspiration = get_aspiration_forces(nuc,ext[1],spar);
-
-    elseif cmp(simset.simType,"MM") == 0
-        micromanipulation = get_micromanipulation_forces(enve,ext[1],spar)
-
-    elseif cmp(simset.simType,"PC") == 0
-        planeRepulsion = get_plane_repulsion(nuc,ext,spar)
-    end
-
-    get_linear_chromatin_forces!(chro,spar);
-    get_bending_chromatin_forces!(chro,spar)
-    get_chromation_chromation_repulsion_forces!(chro,spar,simset.chromatinTree)
-    get_envelope_chromatin_repulsion_forces!(enve,chro,spar,simset.envelopeTree)
-    get_crosslink_forces!(chro,spar)
-    get_lad_forces!(enve,chro,spar)
-
-    enve.forces.total = enve.forces.volume .+ enve.forces.area .+ enve.forces.elastic .+ enve.forces.bending .+ enve.forces.chromationRepulsion .+ enve.forces.ladEnveForces;  # .+ enve.forces.envelopeRepulsion
-    
-    if cmp(simset.simType,"MA") == 0 
-        enve.forces.total .+=  repulsion .+ aspiration
-    elseif cmp(simset.simType,"MM") == 0
-        enve.forces.total .+= micromanipulation
-    elseif cmp(simset.simType,"PC") == 0
-
-        ext[4] = 0;
-        for i = findall(ext[3])
-            if enve.forces.total[i][3] > 0
-                ext[4] += enve.forces.total[i][3]
-            end
-        end
-
-        enve.forces.total .+= planeRepulsion
-    end
-
-    get_repl_comp_elastic_forces!(ext,spar)
-    get_repl_comp_volume_forces!(ext,spar)
-    get_repl_comp_area_forces!(ext,spar)
-    get_repl_comp_bending_forces!(ext,spar)
-    replCompRepulsion = get_repl_comp_chromatin_repulsion_forces!(nuc,spar,repl.tree)
-    repl.forces.total = repl.forces.elastic .+ repl.forces.volume .+ repl.forces.area .+ repl.forces.bending .+ repl.forces.chromationRepulsion;
-
-    chro.forces.total = chro.forces.linear .+ chro.forces.bending .+ chro.forces.chroRepulsion .+ chro.forces.enveRepulsion .+ chro.forces.crosslink .+ chro.forces.ladChroForces .+ replCompRepulsion
-end
-
-function get_forces!(enve, spar, ext, simset)
-
-    get_volume_forces!(enve,spar);
-    get_area_forces!(enve,spar);
-    get_bending_forces!(enve,spar);
-    get_elastic_forces!(enve,spar);
-
-    # get_repulsion_forces!(nuc,spar,simset.envelopeTree);
-    # enveFlucs = get_random_enve_fluctuations(spar,nuc)
-
-
-    if cmp(simset.simType,"MA") == 0 
-        repulsion = get_aspiration_repulsion_forces(nuc,ext[1],spar);
-        aspiration = get_aspiration_forces(nuc,ext[1],spar);
-    elseif cmp(simset.simType,"MM") == 0
-        micromanipulation = get_micromanipulation_forces(enve,ext[1],spar)
-    end
-
-    if simset.adh.adherent
-        get_plane_repulsion(enve,simset,spar)
-    end
-
-    enve.forces.total = enve.forces.volume .+ enve.forces.area .+ enve.forces.elastic .+ enve.forces.bending .+ enve.forces.chromationRepulsion .+ enve.forces.ladEnveForces;  # .+ enve.forces.envelopeRepulsion
-    
-    if simset.adh.adherent
-        enve.forces.total .+= enve.forces.planeRepulsion;
-    end
-
-    if cmp(simset.simType,"MA") == 0 
-        enve.forces.total .+=  repulsion .+ aspiration
-    elseif cmp(simset.simType,"MM") == 0
-        enve.forces.total .+= micromanipulation
-    end
-
-end
-
 function get_crosslink_forces!(chro,spar)
 
     chro.forces.crosslink = Vector{Vec{3,Float64}}(undef,spar.chromatinLength*spar.chromatinNumber)
@@ -616,7 +513,7 @@ function get_crosslink_forces!(chro,spar)
 
         vector = chro.vert[chro.crosslinks[i][1]] - chro.vert[chro.crosslinks[i][2]]
         vectorNorm = norm(vector);
-        chro.forces.crosslink[chro.crosslinks[i][1]] = -spar.ladStrength*(vectorNorm - 0.4).*vector./vectorNorm;
+        chro.forces.crosslink[chro.crosslinks[i][1]] = -spar.ladStrength*(vectorNorm - 0.2).*vector./vectorNorm;
         chro.forces.crosslink[chro.crosslinks[i][2]] = -chro.forces.crosslink[chro.crosslinks[i][1]]
 
     end
@@ -633,7 +530,7 @@ function get_repl_comp_elastic_forces!(replComp,spar)
     for i = eachindex(replComp.edges)
         if replComp.firstEdges[i] == 1
 
-            force = spar.laminaStiffness*(replComp.edgeVectorNorms[i] - replComp.normalLengths[i])*replComp.edgeUnitVectors[i];
+            force = 0*spar.laminaStiffness*(replComp.edgeVectorNorms[i] - replComp.normalLengths[i])*replComp.edgeUnitVectors[i];
 
             replComp.forces.elastic[replComp.edges[i][1]] += force
             replComp.forces.elastic[replComp.edges[i][2]] -= force
@@ -646,7 +543,7 @@ function get_repl_comp_volume_forces!(replComp,spar)
 
     replCompVolume = get_volume!(replComp);
 
-    pressure = -100*spar.bulkModulus*log10(replCompVolume/replComp.normalVolume);
+    pressure = -10*spar.bulkModulus*log10(replCompVolume/replComp.normalVolume);
 
     replComp.forces.volume = pressure*replComp.voronoiAreas.*replComp.vertexNormalUnitVectors
 
@@ -661,7 +558,7 @@ function get_repl_comp_area_forces!(replComp,spar)
     for i = eachindex(replComp.tri)
 
         baryocenter = mean(replComp.vert[replComp.tri[i]]);
-        magnitude = 0.1*spar.areaCompressionStiffness*(replComp.triangleAreas[i] - replComp.normalTriangleAreas[i])/replComp.normalTriangleAreas[i];
+        magnitude = 0*spar.areaCompressionStiffness*(replComp.triangleAreas[i] - replComp.normalTriangleAreas[i])/replComp.normalTriangleAreas[i];
                 
         for j = 1:3
         
@@ -707,21 +604,21 @@ function get_repl_comp_bending_forces!(replComp,spar)
     end
 end
 
-function get_repl_comp_chromatin_repulsion_forces!(chro,spar,replCompTree)
+function get_repl_comp_chromatin_repulsion_forces!(chro, repl, spar)
 
     repl.forces.chromationRepulsion = Vector{Vec{3,Float64}}(undef, length(repl.vert));
     for i = eachindex(repl.vert)
         repl.forces.chromationRepulsion[i] = Vec(0.,0.,0.);
     end
 
-    replCompRepulsion = Vector{Vec{3,Float64}}(undef, length(chro.vert));
+    chro.forces.replCompRepulsion = Vector{Vec{3,Float64}}(undef, length(chro.vert));
     for i = eachindex(chro.vert)
-        replCompRepulsion[i] = Vec(0.,0.,0.)
+        chro.forces.replCompRepulsion[i] = Vec(0.,0.,0.)
     end
 
 
     for i = 1:spar.chromatinLength*spar.chromatinNumber
-        closest,distance = knn(replCompTree, chro.vert[i],1,true)
+        closest,distance = knn(repl.tree, chro.vert[i],1,true)
 
         if distance[1] < spar.meanLaminaLength*2
 
@@ -775,7 +672,7 @@ function get_repl_comp_chromatin_repulsion_forces!(chro,spar,replCompTree)
                     forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closePointDistance)
                 end
 
-                replCompRepulsion[i] = forceMagnitude*unitVector;
+                chro.forces.replCompRepulsion[i] = forceMagnitude*unitVector;
 
                 if length(closeVertices) == 1
 
@@ -807,32 +704,103 @@ function get_repl_comp_chromatin_repulsion_forces!(chro,spar,replCompTree)
             end
         end
     end
-
-    return replCompRepulsion
-
 end
 
-function get_forces_adh_init!(enve,spar,ext)
+function get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
 
-    get_volume_forces!(nuc,spar);
-    get_area_forces!(nuc,spar);
-    get_bending_forces!(nuc,spar);
-    get_elastic_forces!(nuc,spar);
-    # get_repulsion_forces!(nuc,spar,simset.envelopeTree);
-
-    planeRepulsion, touchTop = get_plane_repulsion(nuc,ext,spar)
-
-    enve.forces.total = enve.forces.volume .+ enve.forces.area .+ enve.forces.elastic .+ enve.forces.bending .+ enve.forces.chromationRepulsion .+ enve.forces.ladEnveForces;  # .+ enve.forces.envelopeRepulsion
-
-    ext[4] = 0;
-    for i = findall(ext[3])
-        if enve.forces.total[i][3] > 0
-            ext[4] += enve.forces.total[i][3]
-        end
+    repl.forces.envelopeRepulsion = Vector{Vec{3,Float64}}(undef, length(repl.vert));
+    for i = eachindex(repl.vert)
+        repl.forces.envelopeRepulsion[i] = Vec(0.,0.,0.);
     end
 
-    enve.forces.total .+= planeRepulsion
+    enve.forces.replCompRepulsion = Vector{Vec{3,Float64}}(undef, length(enve.vert));
+    for i = eachindex(enve.vert)
+        enve.forces.replCompRepulsion[i] = Vec(0.,0.,0.)
+    end
 
-    return planeRepulsion, touchTop
 
+    for i = eachindex(enve.vert)
+        closest,distance = knn(repl.tree, enve.vert[i],1,true)
+
+        if distance[1] < spar.meanLaminaLength*2
+
+            nTri = length(repl.vertexTri[closest[1]]);
+
+            triangles = repl.tri[repl.vertexTri[closest[1]]]
+            distanceVector = zeros(size(triangles,1))
+            for j = 1:nTri
+                for k = 1:3
+                    distanceVector[j] += norm(repl.vert[triangles[j][k]] - enve.vert[i])
+                end
+            end
+            
+            tri = repl.vertexTri[closest[1]][argmin(distanceVector)]
+
+            closePointDistance,closeCoords,closeVertices = vertex_triangle_distance(repl, enve.vert[i], tri)
+
+            getForce = false
+            
+            unitVector = (enve.vert[i] - closeCoords)/closePointDistance;
+            if closePointDistance < spar.repulsionDistance
+                getForce = true
+                
+            else
+                replUnitVector = repl.vertexNormalUnitVectors[closest[1]];
+                if dot(unitVector,replUnitVector) <= 0
+                    getForce = true
+                end
+            end
+
+            if getForce
+
+                # unitVector = (chro.vert[i] - closeCoords)/closePointDistance;
+                
+                if length(closeVertices) == 1
+                    replUnitVector = repl.vertexNormalUnitVectors[closeVertices[1]];
+                elseif length(closeVertices) == 2
+                    edge = findall((getindex.(repl.edges,1) .== closeVertices[1] .&& getindex.(repl.edges,2) .== closeVertices[2]))[1]
+                    replUnitVector = repl.edgeNormalUnitVectors[edge]
+                else
+                    replUnitVector = repl.triangleNormalUnitVectors[tri]
+                end
+
+                if dot(unitVector,replUnitVector) <= 0
+                    unitVector = -unitVector
+                    forceMagnitude = 0.5*spar.repulsionConstant
+                else
+                    forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closePointDistance)
+                end
+
+                enve.forces.replCompRepulsion[i] = forceMagnitude*unitVector;
+
+                if length(closeVertices) == 1
+
+                    repl.forces.envelopeRepulsion[closeVertices[1]] += -forceMagnitude*unitVector;
+
+                elseif length(closeVertices) == 2
+
+                    w1 = (closeCoords[1] - repl.vert[closeVertices[2]][1])/(repl.vert[closeVertices[2]][1] - repl.vert[closeVertices[2]][2])
+                    w2 = 1 - w1;
+
+                    repl.forces.envelopeRepulsion[closeVertices[1]] += -w1*forceMagnitude*unitVector;
+                    repl.forces.envelopeRepulsion[closeVertices[2]] += -w2*forceMagnitude*unitVector;
+
+                else
+
+                    # get baryocentric weights
+                    # https://answers.unity.com/questions/383804/calculate-uv-coordinates-of-3d-point-on-plane-of-m.html
+                    # https://math.stackexchange.com/questions/1727200/compute-weight-of-a-point-on-a-3d-triangle
+
+                    fullArea = 0.5*norm(repl.vert[closeVertices[1]] - repl.vert[closeVertices[2]])*norm(repl.vert[closeVertices[1]] - repl.vert[closeVertices[3]])
+                    area1 = 0.5*norm(closeCoords - repl.vert[closeVertices[2]])*norm(closeCoords - repl.vert[closeVertices[3]])
+                    area2 = 0.5*norm(closeCoords - repl.vert[closeVertices[1]])*norm(closeCoords - repl.vert[closeVertices[3]])
+                    area3 = 0.5*norm(closeCoords - repl.vert[closeVertices[1]])*norm(closeCoords - repl.vert[closeVertices[2]])
+
+                    repl.forces.envelopeRepulsion[closeVertices[1]] += -area1/fullArea*forceMagnitude*unitVector;
+                    repl.forces.envelopeRepulsion[closeVertices[2]] += -area2/fullArea*forceMagnitude*unitVector;
+                    repl.forces.envelopeRepulsion[closeVertices[3]] += -area3/fullArea*forceMagnitude*unitVector;
+                end
+            end
+        end
+    end
 end

@@ -1,10 +1,10 @@
 freeNucleusRadius,5e-6
 laminaStiffness,15e-4
 laminaThickness,80e-9
-laminaFriction,50e-5
+laminaFriction,100e-5
 areaCompressionModulus,0.8e-3
 poissonsRatio,0.5
-bulkModulus,10000
+bulkModulus,1000
 chromatinBendingModulus,3e-19
 chromatinStiffness,15e-4
 ladStrength,15e-4
@@ -14,7 +14,7 @@ viscosity,1e-6
 repulsionDistance,0.1e-6
 chroVertexDistance,0.6e-6
 chromatinNumber,46
-chromatinLength,128
+chromatinLength,256
 nSubdivisions,4
 maxDt,0.05
 temperature,300

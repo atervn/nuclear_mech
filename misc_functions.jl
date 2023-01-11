@@ -2,7 +2,7 @@ function export_pipette_mesh(folderName, pip)
 
     triCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,size(pip.tri,1))
     for i = 1:size(pip.tri,1)
-        triCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, pip.tri[i,:])
+        triCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, pip.tri[i])
     end
 
     vtk_save(vtk_grid(".\\results\\"*folderName*"\\pipette", [getindex.(pip.vert,1) getindex.(pip.vert,2) getindex.(pip.vert,3)]', triCells))
@@ -34,10 +34,10 @@ function export_data(enve,chro,spar,ex,ext,intTime,simset)
             exportNumber = string(Int64(intTime/ex.step+1));
             
             vtk_grid(".\\results\\"*ex.folderName*"\\nucl_" * lpad(exportNumber,4,"0"), [getindex.(enve.vert,1) getindex.(enve.vert,2) getindex.(enve.vert,3)]', ex.enveCells) do vtk
-                if cmp(simset.simType,"MA") == 0 
-                    vtk["Aspiration forces", VTKPointData()] = [getindex.(aspiration,1) getindex.(aspiration,2) getindex.(aspiration,3)]'
-                    vtk["Pipette repulsion forces", VTKPointData()] = [getindex.(repulsion,1) getindex.(repulsion,2) getindex.(repulsion,3)]'
-                end
+                # if cmp(simset.simType,"MA") == 0 
+                #     vtk["Aspiration forces", VTKPointData()] = [getindex.(aspiration,1) getindex.(aspiration,2) getindex.(aspiration,3)]'
+                #     vtk["Pipette repulsion forces", VTKPointData()] = [getindex.(repulsion,1) getindex.(repulsion,2) getindex.(repulsion,3)]'
+                # end
                 # vtk["Curvature"] = enve.curvatures;
                 vtk["Element normals", VTKCellData()] = [getindex.(enve.triangleNormalUnitVectors,1) getindex.(enve.triangleNormalUnitVectors,2) getindex.(enve.triangleNormalUnitVectors,3)]'
                 vtk["Volume forces", VTKPointData()] = [getindex.(enve.forces.volume,1) getindex.(enve.forces.volume,2) getindex.(enve.forces.volume,3)]'
@@ -45,6 +45,8 @@ function export_data(enve,chro,spar,ex,ext,intTime,simset)
                 vtk["Elastic forces", VTKPointData()] = [getindex.(enve.forces.elastic,1) getindex.(enve.forces.elastic,2) getindex.(enve.forces.elastic,3)]'
                 # vtk["enveRepulsion forces", VTKPointData()] = [getindex.(enve.forces.envelopeRepulsion,1) getindex.(enve.forces.envelopeRepulsion,2) getindex.(enve.forces.envelopeRepulsion,3)]'
                 vtk["chroRepulsion forces", VTKPointData()] = [getindex.(enve.forces.chromationRepulsion,1) getindex.(enve.forces.chromationRepulsion,2) getindex.(enve.forces.chromationRepulsion,3)]'
+                vtk["Bending forces", VTKPointData()] = [getindex.(enve.forces.bending,1) getindex.(enve.forces.bending,2) getindex.(enve.forces.bending,3)]'
+                vtk["LAD forces", VTKPointData()] = [getindex.(enve.forces.ladEnveForces,1) getindex.(enve.forces.ladEnveForces,2) getindex.(enve.forces.ladEnveForces,3)]'
 
             end
             vtk_grid(".\\results\\"*ex.folderName*"\\chro_" * lpad(exportNumber,4,"0"), [getindex.(chro.vert,1) getindex.(chro.vert,2) getindex.(chro.vert,3)]', ex.chroCells) do vtk
@@ -56,23 +58,6 @@ function export_data(enve,chro,spar,ex,ext,intTime,simset)
                 vtk["LAD forces", VTKPointData()] = [getindex.(chro.forces.ladChroForces,1) getindex.(chro.forces.ladChroForces,2) getindex.(chro.forces.ladChroForces,3)]'
                 # vtk["Fluc Forces", VTKPointData()] = [getindex.(fluctuationForces,1) getindex.(fluctuationForces,2) getindex.(fluctuationForces,3)]'
                 # vtk["Movement", VTKPointData()] = [dt*vX[length(enve.vert)+1:end] dt*vY[length(enve.vert)+1:end] dt*vZ[length(enve.vert)+1:end]]'
-            end
-
-            if simset.simType == "VRC"
-
-                vrcCells = Vector{MeshCell{VTKCellType, Vector{Int64}}}(undef,length(repl.tri))
-                for i = eachindex(repl.tri)
-                    vrcCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, repl.tri[i]);
-                end
-
-
-                vtk_grid(".\\results\\"*ex.folderName*"\\replcomp_" * lpad(exportNumber,4,"0"), [getindex.(repl.vert,1) getindex.(repl.vert,2) getindex.(repl.vert,3)]', vrcCells) do vtk
-                    vtk["Total forces", VTKPointData()] = [getindex.(repl.forces.total,1) getindex.(repl.forces.total,2) getindex.(repl.forces.total,3)]'
-                    vtk["Elastic forces", VTKPointData()] = [getindex.(repl.forces.elastic,1) getindex.(repl.forces.elastic,2) getindex.(repl.forces.elastic,3)]'
-                    vtk["Area forces", VTKPointData()] = [getindex.(repl.forces.area,1) getindex.(repl.forces.area,2) getindex.(repl.forces.area,3)]'
-                    vtk["Volume forces", VTKPointData()] = [getindex.(repl.forces.volume,1) getindex.(repl.forces.volume,2) getindex.(repl.forces.volume,3)]'
-                    vtk["Bending forces", VTKPointData()] = [getindex.(repl.forces.bending,1) getindex.(repl.forces.bending,2) getindex.(repl.forces.bending,3)]'
-                end
             end
 
             # export lads
@@ -143,7 +128,6 @@ function export_data(enve,chro,repl,spar,ex,ext,intTime,simset)
             for i = eachindex(repl.tri)
                 vrcCells[i] = MeshCell(VTKCellTypes.VTK_TRIANGLE, repl.tri[i]);
             end
-
 
             vtk_grid(".\\results\\"*ex.folderName*"\\replcomp_" * lpad(exportNumber,4,"0"), [getindex.(repl.vert,1) getindex.(repl.vert,2) getindex.(repl.vert,3)]', vrcCells) do vtk
                 vtk["Total forces", VTKPointData()] = [getindex.(repl.forces.total,1) getindex.(repl.forces.total,2) getindex.(repl.forces.total,3)]'
@@ -269,7 +253,7 @@ end
 function check_simulation_type(simType)
 
     # check that the simulation type is correct
-    if !any(simType .== ["MA", "MM", "PC", "INIT", "VRC"])
+    if !any(simType .== ["MA", "MM", "INIT"])
         printstyled("Unknown simulation type"; color = :blue)
         return true
     end
@@ -314,9 +298,11 @@ function get_crosslinks!(enve, chro, simset,spar)
     possiblyLinking =  zeros(Bool,spar.chromatinLength*spar.chromatinNumber)
     for i = notCrosslinked
         closest,distance = knn(simset.chromatinTree, chro.vert[i],1,true,j -> any(j .== chro.neighbors[i]))
-        if distance[1] <= 0.5
-            closestVerts[i] = closest[1]
-            possiblyLinking[i] = true
+        if length(distance) > 0
+            if distance[1] <= 0.5
+                closestVerts[i] = closest[1]
+                possiblyLinking[i] = true
+            end
         end
     end
     
@@ -365,26 +351,32 @@ function post_export(ex,simset,ext)
 
     if ex.exportData
         if cmp(simset.simType, "MA") == 0
-            writedlm(".\\results\\" * ex.folderName * "\\maxX.csv", maxX, ',')
+            writedlm(".\\results\\" * ex.folderName * "\\maxX.csv", ext[2], ',')
             dL = ext[2] .- minimum(ext[2])
 
-            J = 2 * pi .* dL ./ (3 * 2.1 * 3 * 1)
-
-            plot(10*dt:dt:maxT*dt, J[11:end], yaxis=:log, xaxis=:log, xlim=(0.1, 200), ylim=(0.01, 10))
-        elseif cmp(simset.simType, "MM") == 0
+       elseif cmp(simset.simType, "MM") == 0
             writedlm(".\\results\\" * ex.folderName * "\\nuclearLength.csv", ext[2], ',')
         end
     end
 
 end
 
-function create_replication_compartment(nuc,spar)
+function create_replication_compartment(enve,spar)
 
     repl = replicationCompartmentType()
 
     radius = 0.1*spar.freeNucleusRadius
     repl = get_icosaherdon!(repl,radius)
+
     repl = subdivide_mesh!(repl,radius,2)
+
+    enveMax = maximum(getindex.(enve.vert,3))
+    enveMin = minimum(getindex.(enve.vert,3))
+    centerZ = (enveMax + enveMin)/2
+
+    for i = 1:length(repl.vert)
+        repl.vert[i] += Vec(0.,0.,centerZ)
+    end
 
     repl.forces.volume = Vector{Vec{3,Float64}}(undef, length(repl.vert))
     repl.forces.area = Vector{Vec{3,Float64}}(undef, length(repl.vert))
@@ -404,9 +396,9 @@ function create_replication_compartment(nuc,spar)
     repl.frictionMatrix = get_repl_comp_friction_matrix(repl,spar)
     repl.iLU = ilu(repl.frictionMatrix, τ = spar.iLUCutoff)
 
-    get_edge_vectors!(nuc.enve);
-    nuc.enve.triangleAreas = get_area!(nuc.enve)
-    repl.baseArea = mean(nuc.enve.triangleAreas)
+    get_edge_vectors!(enve);
+    enve.triangleAreas = get_area!(enve)
+    repl.baseArea = mean(enve.triangleAreas)
 
     return repl
 
@@ -439,57 +431,11 @@ function add_repl_comp_triangles!(repl,spar)
         get_edge_vectors!(repl);
         repl.triangleAreas = get_area!(repl)
 
-        repl.frictionMatrix = get_repl_comp_friction_matrix(nuc,spar)
+        repl.frictionMatrix = get_repl_comp_friction_matrix(repl,spar)
         repl.iLU = ilu(repl.frictionMatrix, τ = spar.iLUCutoff)
 
     end
     get_voronoi_areas!(repl);
     get_triangle_normals!(repl);
     get_area_unit_vectors!(repl);
-end
-
-function get_nuclear_properties_adh_init!(nuc, simset)
-   
-    # form the trees for the vertex distance search
-    simset.envelopeTree = KDTree(nuc.enve.vert);
-
-    # get various nuclear properties needed in the solution
-    get_edge_vectors!(nuc.enve);
-    nuc.enve.triangleAreas = get_area!(nuc.enve)
-    get_voronoi_areas!(nuc.enve);
-    get_triangle_normals!(nuc.enve);
-    get_area_unit_vectors!(nuc.enve);
-    # get_local_curvatures!(nuc.enve);
-
-end
-
-function export_data_adh_init(nuc,ex,intTime,simset,planeRepulsion,ext)
-
-    if ex.exportData
-
-        if mod(intTime,ex.step) == 0 && simset.timeStepProgress == 0
-
-            exportNumber = string(Int64(intTime/ex.step+1));
-            
-            vtk_grid(".\\results\\"*ex.folderName*"\\nucl_" * lpad(exportNumber,4,"0"), [getindex.(nuc.enve.vert,1) getindex.(nuc.enve.vert,2) getindex.(nuc.enve.vert,3)]', ex.enveCells) do vtk
-                if cmp(simset.simType,"MA") == 0 
-                    vtk["Aspiration forces", VTKPointData()] = [getindex.(aspiration,1) getindex.(aspiration,2) getindex.(aspiration,3)]'
-                    vtk["Pipette repulsion forces", VTKPointData()] = [getindex.(repulsion,1) getindex.(repulsion,2) getindex.(repulsion,3)]'
-                end
-                # vtk["Curvature"] = nuc.enve.curvatures;
-                vtk["Element normals", VTKCellData()] = [getindex.(nuc.enve.triangleNormalUnitVectors,1) getindex.(nuc.enve.triangleNormalUnitVectors,2) getindex.(nuc.enve.triangleNormalUnitVectors,3)]'
-                vtk["Volume forces", VTKPointData()] = [getindex.(nuc.enve.forces.volume,1) getindex.(nuc.enve.forces.volume,2) getindex.(nuc.enve.forces.volume,3)]'
-                vtk["Area forces", VTKPointData()] = [getindex.(nuc.enve.forces.area,1) getindex.(nuc.enve.forces.area,2) getindex.(nuc.enve.forces.area,3)]'
-                vtk["Elastic forces", VTKPointData()] = [getindex.(nuc.enve.forces.elastic,1) getindex.(nuc.enve.forces.elastic,2) getindex.(nuc.enve.forces.elastic,3)]'
-                vtk["Bending forces", VTKPointData()] = [getindex.(nuc.enve.forces.bending,1) getindex.(nuc.enve.forces.bending,2) getindex.(nuc.enve.forces.bending,3)]'
-                vtk["Plane Compression", VTKPointData()] = [getindex.(planeRepulsion,1) getindex.(planeRepulsion,2) getindex.(planeRepulsion,3)]'
-                planeRepulsion
-                # vtk["enveRepulsion forces", VTKPointData()] = [getindex.(nuc.enve.forces.envelopeRepulsion,1) getindex.(nuc.enve.forces.envelopeRepulsion,2) getindex.(nuc.enve.forces.envelopeRepulsion,3)]'
-                vtk["chroRepulsion forces", VTKPointData()] = [getindex.(nuc.enve.forces.chromationRepulsion,1) getindex.(nuc.enve.forces.chromationRepulsion,2) getindex.(nuc.enve.forces.chromationRepulsion,3)]'
-            end
-
-            writedlm(".\\results\\"*ex.folderName*"\\planes_" * lpad(exportNumber,4,"0")*".csv",[ext[1], ext[2]],',')
-
-        end
-    end
 end

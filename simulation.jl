@@ -1,7 +1,13 @@
-function simulation(simType::String, maxT, folderName::String, initState::String;
-    importFolder::String="", nameDate::Bool=true, parameterFile::String="./parameters.txt",
-    exportData::Bool=true, replComp::Bool = false, adherent::Bool = false, noEnveSolve::Bool = false,
-    noChromatin::Bool = false, returnFoldername::Bool = false)
+function simulation(simType::String, maxT::Number, folderName::String, initState::String;
+    importFolder::String="",
+    nameDate::Bool=true,
+    parameterFile::String="./parameters.txt",
+    exportData::Bool=true,
+    replComp::Bool = false,
+    adherent::Bool = false,
+    noEnveSolve::Bool = false,
+    noChromatin::Bool = false,
+    returnFoldername::Bool = false)
 
     if check_simulation_type(simType)
         return
@@ -10,17 +16,16 @@ function simulation(simType::String, maxT, folderName::String, initState::String
     # setup
     enve, chro, spar, simset, ext = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,adherent)
     
-    ex = setup_export(folderName, enve, chro, spar, simset, nameDate,exportData,noChromatin)
+    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin)
     
     simset.prog = Progress(Int64(round(maxT/(spar.scalingTime*spar.maxDt))), 0.1, "Simulating...", 100)
     
     printstyled("Starting simulation (" * Dates.format(now(), "YYYY-mm-dd HH:MM") * ")\n"; color=:blue)
 
-
     if noChromatin
         run_simulation(enve, spar, ex, ext, simset, maxT)
     elseif replComp
-        repl = create_replication_compartment(nuc,spar)
+        repl = create_replication_compartment(enve,spar)
         run_simulation(enve, chro, repl, spar, ex, ext, simset, maxT)
     else
         run_simulation(enve, chro, spar, ex, ext, simset, maxT, noEnveSolve)
@@ -57,19 +62,10 @@ function run_simulation(enve, chro, spar, ex, ext, simset, maxT, noEnveSolve)
 
         end
     catch error
-        
-        if !(error isa InterruptException)
-            printstyled("Simulation failed...\n"; color=:red)
-            rethrow(error)
-        else
-            printstyled("Simulation stopped\n"; color=:red)
-        end
+        print_error(error)
     end
 
-    ##################################################################################################
-    
     post_export(ex,simset,ext)
-
 end
 
 function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicationCompartmentType, spar::scaledParametersType, ex::exportSettingsType, ext, simset::simulationSettingsType, maxT::Number)
@@ -96,14 +92,10 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
 
         end
     catch error
-        println("\nSimulation failed\n")
-        rethrow(error)
+        print_error(error)
     end
 
-    ##################################################################################################
-    
     post_export(ex,simset,ext)
-
 end
 
 function run_simulation(enve, spar, ex, ext, simset, maxT)
@@ -128,12 +120,8 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
 
         end
     catch error
-        println("\nSimulation failed\n")
-        rethrow(error)
+        print_error(error)
     end
 
-    ##################################################################################################
-    
     post_export(ex,simset,ext)
-
 end
