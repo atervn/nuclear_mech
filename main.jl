@@ -24,7 +24,7 @@ include("print_error.jl")
 include("get_forces.jl")
 include("simulation.jl")
 
-sim = 7
+sim = 1
 
 if sim == 1 # initialize a suspended nucleus
 

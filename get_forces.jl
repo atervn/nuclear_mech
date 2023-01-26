@@ -1,17 +1,17 @@
-function get_forces!(enve, chro ,spar, ext, simset)
+function get_forces!(enve, chro ,spar, ext, simset, intTime::Int)
 
     get_volume_forces!(enve,spar);
     get_area_forces!(enve,spar);
     get_bending_forces!(enve,spar);
     get_elastic_forces!(enve,spar);
 
-    # get_repulsion_forces!(nuc,spar,simset.envelopeTree);
+    get_repulsion_forces!(enve,spar,simset.envelopeTree);
     # enveFlucs = get_random_enve_fluctuations(spar,nuc)
 
 
     if cmp(simset.simType,"MA") == 0 
         repulsion = get_aspiration_repulsion_forces(enve,ext[1],spar);
-        aspiration = get_aspiration_forces(enve,ext[1],spar);
+        aspiration = get_aspiration_forces(enve,ext[1],spar,simset,intTime);
     elseif cmp(simset.simType,"MM") == 0
         micromanipulation = get_micromanipulation_forces(enve,ext[1],spar)
     end
@@ -27,7 +27,7 @@ function get_forces!(enve, chro ,spar, ext, simset)
         get_plane_repulsion(enve,simset,spar)
     end
 
-    enve.forces.total = enve.forces.volume .+ enve.forces.area .+ enve.forces.elastic .+ enve.forces.bending .+ enve.forces.chromationRepulsion .+ enve.forces.ladEnveForces;# ;# .+ enve.forces.ladEnveForces;  # .+ enve.forces.envelopeRepulsion
+    enve.forces.total = enve.forces.volume .+ enve.forces.area .+ enve.forces.elastic .+ enve.forces.bending .+ enve.forces.chromationRepulsion .+ enve.forces.ladEnveForces .+ enve.forces.envelopeRepulsion
     
     if simset.adh.adherent
         enve.forces.total .+= enve.forces.planeRepulsion;
