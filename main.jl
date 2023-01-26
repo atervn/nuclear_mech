@@ -24,7 +24,7 @@ include("print_error.jl")
 include("get_forces.jl")
 include("simulation.jl")
 
-sim = 5
+sim = 7
 
 if sim == 1 # initialize a suspended nucleus
 
@@ -66,11 +66,11 @@ elseif sim == 3 # parallel example
 
 elseif sim == 4 # mm simulation
 
-    simulation("MM",10,"mm_test","load")
+    simulation("MM",100,"mm_test","load")
 
 elseif sim == 5 # ma simulation
 
-    simulation("MA",100,"ma_test","load"; importFolder = "2023-01-09_125914_init_chro_stiff_30")
+    simulation("MA",20,"ma_test","load"; importFolder = "2023-01-09_125914_init_chro_stiff_30")
 
 elseif sim == 6
 
@@ -78,6 +78,6 @@ elseif sim == 6
 
 elseif sim == 7
 
-    simulation("MM",40,"INIT_TEST","new"; noChromatin = true)
+    simulation("INIT", 20, "INIT_OSMO_300_Pa_25", "load"; parameterFile = "parameters_init_1.txt")
 
 end

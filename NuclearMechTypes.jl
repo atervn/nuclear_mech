@@ -58,6 +58,7 @@ Base.@kwdef mutable struct inputParametersType
     laminaYoung::Float64 = 0;
     laminaThickness::Float64 = 0;
     laminaFriction::Float64 = 0;
+    osmoticPressure::Float64 = 0;
     areaCompressionModulus::Float64 = 0;
     poissonsRatio::Float64 = 0;
     bulkModulus::Float64 = 0;
@@ -82,10 +83,13 @@ Base.@kwdef mutable struct inputParametersType
     pullingForce::Float64 = 0
     iLUCutoff::Float64 = 0
     exportStep::Int64 = 0
+    pipetteRadius::Float64 = 0
+    aspirationPressure::Float64 = 0
 end
 Base.@kwdef mutable struct scaledParametersType
     bulkModulus::Float64 = 0;
     laminaStiffness::Float64 = 0;
+    osmoticPressure::Float64 = 0;
     areaCompressionStiffness::Float64 = 0;
     bendingStiffness::Float64 = 0;
     repulsionConstant::Float64 = 0;
@@ -112,6 +116,8 @@ Base.@kwdef mutable struct scaledParametersType
     pullingForce::Float64 = 0
     iLUCutoff::Float64 = 0
     exportStep::Int64 = 0
+    pipetteRadius::Float64 = 0
+    aspirationPressure::Float64 = 0
 end
 Base.@kwdef mutable struct chromatinForceType
     linear::Vector{Vec{3,Float64}} = []

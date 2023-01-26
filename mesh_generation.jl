@@ -1,4 +1,4 @@
-function generate_pipette_mesh()
+function generate_pipette_mesh(spar,enve)
 
     pip = pipetteType();
 
@@ -29,15 +29,14 @@ function generate_pipette_mesh()
 
         pip.tri[i] = temptri;
 
-    end
+    end    
 
+    nucleusRadius = mean(norm.(enve.vert));
+
+    xOffset = spar.pipetteRadius*tan(acos(spar.pipetteRadius/(nucleusRadius + spar.repulsionDistance)));
     
-
-    xOffset = 4.1;
-    radius = 3; 
-
     for i = eachindex(pip.vert)
-        pip.vert[i] = pip.vert[i] .* Vec(radius,radius,radius)
+        pip.vert[i] = pip.vert[i] .* Vec(spar.pipetteRadius,spar.pipetteRadius,spar.pipetteRadius)
         pip.vert[i] = pip.vert[i] + Vec(xOffset,0.,0.)
     end
 

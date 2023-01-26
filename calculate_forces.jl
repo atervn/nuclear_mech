@@ -2,7 +2,8 @@ function get_volume_forces!(enve,spar)
 
     nucleusVolume = get_volume!(enve);
 
-    pressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));#180000;-spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));
+    pressure = 100/spar.viscosity*spar.scalingTime*spar.scalingLength;
+    # pressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));#180000;-spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));
 
     enve.forces.volume = pressure*enve.voronoiAreas.*enve.vertexNormalUnitVectors
 
@@ -10,19 +11,19 @@ end
 
 function get_area_forces!(enve, spar)
 
-    # nucleusArea = sum(enve.triangleAreas);
+    nucleusArea = sum(enve.triangleAreas);
 
-    # forceMagnitude = spar.areaCompressionStiffness*(nucleusArea - enve.normalArea)/enve.normalArea;
+    forceMagnitude = spar.areaCompressionStiffness*(nucleusArea - enve.normalArea)/enve.normalArea;
 
     for i = 1:length(enve.vert)
-        # enve.forces.area[i] = -forceMagnitude*mean(enve.areaUnitVectors[i])
-        enve.forces.area[i] = Vec(0.,0.,0.)
+        enve.forces.area[i] = -forceMagnitude*mean(enve.areaUnitVectors[i])
+        # enve.forces.area[i] = Vec(0.,0.,0.)
     end
 
     for i = eachindex(enve.tri)
 
         baryocenter = mean(enve.vert[enve.tri[i]]);
-        magnitude = 1*spar.areaCompressionStiffness*(enve.triangleAreas[i] - enve.normalTriangleAreas[i])/enve.normalTriangleAreas[i];
+        magnitude = spar.areaCompressionStiffness*(enve.triangleAreas[i] - enve.normalTriangleAreas[i])/enve.normalTriangleAreas[i];
         
         for j = 1:3
 
@@ -207,13 +208,20 @@ function get_aspiration_repulsion_forces(enve,pip,spar)
 
 end
 
-function get_aspiration_forces(enve,pip,spar)
+function get_aspiration_forces(enve,pip,spar,simset,intTime)
 
     force = Vector{Vec{3,Float64}}(undef, length(enve.vert));
 
+    if intTime < 10/spar.maxDt/spar.scalingTime
+        time = Float64(intTime + simset.timeStepProgress)*spar.maxDt*spar.scalingTime
+        pressure = spar.aspirationPressure*0.1*time
+    else
+        pressure = spar.aspirationPressure;
+    end
+
     for i = eachindex(enve.vert)
         if enve.vert[i][1]>0 && sqrt(enve.vert[i][2]^2 + enve.vert[i][3]^2) < 3
-            forceMagnitude = 6000000*sum(enve.voronoiAreas[i]);
+            forceMagnitude = pressure*sum(enve.voronoiAreas[i]);
             force[i] = forceMagnitude*enve.vertexNormalUnitVectors[i]
         else
             force[i] = Vec(0.,0.,0.);

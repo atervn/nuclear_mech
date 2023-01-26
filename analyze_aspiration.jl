@@ -1,6 +1,13 @@
 using NativeFileDialog, Plots, DelimitedFiles, ReadVTK, LaTeXStrings
 
-function analyze_aspiration()
+include("setup_functions.jl")
+
+if !(@isdefined envelopeType)
+    include("NuclearMechTypes.jl")
+    using .NuclearMechTypes
+end
+
+function analyze_aspiration(case)
 
     folder = pick_folder(pwd()*"\\results")
 
@@ -49,33 +56,36 @@ function analyze_aspiration()
         end
     end
 
-    # prompt to input
-    print("Aspiration pressure (in Pa): ") 
-      
-    # Calling rdeadline() function
-    pressure = parse(Float64,readline())
+    ipar = inputParametersType();
+    read_parameters(ipar,folder*"\\parameters.txt")
 
-    print("Pipette radius (in µm): ") 
-      
-    # Calling rdeadline() function
-    pipetteRadius = parse(Float64,readline())
+    pipettePosition = ipar.pipetteRadius*tan(acos(ipar.pipetteRadius/(ipar.freeNucleusRadius + ipar.repulsionDistance)));
 
-    print("Time step (in s): ") 
-      
-    # Calling rdeadline() function
-    dt = parse(Float64,readline())
+    if case == 1
+        dL = maxX.*ipar.scalingLength .- pipettePosition;
+    else
+        dL = 0.001e-6.+(maxX .- minimum(maxX)).*ipar.scalingLength;
+    end
 
-    dL = maxX .- minimum(maxX);
+    J = 2*pi*2.1.*dL./(3*ipar.aspirationPressure*1e-3*ipar.pipetteRadius);
 
-    J = 2*pi*2.1.*dL./(3*pressure*1e-3*pipetteRadius);
+    dt = ipar.maxDt
 
-    p = plot(10*dt:dt:length(maxX)*dt-dt,J[11:end],
+    p = plot(2*dt:dt:length(maxX)*dt-dt,J[3:end],
                 yaxis=:log,
                 xaxis=:log,
                 xlabel="Time (s)",
                 ylabel="Creep compliance kPa" * L"^{-1}",
-                xlim = (0.1, 500),
-                ylim = (0.01, 10))
+    )
+    
+    dahl2005 = readdlm("dahl2005.txt",',');
+    dahl2006 = readdlm("dahl2006.txt",',');
+    witner2020 = readdlm("wintner2020.txt",',');
+    guilak2000 = readdlm("guilak2000.txt",',');
+
+    scatter!(p,dahl2005[:,1],dahl2005[:,2]; legend = false)
+    scatter!(p,dahl2006[:,1],dahl2006[:,2]; legend = false)
+    scatter!(p,witner2020[:,1],witner2020[:,2]; legend = false)
 
     return p
 end

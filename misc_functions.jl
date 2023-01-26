@@ -439,3 +439,19 @@ function add_repl_comp_triangles!(repl,spar)
     get_triangle_normals!(repl);
     get_area_unit_vectors!(repl);
 end
+
+function export_parameters(ipar,ex)
+
+    f = open(".\\results\\"*ex.folderName*"\\parameters.txt", "w")
+
+    fields = propertynames(ipar)
+
+    for i = 1:length(fields)
+
+        write(f,string(fields[i]) *","* string(getfield(ipar,fields[i])) * "\n" )
+
+    end
+
+    close(f)
+
+end

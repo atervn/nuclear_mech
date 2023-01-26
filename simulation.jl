@@ -14,9 +14,9 @@ function simulation(simType::String, maxT::Number, folderName::String, initState
     end
 
     # setup
-    enve, chro, spar, simset, ext = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,adherent)
+    enve, chro, spar, simset, ext, ipar = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,adherent)
     
-    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin)
+    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin,ipar)
     
     simset.prog = Progress(Int64(round(maxT/(spar.scalingTime*spar.maxDt))), 0.1, "Simulating...", 100)
     
@@ -52,7 +52,7 @@ function run_simulation(enve, chro, spar, ex, ext, simset, maxT, noEnveSolve)
 
             get_crosslinks!(enve, chro, simset, spar)
 
-            get_forces!(enve, chro, spar, ext, simset)
+            get_forces!(enve, chro, spar, ext, simset, intTime)
 
             export_data(enve, chro, spar, ex, ext, intTime, simset)
 

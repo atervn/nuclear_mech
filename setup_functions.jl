@@ -28,7 +28,7 @@ function setup_simulation(initType::String,simType::String,importFolder::String,
 
     # setup aspiration
     if cmp(simType,"MA") == 0
-        pip = generate_pipette_mesh();
+        pip = generate_pipette_mesh(spar,enve);
         # vector to store the aspiration lengths
         maxX = []
         ext = (pip,maxX)
@@ -41,7 +41,7 @@ function setup_simulation(initType::String,simType::String,importFolder::String,
         ext = ()
     end
 
-    return enve, chro, spar, simset, ext
+    return enve, chro, spar, simset, ext, ipar
 
 end
 
@@ -55,7 +55,7 @@ function setup_shell(enve,ipar,initType,importFolder)
         enve = subdivide_mesh!(enve,radius,ipar.nSubdivisions)
     elseif cmp(initType,"load") == 0 # load nuclear envelope from previous simulation
         printstyled("Loading nuclear envelope..."; color = :blue)
-        enve = import_envelope(enve,importFolder)
+        enve = import_envelope(enve,importFolder,ipar)
     end
 
     enve.forces.volume = Vector{Vec{3,Float64}}(undef, length(enve.vert))
@@ -110,16 +110,27 @@ function setup_shell_data(shellStruct)
 
     end
 
-    shellStruct.normalVolume = get_volume!(shellStruct);
-    shellStruct.normalTriangleAreas = get_area!(shellStruct);
-    shellStruct.normalArea = sum(shellStruct.normalTriangleAreas);
-    shellStruct.normalAngle = mean(get_triangle_angles(shellStruct));
-    lengths = zeros(Float64,length(shellStruct.edges));
+    imported = !(length(shellStruct.normalTriangleAreas) == 0)
 
-    for i = eachindex(shellStruct.edges)  
-        lengths[i] = norm(shellStruct.vert[shellStruct.edges[i][2]] - shellStruct.vert[shellStruct.edges[i][1]]);
+    shellStruct.normalVolume = get_volume!(shellStruct);
+    # if !imported
+        shellStruct.normalTriangleAreas = get_area!(shellStruct);
+    # end
+    # if !imported
+        shellStruct.normalArea = sum(shellStruct.normalTriangleAreas);
+    # end
+    if !imported
+        shellStruct.normalAngle = mean(get_triangle_angles(shellStruct));
     end
-    shellStruct.normalLengths = lengths;
+
+    if !imported
+        lengths = zeros(Float64,length(shellStruct.edges));
+
+        for i = eachindex(shellStruct.edges)  
+            lengths[i] = norm(shellStruct.vert[shellStruct.edges[i][2]] - shellStruct.vert[shellStruct.edges[i][1]]);
+        end
+        shellStruct.normalLengths = lengths;
+    end
 
     return shellStruct
 
@@ -214,7 +225,7 @@ function setup_micromanipulation(enve)
 
 end
 
-function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool)
+function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool,ipar)
 
     ex = exportSettingsType()
 
@@ -301,6 +312,11 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
         export_pipette_mesh(ex.folderName,ext[1])
         # vector to store the aspiration lengths
     end
+
+    export_normal_values(enve,ex,spar)
+
+    export_parameters(ipar,ex)
+
     return ex
 end
 
@@ -378,10 +394,8 @@ function get_model_parameters(ipar,spar,enve)
 
     spar.laminaFriction = ipar.laminaFriction/ipar.viscosity;
 
-    spar.areaCompressionStiffness = ipar.areaCompressionModulus/(mean(enve.normalLengths).*ipar.scalingLength);
-    spar.areaCompressionStiffness = spar.areaCompressionStiffness/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
+    spar.areaCompressionStiffness = ipar.areaCompressionModulus/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
 
-    # spar.bendingStiffness = ipar.laminaYoung*ipar.laminaThickness^3/(12*(1-ipar.poissonsRatio^2));
     spar.bendingStiffness = 3e-17/ipar.viscosity*ipar.scalingTime/ipar.scalingLength^2;
 
     spar.bulkModulus = ipar.bulkModulus/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
@@ -420,6 +434,12 @@ function get_model_parameters(ipar,spar,enve)
 
     spar.iLUCutoff = ipar.iLUCutoff
     spar.exportStep = ipar.exportStep
+
+    spar.pipetteRadius = ipar.pipetteRadius/ipar.scalingLength;
+    spar.aspirationPressure = ipar.aspirationPressure/ipar.viscosity*ipar.scalingTime*ipar.scalingLength;
+
+    spar.osmoticPressure = ipar.osmoticPressure/spar.viscosity*spar.scalingTime*spar.scalingLength;
+
 
     return spar
 end
@@ -464,4 +484,13 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent)
     end
 
     return simset
+end
+
+function export_normal_values(enve,ex,spar)
+
+    writedlm(".\\results\\"*ex.folderName*"\\normalArea.csv", [enve.normalArea].*spar.scalingLength^2,',')
+    writedlm(".\\results\\"*ex.folderName*"\\normalTriangleAreas.csv", enve.normalTriangleAreas.*spar.scalingLength^2,',')
+    writedlm(".\\results\\"*ex.folderName*"\\normalAngle.csv", [enve.normalAngle],',')
+    writedlm(".\\results\\"*ex.folderName*"\\normalLengths.csv", enve.normalLengths.*spar.scalingLength,',')
+
 end

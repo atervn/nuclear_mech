@@ -1,4 +1,4 @@
-function import_envelope(enve,importFolder)
+function import_envelope(enve,importFolder,ipar)
 
     importNumber = get_import_number(importFolder)
     
@@ -26,6 +26,11 @@ function import_envelope(enve,importFolder)
 
     enve = get_edges(enve)
     enve = get_vertex_triangles(enve)
+    
+    enve.normalArea = readdlm(importFolder*"\\normalArea.csv")[1]/ipar.scalingLength^2
+    enve.normalAngle = readdlm(importFolder*"\\normalAngle.csv")[1]
+    enve.normalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]./ipar.scalingLength^2
+    enve.normalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]./ipar.scalingLength
     
     return enve
 end
