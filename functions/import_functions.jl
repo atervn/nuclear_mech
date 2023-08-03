@@ -1,55 +1,91 @@
 function import_envelope(enve,importFolder,ipar)
 
+    # get the import number
     importNumber = get_import_number(importFolder)
     
+    # get the import name
     importName = "nucl_"*importNumber
 
+    # load a VTK file object
     vtk = VTKFile(importFolder*"\\"*importName*".vtu")
 
+    # get the points
     vert = get_points(vtk)
 
+    # create a new array to store the vertices
     enve.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+
+    # iterate over the vertices
     for i = eachindex(vert[1,:])
+
+        # set the vertex coordinates
         enve.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
+
     end
 
+    # get the cells
     VTKCelldata = get_cells(vtk)
+
+    # get the connectivity
     tri = VTKCelldata.connectivity
 
     # convert data to the required format
     tri = reshape(tri,(3,:))
     tri = tri' .+ 1
+
+    # create a new array to store the triangles
     enve.tri = Vector{Vector{Int64}}(undef,size(tri,1))
+
+    # iterate over the triangles
     for i = eachindex(tri[:,1])
+
+        # set the triangle vertices
         enve.tri[i] = tri[i,:]
+
     end
 
+    # get the edges
     enve = get_edges(enve)
+
+    # get the vertex triangles
     enve = get_vertex_triangles(enve)
     
+    # set the normal properties
     enve.normalArea = readdlm(importFolder*"\\normalArea.csv")[1]/ipar.scalingLength^2
     enve.normalAngle = readdlm(importFolder*"\\normalAngle.csv")[1]
     enve.normalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]./ipar.scalingLength^2
     enve.normalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]./ipar.scalingLength
-    
+    enve.normalVolume = readdlm(importFolder*"\\normalVolume.csv")[1]/ipar.scalingLength^3
+
     return enve
 end
 
-function import_chromatin(chro,importFolder)
+function import_chromatin(chro,spar,importFolder)
 
+    # get the import number from the importFolder
     importNumber = get_import_number(importFolder)
 
+    # load the VTK file
     vtk = VTKFile(importFolder*"\\chro_"*importNumber*".vtp")
+
+    # get the vertex coordinates
     vert = get_points(vtk)
 
+    # create a vector to store the vertex coordinates
     chro.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+
+    # iterate over the vertex coordinates and add them to the chro.vert vector
     for i = eachindex(vert[1,:])
         chro.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
     end
 
+    # get the strand end indices
     endPoints = get_primitives(vtk,"Lines").offsets
 
+    # create a vector to store the strand indices
     chro.strandIdx = Vector{Vector{Int64}}(undef,length(endPoints))
+
+    # iterate over the strands and add them to the chro.strandIdx vector
     for i = eachindex(endPoints)
         if i == 1
             chro.strandIdx[i] = collect(1:endPoints[i])
@@ -58,83 +94,67 @@ function import_chromatin(chro,importFolder)
         end
     end
 
-    chromatinLength = endPoints[1]
-    chromatinNumber = length(endPoints);
-
-    chro.forces.linear = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.bending = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.crosslink = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.chroRepulsion = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.enveRepulsion = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.forces.ladChroForces = Vector{Vec{3,Float64}}(undef,chromatinNumber*chromatinLength)
-    chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,chromatinNumber)
-    chro.vectorNorms = Vector{Vector{Float64}}(undef,chromatinNumber)
-    chro.forces.strandLinear = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandBending = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandCrosslink = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandChroRepulsion = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandEnveRepulsion = Vector{Any}(undef,chromatinNumber)
-    chro.forces.strandLadChroForces = Vector{Any}(undef,chromatinNumber)
-    initialize_chromatin_forces!(chro);
-    
-    chro.strandVert = Vector{Any}(undef,chromatinNumber)
-
-    for i = 1:chromatinNumber
-        chro.strandVert[i] = @view chro.vert[chro.strandIdx[i]];
-        chro.vectors[i] = chro.strandVert[i][2:end] .- chro.strandVert[i][1:end-1];
-        chro.vectorNorms[i] = norm.(chro.vectors[i])
-        chro.forces.strandLinear[i] = @view chro.forces.linear[chro.strandIdx[i]];
-        chro.forces.strandCrosslink[i] = @view chro.forces.crosslink[chro.strandIdx[i]];
-        chro.forces.strandBending[i] = @view chro.forces.bending[chro.strandIdx[i]];
-        chro.forces.strandChroRepulsion[i] = @view chro.forces.chroRepulsion[chro.strandIdx[i]];
-        chro.forces.strandEnveRepulsion[i] = @view chro.forces.enveRepulsion[chro.strandIdx[i]];
-        chro.forces.strandLadChroForces[i] = @view chro.forces.ladChroForces[chro.strandIdx[i]];
-    end
+    # initialize the chromatin properties
+    chro = initialize_chromatin_properties(chro,spar)
 
     return chro
 
 end
 
-function import_lads(enve,chro,importFolder,spar)
+function import_lads(enve,chro,spar,importFolder)
 
+    # initialize the LADs vectors
     enve.lads = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
     chro.lads = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
 
+    # read the LADs CSV file
     tempLads = readdlm(importFolder*"\\lads.csv", ',', Int64, '\n')
 
+    # iterate over the LADs and add them to the LADs vectors
     for i = 1:spar.chromatinNumber
 
+        # find the indices of the LADs for chromosome i
         tempIdx = findall(tempLads[:,1] .== i)
+        
+        # add the LADs to the enve.lads and chro.lads vectors
         enve.lads[i] = tempLads[tempIdx,2]
         chro.lads[i] = tempLads[tempIdx,3]
 
     end
 
     return enve,chro
+
 end
 
-function import_crosslinks(chro,importFolder,spar)
+function import_crosslinks(chro,spar,importFolder)
 
+    # get the import number from the importFolder
     importNumber = get_import_number(importFolder)
 
+    # initialize the crosslinks vector
+    chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
+
+    # try to read the crosslinks CSV file
     tempCrosslinks = []
     try
         tempCrosslinks = readdlm(importFolder*"\\crosslinks_" * importNumber * ".csv", ',', Int64, '\n')
     catch
     end
-    chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
-
+    
+    # iterate over the crosslinks and add them to the crosslinks vector
     for i = eachindex(tempCrosslinks[:,1])
 
+        # add the crosslink to the crosslinks vector
         push!(chro.crosslinks, tempCrosslinks[i,:])
+
+        # set the state of the crosslink to 1
         chro.crosslinked[tempCrosslinks[i,:]] .= 1
 
     end
 
+    # set the crosslinks in the LADs to -1
     for i = 1:spar.chromatinNumber
-
         chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
-
     end
 
     return chro
@@ -143,34 +163,52 @@ end
 
 function get_import_folder(initType,importFolder)
     
+    # get the type of simulation
     if initType == "load"
+
+        # if no import folder was provided, open a dialog to get one
         if importFolder == "" # open dialog if no folder was provided
             importFolder = pick_folder(pwd()*"\\results")
-        else # get the path if folder was provided
+        else
+
+            # if an import folder was provided, get its path
             importFolder = pwd()*"\\results\\"*importFolder;
         end
     else
+
+        # if the simulation type is not "load", set the import folder to an empty string
         importFolder = ""
+
     end
 
     return importFolder
+
 end
 
 function get_import_number(importFolder)
 
+    # get all the files in the import folder
     files = readdir(importFolder)
-    ifNucFile = zeros(Bool,length(files))
-    for i = eachindex(ifNucFile)
-        ifNucFile[i] = cmp(files[i][1:5],"nucl_") == 0
+
+    # create a boolean array to indicate whether each file is a nuclear file
+    isNuclFile = zeros(Bool,length(files))
+    for i = eachindex(isNuclFile)
+        isNuclFile[i] = cmp(files[i][1:5],"nucl_") == 0
     end
 
-    nucFileIdx = findall(ifNucFile)
+    # get the indices of the nuclear files
+    nucFileIdx = findall(isNuclFile)
 
+    # get the number of time points
     numTimePoints = length(nucFileIdx)
 
+    # get the number of digits in the name of the first nuclear file
     numOfDigitsInName = sum(.!isempty.([filter(isdigit, collect(s)) for s in files[nucFileIdx[1]]]))
 
+    # create an array to store the time point numbers
     timePointNumbers = zeros(Int64,numTimePoints)
+
+    # for each nuclear file, get the time point number string
     for i = eachindex(timePointNumbers)
 
         tempNum = [filter(isdigit, collect(s)) for s in files[nucFileIdx[i]]][end-(numOfDigitsInName+3):end-4]
@@ -183,6 +221,9 @@ function get_import_number(importFolder)
         timePointNumbers[i] = parse(Int64,numString)
     end
 
-    return lpad(maximum(timePointNumbers),numOfDigitsInName,"0")
+    # get the maximum time point number
+    maxTimePointNumber = maximum(timePointNumbers)
+
+    return lpad(maxTimePointNumber,numOfDigitsInName,"0")
 
 end

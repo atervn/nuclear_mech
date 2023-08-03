@@ -23,6 +23,8 @@ function analyze_volume()
 
     volumes = zeros(Float64,numTimePoints)
 
+    # replicationVolumes = zeros(Float64,numTimePoints)
+
     areas = zeros(Float64,numTimePoints)
 
     for i = eachindex(volumes)
@@ -63,7 +65,7 @@ function analyze_volume()
         areas2 = zeros(length(tri));
 
         for j = eachindex(tri)
-            volumes2[j] = 1/6*dot(vert[tri[i][1]],cross(vert[tri[i][2]],vert[tri[i][3]]))
+            volumes2[j] = 1/6*dot(vert[tri[j][1]],cross(vert[tri[j][2]],vert[tri[j][3]]))
 
             vect1 = vert[tri[j][2]] - vert[tri[j][1]]
             vect2 = vert[tri[j][3]] - vert[tri[j][1]]
@@ -72,13 +74,49 @@ function analyze_volume()
 
         end
 
+        
         volumes[i] = sum(volumes2)
         areas[i] = sum(areas2)
+
+        # vtk = VTKFile(folder*"\\replcomp_" * importNumber * ".vtu")
+
+        # vert2 = get_points(vtk)
+
+        # vert = Vector{Any}(undef,size(vert2)[2])
+        # for i = eachindex(vert2[1,:])
+        #     vert[i] = Vec(vert2[1,i],vert2[2,i],vert2[3,i])
+        # end
+
+        # VTKCelldata = get_cells(vtk)
+        # tri2 = VTKCelldata.connectivity
+
+        # tri2 = reshape(tri2,(3,:))
+        # tri2 = tri2' .+ 1
+
+        # tri = Vector{Any}(undef,size(tri2,1))
+        # for i = eachindex(tri2[:,1])
+        #     tri[i] = tri2[i,:]
+        # end
+
+        # volumes2 = zeros(length(tri));
+        # areas2 = zeros(length(tri));
+
+        # for j = eachindex(tri)
+        #     volumes2[j] = 1/6*dot(vert[tri[j][1]],cross(vert[tri[j][2]],vert[tri[j][3]]))
+
+        #     vect1 = vert[tri[j][2]] - vert[tri[j][1]]
+        #     vect2 = vert[tri[j][3]] - vert[tri[j][1]]
+
+        #     areas2[j] = 0.5*norm(cross(vect1,vect2))  
+
+        # end
+
+        # replicationVolumes[i] = sum(volumes2)
 
     end
 
 
-    p = plot([volumes areas],layout = grid(2,1), xaxis = ["Time step" "Time step"], title = ["Volume (µm³)" "Area (µm²)"],legend = false, linewidth = 5)
+    p = plot([volumes[1:end-10] areas[1:end-10]],layout = grid(3,1), title = ["Volume (µm³)"     "Area (µm²)"],legend = false, linewidth = 5)
 
     return p
 end

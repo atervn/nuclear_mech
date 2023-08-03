@@ -57,6 +57,7 @@ function analyze_strain(yMax = 0)
     end
 
     println("Final strain: " * string(strain[end]))
+    println("Final strain derivate: " * string((strain[end]-strain[end-20])/20))
 
     return p
 end

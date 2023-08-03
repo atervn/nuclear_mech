@@ -1,4 +1,4 @@
-using NativeFileDialog, Plots, DelimitedFiles, ReadVTK, LaTeXStrings
+using NativeFileDialog, Plots, DelimitedFiles, ReadVTK, LaTeXStrings, CurveFit
 
 include("setup_functions.jl")
 
@@ -61,23 +61,33 @@ function analyze_aspiration(case)
 
     pipettePosition = ipar.pipetteRadius*tan(acos(ipar.pipetteRadius/(ipar.freeNucleusRadius + ipar.repulsionDistance)));
 
+    minInd = findmin(maxX)[2][1]
+
+    maxX = maxX[minInd:end]
+
     if case == 1
         dL = maxX.*ipar.scalingLength .- pipettePosition;
     else
-        dL = 0.001e-6.+(maxX .- minimum(maxX)).*ipar.scalingLength;
+        dL = (maxX .- maxX[1]).*ipar.scalingLength;
     end
 
     J = 2*pi*2.1.*dL./(3*ipar.aspirationPressure*1e-3*ipar.pipetteRadius);
 
-    dt = ipar.maxDt
+    dt = ipar.dt
 
-    p = plot(2*dt:dt:length(maxX)*dt-dt,J[3:end],
+    p = plot(minInd*dt:dt:length(maxX)*dt,J[minInd:end],
                 yaxis=:log,
                 xaxis=:log,
                 xlabel="Time (s)",
                 ylabel="Creep compliance kPa" * L"^{-1}",
+                xlimits=(0.09,1000),
+                ylimits=(0.07,6)
     )
-    
+
+    fit = CurveFit.curve_fit(PowerFit,minInd*dt:dt:length(maxX)*dt,J[minInd:end])
+
+    println("Exponent: ", fit.coefs[2])
+
     dahl2005 = readdlm("dahl2005.txt",',');
     dahl2006 = readdlm("dahl2006.txt",',');
     witner2020 = readdlm("wintner2020.txt",',');

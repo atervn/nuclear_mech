@@ -1,0 +1,94 @@
+{
+	"files": [
+		{
+			"path": "functions/setup_functions.jl",
+			"bookmarks": [
+				{
+					"line": 82,
+					"column": 12,
+					"label": "get back to this (envelope heterogeneity)"
+				}
+			]
+		},
+		{
+			"path": "functions/calculate_forces.jl",
+			"bookmarks": [
+				{
+					"line": 207,
+					"column": 14,
+					"label": "add to parameters instead of pressure"
+				},
+				{
+					"line": 397,
+					"column": 40,
+					"label": "hardcoded"
+				},
+				{
+					"line": 400,
+					"column": 24,
+					"label": "hardcoded"
+				},
+				{
+					"line": 420,
+					"column": 1,
+					"label": ""
+				},
+				{
+					"line": 442,
+					"column": 14,
+					"label": "hardcoded"
+				},
+				{
+					"line": 461,
+					"column": 1,
+					"label": ""
+				},
+				{
+					"line": 481,
+					"column": 1,
+					"label": ""
+				},
+				{
+					"line": 511,
+					"column": 50,
+					"label": "hardcoded"
+				},
+				{
+					"line": 537,
+					"column": 22,
+					"label": "hardcoded"
+				},
+				{
+					"line": 550,
+					"column": 28,
+					"label": "hardcoded"
+				},
+				{
+					"line": 568,
+					"column": 21,
+					"label": "is this force then needed or what?"
+				},
+				{
+					"line": 595,
+					"column": 17,
+					"label": "possibly hardcoded"
+				},
+				{
+					"line": 749,
+					"column": 28,
+					"label": "hardcoded"
+				},
+				{
+					"line": 838,
+					"column": 1,
+					"label": ""
+				},
+				{
+					"line": 844,
+					"column": 19,
+					"label": "possible multiplier here also? as for pip earlier (also on previous \"if\")"
+				}
+			]
+		}
+	]
+}
