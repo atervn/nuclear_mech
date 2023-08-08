@@ -13,11 +13,11 @@ function solve_system!(enve::envelopeType, chro::chromatinType, spar::scaledPara
         chroFluctuation = get_random_fluctuations(spar,simset,spar.chromatinLength*spar.chromatinNumber)
         
         # compute total forces on envelope and chromatin
-        totalEnve = enve.forces.total # .+ enveluctuation;
+        totalEnve = enve.forces.total .+ enveluctuation;
         totalChro = chro.forces.total .+ chroFluctuation;
 
         # solve the linear system of equations using conjugate gradient method
-        movements,maxMovement = run_cg!(spar,simset,simset.frictionMatrix,[getindex.(totalEnve,1);getindex.(totalChro,1)],[getindex.(totalEnve,2);getindex.(totalChro,2)],[getindex.(totalEnve,3);getindex.(totalChro,3)])
+        movements,maxMovement = run_cg!(spar,simset,simset.frictionMatrix,simset.iLU,[getindex.(totalEnve,1);getindex.(totalChro,1)],[getindex.(totalEnve,2);getindex.(totalChro,2)],[getindex.(totalEnve,3);getindex.(totalChro,3)])
 
         # check if the run_cg! function did not return false (indicating an issue)
         if !isa(movements,Bool)
@@ -43,7 +43,7 @@ function solve_system!(enve::envelopeType, chro::chromatinType, spar::scaledPara
 end
 
 # REPLICATION COMPARTMENT
-function solve_system!(enve::envelopeType, chro::chromatinType, repl::replicationCompartmentType, spar::scaledParametersType,simset::simulationSettingsType,dt::Number,ext)
+function solve_system!(enve::envelopeType, chro::chromatinType, repl::replicationCompartmentType, spar::scaledParametersType,simset::simulationSettingsType,ext,intTime)
 
     # initialize the movement arrays to store vertex movements
     movements = Vector{Vec{3,Float64}}(undef,length(enve.vert)+length(chro.vert))
@@ -64,14 +64,14 @@ function solve_system!(enve::envelopeType, chro::chromatinType, repl::replicatio
         totalChro = chro.forces.total .+ chroFluctuation;
 
         # solve the linear system of equations using conjugate gradient method
-        movements,maxMovement = run_cg!(spar,simset,simset.frictionMatrix,[getindex.(totalEnve,1);getindex.(totalChro,1)],[getindex.(totalEnve,2);getindex.(totalChro,2)],[getindex.(totalEnve,3);getindex.(totalChro,3)])
+        movements,maxMovement = run_cg!(spar,simset,simset.frictionMatrix,simset.iLU,[getindex.(totalEnve,1);getindex.(totalChro,1)],[getindex.(totalEnve,2);getindex.(totalChro,2)],[getindex.(totalEnve,3);getindex.(totalChro,3)])
 
         # check if the run_cg! function did not return false (indicating an issue)
         if !isa(movements,Bool)
 
             # solve the linear system of equations using conjugate gradient method for the replication compartment
-            replMovements,replMaxMovement = run_cg!(spar,simset,repl.frictionMatrix,getindex.(repl.forces.total,1),getindex.(repl.forces.total,2),getindex.(repl.forces.total,3))
-        
+            replMovements,replMaxMovement = run_cg!(spar,simset,repl.frictionMatrix,repl.iLU,getindex.(repl.forces.total,1),getindex.(repl.forces.total,2),getindex.(repl.forces.total,3))
+
             # check if the run_cg! function did not return false (indicating an issue)
             if !isa(replMovements,Bool)
 
@@ -121,7 +121,7 @@ function solve_system!(enve, spar,simset,ext,intTime)
         totalEnve = enve.forces.total .+ enveFluctuation;
         
         # solve the linear system of equations using conjugate gradient method
-        movements,maxMovement = run_cg!(spar,simset,simset.frictionMatrix,getindex.(totalEnve,1),getindex.(totalEnve,2),getindex.(totalEnve,3))
+        movements,maxMovement = run_cg!(spar,simset,simset.frictionMatrix,simset.iLU,getindex.(totalEnve,1),getindex.(totalEnve,2),getindex.(totalEnve,3))
 
 
         # check if the run_cg! function did not return false (indicating an issue)
@@ -147,16 +147,17 @@ function solve_system!(enve, spar,simset,ext,intTime)
 
 end
 
-function run_cg!(spar,simset,frictionMatrix,forcesX,forcesY,forcesZ)
-
+function run_cg!(spar,simset,frictionMatrix,iLU,forcesX,forcesY,forcesZ)
+    
     # flag for checking the status
     everythingIsFine = true
 
     # solve the linear equations using conjugate gradient method for the different components
-    solX = cg(frictionMatrix,forcesX,Pl = simset.iLU)
-    solY = cg(frictionMatrix,forcesY,Pl = simset.iLU)
-    solZ = cg(frictionMatrix,forcesZ,Pl = simset.iLU)
+    solX = cg(frictionMatrix,forcesX,Pl = iLU)
+    solY = cg(frictionMatrix,forcesY,Pl = iLU)
+    solZ = cg(frictionMatrix,forcesZ,Pl = iLU)
 
+    
     # compute the movements based on the solutions
     movements = Vec.(solX,solY,solZ).*spar.dt.*simset.timeStepMultiplier
 
@@ -283,6 +284,6 @@ end
 function move_repl_vertices!(repl,replMovements)
 
     # move the replication compartment vertices
-    repl.vert .+= replCompMovements
+    repl.vert .+= replMovements
 
 end

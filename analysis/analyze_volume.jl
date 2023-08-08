@@ -12,7 +12,7 @@ function analyze_volume()
     files = readdir(folder)
     ifNucFile = zeros(Bool,length(files))
     for i = eachindex(ifNucFile)
-        ifNucFile[i] = cmp(files[i][1:5],"nucl_") == 0
+        ifNucFile[i] = cmp(files[i][1:5],"enve_") == 0
     end
 
     nucFileIdx = findall(ifNucFile)
@@ -41,7 +41,7 @@ function analyze_volume()
         timePointNumber = parse(Int64,numString)
         importNumber = lpad(timePointNumber,numOfDigitsInName,"0")
 
-        vtk = VTKFile(folder*"\\nucl_" * importNumber * ".vtu")
+        vtk = VTKFile(folder*"\\enve_" * importNumber * ".vtu")
 
         vert2 = get_points(vtk)
 

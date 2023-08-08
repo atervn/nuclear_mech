@@ -1,7 +1,7 @@
-function get_forces!(enve, chro ,spar, ext, simset, intTime::Int)
+function get_forces!(enve, chro ,spar, ext, simset)
 
     # calculate the forces on the envelope
-    get_envelope_forces!(enve,spar,ext,simset,intTime)    
+    get_envelope_forces!(enve,spar,ext,simset)    
 
     # calculate the forces on the chromatin
     get_chromatin_forces!(enve,chro,spar,simset)
@@ -14,16 +14,16 @@ function get_forces!(enve, chro ,spar, ext, simset, intTime::Int)
     
 end
 
-function get_forces!(enve, chro, repl, spar, ext, simset, intTime::Int)
+function get_forces!(enve, chro, repl, spar, ext, simset)
 
     # calculate the forces on the envelope
-    get_envelope_forces!(enve,spar,ext,simset,intTime)    
+    get_envelope_forces!(enve,spar,ext,simset)    
 
     # calculate the forces on the chromatin
     get_chromatin_forces!(enve,chro,spar,simset)
 
     # calculate the forces on the replication compartment
-    get_repl_forces!(enve,chro,spar)
+    get_repl_forces!(enve,chro,repl,spar)
 
     # calculate the total forces on the envelope with replication compartment
     get_total_envelope_forces!(enve,simset,"repl")
@@ -36,17 +36,17 @@ function get_forces!(enve, chro, repl, spar, ext, simset, intTime::Int)
     
 end
 
-function get_forces!(enve, spar, ext, simset, intTime::Int)
+function get_forces!(enve, spar, ext, simset)
 
     # calculate the forces on the envelope
-    get_envelope_forces!(enve,spar,ext,simset,intTime)
+    get_envelope_forces!(enve,spar,ext,simset)
  
     # calculate the total forces on the envelope       
     get_total_envelope_forces!(enve,simset,"noRepl")
 
 end
 
-function get_envelope_forces!(enve,spar,ext,simset,intTime)
+function get_envelope_forces!(enve,spar,ext,simset)
 
     # calculate volume forces on the envelope
     get_volume_forces!(enve,spar);
@@ -157,7 +157,7 @@ end
 function get_total_chromatin_forces!(chro,replStatus)
 
     # calculate the total forces on the chromatin by summing individual force components
-    chro.forces.total = chro.forces.linear .+ chro.forces.chroRepulsion .+ chro.forces.crosslink .+ chro.forces.ladChroForces .+ chro.forces.enveRepulsion # .+ chro.forces.bending
+    chro.forces.total = chro.forces.linear .+ chro.forces.chroRepulsion .+ chro.forces.crosslink .+ chro.forces.ladChroForces .+ chro.forces.enveRepulsion .+ chro.forces.bending
 
     # Check the replication compartment status
     if replStatus == "repl"
@@ -168,7 +168,7 @@ function get_total_chromatin_forces!(chro,replStatus)
 
 end
 
-function get_repl_forces!(enve,chro,spar)
+function get_repl_forces!(enve,chro,repl,spar)
     
     # calculate replication compartment elastic forces
     get_repl_comp_elastic_forces!(repl,spar)

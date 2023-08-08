@@ -74,7 +74,7 @@ function export_data(enve,chro,repl,spar,ex,ext,intTime,simset)
             export_envelope_data(enve,ex,simset,exportNumber)
 
             # export chromatin data
-            export_chromatin_data(chro,spar,ex,exportNumber)
+            export_chromatin_data(enve,chro,spar,ex,exportNumber)
 
             # export replication compartment data
             export_replication_compartment_data(repl,ex,exportNumber)
@@ -241,7 +241,7 @@ end
 
 # end
 
-function get_crosslinks!(enve, chro, simset,spar)
+function get_crosslinks!(enve, chro, simset, spar)
 
     # initialize a variable to track if any changes are made
     changesDone = false
@@ -508,7 +508,7 @@ end
 function export_envelope_data(enve,ex,simset,exportNumber)
 
     # export envelope data
-    vtk_grid(".\\results\\"*ex.folderName*"\\nucl_" * lpad(exportNumber,4,"0"), [getindex.(enve.vert,1) getindex.(enve.vert,2) getindex.(enve.vert,3)]', ex.enveCells) do vtk
+    vtk_grid(".\\results\\"*ex.folderName*"\\enve_" * lpad(exportNumber,4,"0"), [getindex.(enve.vert,1) getindex.(enve.vert,2) getindex.(enve.vert,3)]', ex.enveCells) do vtk
                 
         # if micropipette aspiration
         if cmp(simset.simType,"MA") == 0
@@ -596,7 +596,7 @@ function export_replication_compartment_data(repl,ex,exportNumber)
     end
 
     # export replication compartment data
-    vtk_grid(".\\results\\"*ex.folderName*"\\replcomp_" * lpad(exportNumber,4,"0"), [getindex.(repl.vert,1) getindex.(repl.vert,2) getindex.(repl.vert,3)]', vrcCells) do vtk
+    vtk_grid(".\\results\\"*ex.folderName*"\\repl_" * lpad(exportNumber,4,"0"), [getindex.(repl.vert,1) getindex.(repl.vert,2) getindex.(repl.vert,3)]', vrcCells) do vtk
         # export total forces
         vtk["Total forces", VTKPointData()] = [getindex.(repl.forces.total,1) getindex.(repl.forces.total,2) getindex.(repl.forces.total,3)]'
         # export elastic forces
@@ -609,6 +609,8 @@ function export_replication_compartment_data(repl,ex,exportNumber)
         vtk["Bending forces", VTKPointData()] = [getindex.(repl.forces.bending,1) getindex.(repl.forces.bending,2) getindex.(repl.forces.bending,3)]'
         # export chromatin repulsion forces
         vtk["Chromatin repulsion forces", VTKPointData()] = [getindex.(repl.forces.chromationRepulsion,1) getindex.(repl.forces.chromationRepulsion,2) getindex.(repl.forces.chromationRepulsion,3)]'
+        # export emvelope repulsion forces
+        vtk["Envelope repulsion forces", VTKPointData()] = [getindex.(repl.forces.envelopeRepulsion,1) getindex.(repl.forces.envelopeRepulsion,2) getindex.(repl.forces.envelopeRepulsion,3)]'
     end
 end
 

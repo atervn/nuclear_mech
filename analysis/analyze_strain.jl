@@ -40,7 +40,7 @@ function analyze_strain(yMax = 0)
             timePointNumber = parse(Int64,numString)
             importNumber = lpad(timePointNumber,numOfDigitsInName,"0")
 
-            vtk = VTKFile(folder*"\\nucl_" * importNumber * ".vtu")
+            vtk = VTKFile(folder*"\\enve_" * importNumber * ".vtu")
 
             vert = get_points(vtk)
 

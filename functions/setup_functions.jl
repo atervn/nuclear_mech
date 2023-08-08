@@ -14,6 +14,10 @@ function setup_simulation(
     # get import folder
     importFolder = get_import_folder(initType,importFolder)
 
+    if importFolder == "" && initType == "load"
+        return [],[],[],[],[],[]
+    end
+
     # setup the envelope
     enve = setup_shell(ipar,initType,importFolder)
     
@@ -48,7 +52,7 @@ function setup_shell(ipar,initType,importFolder)
         enve = get_icosaherdon!(enve,radius);
 
         # subdivide icosahedron
-        enve = subdivide_mesh!(enve,radius,ipar)
+        enve = subdivide_mesh!(enve,radius,ipar.nSubdivisions)
 
     # if simulation type is `load`, load nuclear envelope from previous simulation
     elseif cmp(initType,"load") == 0
@@ -80,7 +84,7 @@ function setup_shell(ipar,initType,importFolder)
     end
 
     # init envelope multipliers
-    enve.envelopeMultilpiers = randn(length(enve.edges))./5 .+ 1;
+    enve.envelopeMultilpiers = 10 .^ (ipar.laminaVariabilityMultiplier .* randn(length(enve.edges)));
 
     # set up shell data
     enve = setup_shell_data(enve,initType,"enve")
@@ -570,7 +574,7 @@ function get_model_parameters(ipar,enve)
     # set lad strength
     spar.ladStrength = ipar.ladStrength / ipar.viscosity * ipar.scalingTime
 
-    
+
     spar.crosslinkStrength = ipar.crosslinkStrength / ipar.viscosity * ipar.scalingTime
 
     # set chromatin normal angle
@@ -605,6 +609,9 @@ function get_model_parameters(ipar,enve)
 
     # set scaling time
     spar.scalingTime = ipar.scalingTime
+
+    # set temperature
+    spar.temperature = ipar.temperature
 
     # set viscosity
     spar.viscosity = ipar.viscosity
@@ -680,6 +687,8 @@ function get_model_parameters(ipar,enve)
     spar.outsideRepulsionMultiplier = ipar.outsideRepulsionMultiplier
 
     spar.replPressure = ipar.replPressure / ipar.viscosity * ipar.scalingTime * ipar.scalingLength
+
+    spar.laminaVariabilityMultiplier = ipar.laminaVariabilityMultiplier
 
     return spar
 
@@ -832,7 +841,7 @@ function get_pipette_mesh(spar,enve)
     pip = pipetteType();
 
     # Load the STL file
-    mesh = load("./pipette_v2_binary.stl")
+    mesh = load("./parameters/pipette_v2_binary.stl")
 
     # init vector for the mesh triangles
     pip.tri = Vector{Vector{Int64}}(undef,length(mesh))

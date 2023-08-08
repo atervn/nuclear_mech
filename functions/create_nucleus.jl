@@ -163,7 +163,11 @@ function add_middle_vertices!(shellStruct,i,radius)
     newVertex = (shellStruct.vert[p1] + shellStruct.vert[p2])./2;
 
     # scale the midpoint by radius and divide by its norm and save it to shell vertices
-    push!(shellStruct.vert,newVertex.*radius/norm(newVertex));
+    if radius != 0
+        push!(shellStruct.vert,newVertex.*radius/norm(newVertex));
+    else
+        push!(shellStruct.vert,newVertex);
+    end
 
     return shellStruct
 
@@ -239,13 +243,13 @@ function subdivide_triangles(shellStruct,radius)
 
 end
 
-function subdivide_mesh!(shellStruct,radius,ipar)
+function subdivide_mesh!(shellStruct,radius,nSubdivisions)
     
     # get triangle edges
     shellStruct = get_edges(shellStruct);
 
     # for each subdivision
-    for i = 1:ipar.nSubdivisions
+    for i = 1nSubdivisions
 
         # subdivide triangles
         shellStruct = subdivide_triangles(shellStruct,radius);

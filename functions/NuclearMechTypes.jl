@@ -112,6 +112,7 @@ Base.@kwdef mutable struct inputParametersType
     replBendingStiffness::Float64 = 0
     outsideRepulsionMultiplier::Float64 = 0
     replPressure::Float64 = 0
+    laminaVariabilityMultiplier::Float64 = 0
 end
 
 Base.@kwdef mutable struct scaledParametersType
@@ -171,6 +172,7 @@ Base.@kwdef mutable struct scaledParametersType
     replBendingStiffness::Float64 = 0
     outsideRepulsionMultiplier::Float64 = 0
     replPressure::Float64 = 0
+    laminaVariabilityMultiplier::Float64 = 0
 end
 
 Base.@kwdef mutable struct chromatinForceType

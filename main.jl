@@ -22,7 +22,7 @@ include("./functions/import_functions.jl")
 include("./functions/get_forces.jl")
 include("./functions/simulation.jl")
 
-sim = 4
+sim = 7
 
 if sim == 1 # initialize a suspended nucleus
 
@@ -41,14 +41,16 @@ if sim == 1 # initialize a suspended nucleus
 
 elseif sim == 2 # initialize adherent nucleus
 
+    simulation("INIT",1500,"adherend_shell","new"; noChromatin = true, adherent = true)
+
     # load the squished nucleus, add chormatin and let chromatin relax around the LADs
-    fileName1 = simulation("INIT" ,10, "init_P1", "load"; noEnveSolve = true, parameterFile = "parameters_init_1.txt", returnFoldername = true)
+    fileName1 = simulation("INIT" ,10, "init_P1", "load"; noEnveSolve = true, parameterFile = "./parameters/parameters_init_1.txt", returnFoldername = true)
     
     # create the crosslinks
-    fileName2 = simulation("INIT" ,1000, "init_P2", "load"; importFolder = fileName1, parameterFile = "parameters_init_2.txt", returnFoldername = true)
+    fileName2 = simulation("INIT" ,1000, "init_P2", "load"; importFolder = fileName1, parameterFile = "./parameters/parameters_init_2.txt", returnFoldername = true)
     
     # relax the whole system
-    simulation("INIT", 2, "adheret_nucleus", "load"; importFolder = fileName2, parameterFile = "parameters_init_1.txt")
+    simulation("INIT", 100, "adheret_nucleus", "load"; importFolder = fileName2, parameterFile = "./parameters/parameters_init_1.txt")
     
     # remove the extra results
     rm(".\\results\\"*fileName1; recursive = true)
@@ -71,22 +73,20 @@ elseif sim == 4 # mm simulation
 
 elseif sim == 5 # ma simulation
 
-    simulation("MA",50,"ma_test_5000_Pa_Vol_10000_area_10_lam_50_chro_50_visc_100","load"; importFolder = "2023-02-13_145413_INIT")
+    simulation("MA",50,"ma_test_5000_Pa_Vol_10000_area_10_lam_50_chro_50_visc_100","load")
 
 elseif sim == 6
 
-    simulation("INIT", 1000  , "inf_test", "load"; replComp = true)
+    simulation("INIT", 20  , "msd_test", "load")
 
 elseif sim == 7
 
-    simulation("INIT", 20, "INIT_OSMO_100_Pa_15", "load")
+    simulation("INIT", 100, "INF_TEST", "load"; importFolder = "2023-08-07_110304_adheret_nucleus", replComp = true)
 
 elseif sim == 10
 
     simulation("INIT",600,"adh_nucl","load"; adherent = true)
 elseif sim == 11
-    simulation("INIT",5000,"adherend_shell","new"; noChromatin = true, adherent = true)
-elseif sim == 12
     simulation("INIT",1000,"mm_test_5","new")
 elseif sim == 13
 

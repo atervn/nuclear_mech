@@ -21,6 +21,10 @@ function simulation(
     # setup the simulation environment
     enve, chro, spar, simset, ext, ipar = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,noEnveSolve,adherent,maxT)
 
+    if typeof(enve) != envelopeType
+        return
+    end
+
     # setup the export settings
     ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin,ipar)
     
@@ -120,7 +124,7 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
             export_data(enve, chro, repl, spar, ex, ext, intTime, simset)
 
             # solve the system
-            solve_system!(enve, chro, repl, spar, simset, ext)
+            solve_system!(enve, chro, repl, spar, simset, ext, intTime)
 
             # update the time step
             intTime = progress_time!(simset,intTime);

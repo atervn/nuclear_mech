@@ -1,10 +1,10 @@
 using DelimitedFiles, Plots, Statistics, NativeFileDialog, ReadVTK
 # theme(:ggplot2)
 
-include("setup_functions.jl")
+include("../functions/setup_functions.jl")
 
 if !(@isdefined envelopeType)
-    include("NuclearMechTypes.jl")
+    include("../functions/NuclearMechTypes.jl")
     using .NuclearMechTypes
 end
 
@@ -16,8 +16,7 @@ function calculate_msd()
         return
     end
 
-    ipar = inputParametersType();
-    ipar = read_parameters(ipar,folder*"\\parameters.txt")
+    ipar = read_parameters(folder*"\\parameters.txt")
 
     allFiles = readdir(folder)
     

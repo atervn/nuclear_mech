@@ -29,7 +29,14 @@ function get_area!(shellStruct)
         dotProduct = dot(shellStruct.edgeVectors[shellStruct.triEdge1[i]],shellStruct.edgeVectors[shellStruct.triEdge2[i]])
 
         # angle between the two edge vectors
-        θ = acos(dotProduct/(shellStruct.edgeVectorNorms[shellStruct.triEdge1[i]]*shellStruct.edgeVectorNorms[shellStruct.triEdge2[i]]));
+        temp = dotProduct/(shellStruct.edgeVectorNorms[shellStruct.triEdge1[i]]*shellStruct.edgeVectorNorms[shellStruct.triEdge2[i]])
+        if temp > 1
+            temp = 1
+        elseif temp < -1
+            temp = -1
+        end
+
+        θ = acos(temp);
         
         # area of the triangle
         areas[i] = 1/2*shellStruct.edgeVectorNorms[shellStruct.triEdge1[i]]*shellStruct.edgeVectorNorms[shellStruct.triEdge2[i]]*sin(θ);
@@ -280,7 +287,7 @@ function line_point_distance(AB::Vec{3,Float64},AC::Vec{3,Float64})
 
 end
 
-function vertex_triangle_distance(shell::envelopeType, vertex::Vec3, tri::Int)
+function vertex_triangle_distance(shell, vertex::Vec3, tri::Int)
 
     # get the triangle vertices from the pipetteType object
     tri = shell.tri[tri];

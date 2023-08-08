@@ -4,7 +4,7 @@ function import_envelope(enve,importFolder,ipar)
     importNumber = get_import_number(importFolder)
     
     # get the import name
-    importName = "nucl_"*importNumber
+    importName = "enve_"*importNumber
 
     # load a VTK file object
     vtk = VTKFile(importFolder*"\\"*importName*".vtu")
@@ -193,7 +193,7 @@ function get_import_number(importFolder)
     # create a boolean array to indicate whether each file is a nuclear file
     isNuclFile = zeros(Bool,length(files))
     for i = eachindex(isNuclFile)
-        isNuclFile[i] = cmp(files[i][1:5],"nucl_") == 0
+        isNuclFile[i] = cmp(files[i][1:5],"enve_") == 0
     end
 
     # get the indices of the nuclear files
