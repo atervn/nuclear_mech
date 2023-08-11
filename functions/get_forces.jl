@@ -17,7 +17,7 @@ end
 function get_forces!(enve, chro, repl, spar, ext, simset)
 
     # calculate the forces on the envelope
-    get_envelope_forces!(enve,spar,ext,simset)    
+    get_envelope_forces!(enve,repl,spar,ext,simset)
 
     # calculate the forces on the chromatin
     get_chromatin_forces!(enve,chro,spar,simset)
@@ -50,6 +50,50 @@ function get_envelope_forces!(enve,spar,ext,simset)
 
     # calculate volume forces on the envelope
     get_volume_forces!(enve,spar);
+     
+    # calculate area forces on the envelope
+    get_area_forces!(enve,spar);
+    
+    # calculate bending forces on the envelope
+    get_bending_forces!(enve,spar);
+      
+    # calculate elastic forces on the envelope
+    get_elastic_forces!(enve,spar);
+
+    # Calculate repulsion forces within the envelope
+    get_repulsion_forces!(enve,spar,simset);
+
+    # check if the simulation involves adhesion
+    if simset.adh.adherent
+
+        # calculate repulsion forces between the envelope and an adherent plane
+        get_plane_repulsion!(enve,simset,spar)
+
+    end
+    
+    # if micropipette aspiration simulation
+    if simset.simType =="MA" 
+
+        # calculate repulsion forces due to aspiration in micropipette aspiration (MA)
+        get_aspiration_repulsion_forces!(enve,ext[1],spar);
+
+        # Calculate aspiration forces in micropipette aspiration (MA) simulation
+        get_aspiration_forces!(enve,spar);
+
+    # if micromanipulation simulation
+    elseif simset.simType == "MM"
+
+        # calculate micromanipulation forces in micromanipulation (MM) simulation
+        get_micromanipulation_forces!(enve,ext[1],spar)
+
+    end
+
+end
+
+function get_envelope_forces!(enve,repl,spar,ext,simset)
+
+    # calculate volume forces on the envelope
+    get_volume_forces!(enve,repl,spar);
      
     # calculate area forces on the envelope
     get_area_forces!(enve,spar);

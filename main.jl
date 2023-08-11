@@ -81,7 +81,7 @@ elseif sim == 6
 
 elseif sim == 7
 
-    simulation("INIT", 100, "INF_TEST", "load"; importFolder = "2023-08-07_110304_adheret_nucleus", replComp = true)
+    simulation("INIT", 500, "INF_TEST", "load"; importFolder = "2023-08-07_110304_adheret_nucleus", replComp = true)
 
 elseif sim == 10
 

@@ -19,7 +19,7 @@ function get_volume_forces!(enve,spar)
 
 end
 
-function get_volume_forces!(enve,spar,repl)
+function get_volume_forces!(enve,repl,spar)
 
     # compute the volume as the different between the nuclear volume the replication compartment volume
     nucleusVolume = get_volume!(enve) - get_volume!(repl);
@@ -652,7 +652,7 @@ function get_repl_chromatin_repulsion_forces!(chro, repl, spar)
             chro.forces.replRepulsion[i] = forceMagnitude*unitVector
 
             # get the forces on the envelope
-            forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,1)
+            forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,100)
 
             # if the closest point in the enve is a vertex
             if length(closeVertices) == 1
@@ -707,7 +707,7 @@ function get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
             enve.forces.replRepulsion[i] = forceMagnitude*unitVector;
 
             # get the forces on the repl
-            forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,20)
+            forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,1)
 
             # if the closest point in the enve is a vertex
             if length(closeVertices) == 1
