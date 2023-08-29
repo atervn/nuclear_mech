@@ -53,7 +53,7 @@ Base.@kwdef mutable struct envelopeType
     triEdge1::Vector{Int64} = []
     triEdge2::Vector{Int64} = []
     lads::Vector{Vector{Int64}} = []
-    envelopeMultilpiers::Vector{Float64} = []
+    envelopeMultipliers::Vector{Float64} = []
 end
 
 Base.@kwdef mutable struct inputParametersType 
@@ -311,6 +311,7 @@ Base.@kwdef mutable struct replicationCompartmentType
     iLU::Any = []
     baseArea::Float64 = 0;
     tree::Any = []
+    
 end
 
 end

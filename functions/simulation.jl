@@ -11,7 +11,8 @@ function simulation(
     adherent::Bool = false,
     noEnveSolve::Bool = false,
     noChromatin::Bool = false,
-    returnFoldername::Bool = false)
+    returnFoldername::Bool = false,
+    newEnvelopeMultipliers = false)
 
     # check if the simulation type is valid. If not, return
     if check_simulation_type(simType)
@@ -19,7 +20,7 @@ function simulation(
     end
 
     # setup the simulation environment
-    enve, chro, spar, simset, ext, ipar = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,noEnveSolve,adherent,maxT)
+    enve, chro, spar, simset, ext, ipar = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,noEnveSolve,adherent,maxT,newEnvelopeMultipliers)
 
     if typeof(enve) != envelopeType
         return
@@ -70,7 +71,7 @@ function run_simulation(enve, chro, spar, ex, ext, simset, maxT)
             get_crosslinks!(enve, chro, simset, spar)
 
             # calculate forces
-            get_forces!(enve, chro, spar, ext, simset, intTime)
+            get_forces!(enve, chro, spar, ext, simset)
 
             # export data
             export_data(enve, chro, spar, ex, ext, intTime, simset)
@@ -163,7 +164,7 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
             get_nuclear_properties!(enve, simset)
 
             # calculate forces
-            get_forces!(enve, spar, ext, simset, intTime)
+            get_forces!(enve, spar, ext, simset)
 
             # export data
             export_data(enve, ex, ext, intTime, simset)

@@ -22,7 +22,7 @@ include("./functions/import_functions.jl")
 include("./functions/get_forces.jl")
 include("./functions/simulation.jl")
 
-sim = 7
+sim = 2
 
 if sim == 1 # initialize a suspended nucleus
 
@@ -33,7 +33,7 @@ if sim == 1 # initialize a suspended nucleus
     fileName2 = simulation("INIT" ,1000, "init_P2", "load"; importFolder = fileName1, parameterFile = "./parameters/parameters_init_2.txt", returnFoldername = true)
     
     # relax the whole system
-    simulation("INIT", 200, "INIT", "load"; importFolder = fileName2, parameterFile = "./parameters/parameters_init_1.txt")
+    simulation("INIT", 200, "INIT_TEST", "load"; importFolder = fileName2, parameterFile = "./parameters/parameters_init_1.txt")
     
     # remove the extra results
     rm(".\\results\\"*fileName1; recursive = true)
@@ -41,16 +41,16 @@ if sim == 1 # initialize a suspended nucleus
 
 elseif sim == 2 # initialize adherent nucleus
 
-    simulation("INIT",1500,"adherend_shell","new"; noChromatin = true, adherent = true)
+    # simulation("INIT",10,"adherend_shell","new"; noChromatin = true, adherent = true, parameterFile = "./parameters/parameters_adh_init.txt")
 
     # load the squished nucleus, add chormatin and let chromatin relax around the LADs
-    fileName1 = simulation("INIT" ,10, "init_P1", "load"; noEnveSolve = true, parameterFile = "./parameters/parameters_init_1.txt", returnFoldername = true)
+    fileName1 = simulation("INIT" ,10, "init_P1", "load"; importFolder = "2023-08-22_145359_adherend_shell", noEnveSolve = true, parameterFile = "./parameters/parameters_init_1.txt", returnFoldername = true, newEnvelopeMultipliers = true)
     
     # create the crosslinks
     fileName2 = simulation("INIT" ,1000, "init_P2", "load"; importFolder = fileName1, parameterFile = "./parameters/parameters_init_2.txt", returnFoldername = true)
     
     # relax the whole system
-    simulation("INIT", 100, "adheret_nucleus", "load"; importFolder = fileName2, parameterFile = "./parameters/parameters_init_1.txt")
+    simulation("INIT", 100, "adherent_nucleus", "load"; importFolder = fileName2, parameterFile = "./parameters/parameters_init_1.txt")
     
     # remove the extra results
     rm(".\\results\\"*fileName1; recursive = true)
@@ -77,17 +77,18 @@ elseif sim == 5 # ma simulation
 
 elseif sim == 6
 
-    simulation("INIT", 20  , "msd_test", "load")
+    simulation("INIT", 200  , "adherent_nucleus_mod_5000", "load")
 
 elseif sim == 7
 
-    simulation("INIT", 500, "INF_TEST", "load"; importFolder = "2023-08-07_110304_adheret_nucleus", replComp = true)
+    # simulation("INIT", 1000, "INF_TEST_crosslink_0.5", "load"; importFolder = "2023-08-17_185352_adherent_nucleus_mod_5000_crosslink_0.5", replComp = true)
+    simulation("INIT", 200, "INF_TEST_crosslink_slower_dynamics", "load"; replComp = true)
 
 elseif sim == 10
 
-    simulation("INIT",600,"adh_nucl","load"; adherent = true)
+    simulation("INIT",50,"adherent_nucleus","load")
 elseif sim == 11
-    simulation("INIT",1000,"mm_test_5","new")
+    simulation("INIT" ,5000, "adherent_nucleus_mod_5000_crosslink_0.5", "load"; parameterFile = "./parameters/parameters_init_2_2.txt")
 elseif sim == 13
 
     notdone = Int.(readdlm("done_numbers.txt"))

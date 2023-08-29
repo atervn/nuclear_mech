@@ -57,6 +57,8 @@ function import_envelope(enve,importFolder,ipar)
     enve.normalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]./ipar.scalingLength
     enve.normalVolume = readdlm(importFolder*"\\normalVolume.csv")[1]/ipar.scalingLength^3
 
+    enve.envelopeMultipliers = readdlm(importFolder*"\\envelope_multipliers.csv")[:]
+
     return enve
 end
 

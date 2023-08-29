@@ -249,7 +249,7 @@ function subdivide_mesh!(shellStruct,radius,nSubdivisions)
     shellStruct = get_edges(shellStruct);
 
     # for each subdivision
-    for i = 1nSubdivisions
+    for i = 1:nSubdivisions
 
         # subdivide triangles
         shellStruct = subdivide_triangles(shellStruct,radius);

@@ -4,7 +4,7 @@ laminaFriction,500e-5
 laminaBendingStiffness,3e-17
 osmoticPressure,100
 areaCompressionModulus,0.1e3
-bulkModulus,1000
+bulkModulus,5000
 chromatinBendingModulus,3e-19
 chromatinStiffness,16e-4
 ladStrength,16e-4
@@ -35,8 +35,8 @@ replSizeMultiplier,0.1
 maxCrosslinkDistance,0.5e-6
 chromatinFriction,25e-6
 ladFriction,25e-6
-crosslinkFriction,10e-6
-replFriction,2e-5
+crosslinkFriction,0
+replFriction,20e-5
 maxChromosomeOverlap,1e-6
 maxLadDistanceMultiplier,0.3
 minLadVertexDistance,8

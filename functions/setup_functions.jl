@@ -6,7 +6,8 @@ function setup_simulation(
     noChromatin::Bool,
     noEnveSolve::Bool,
     adherent::Bool,
-    maxT::Number)
+    maxT::Number,
+    newEnvelopeMultipliers::Bool)
 
     # read model parameters from file
     ipar = read_parameters(parameterFile);
@@ -19,8 +20,8 @@ function setup_simulation(
     end
 
     # setup the envelope
-    enve = setup_shell(ipar,initType,importFolder)
-    
+    enve = setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
+
     # scale parameters
     spar = get_model_parameters(ipar,enve);
     
@@ -34,7 +35,7 @@ function setup_simulation(
 
 end
 
-function setup_shell(ipar,initType,importFolder)
+function setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
 
     # create new `envelopeType` object
     enve = envelopeType()
@@ -84,7 +85,9 @@ function setup_shell(ipar,initType,importFolder)
     end
 
     # init envelope multipliers
-    enve.envelopeMultilpiers = 10 .^ (ipar.laminaVariabilityMultiplier .* randn(length(enve.edges)));
+    if initType == "new" || newEnvelopeMultipliers
+        enve.envelopeMultipliers = 10 .^ (ipar.laminaVariabilityMultiplier .* randn(length(enve.edges)));
+    end
 
     # set up shell data
     enve = setup_shell_data(enve,initType,"enve")
@@ -768,6 +771,7 @@ function export_normal_values(enve,ex,spar)
     writedlm(".\\results\\"*ex.folderName*"\\normalAngle.csv", [enve.normalAngle],',')
     writedlm(".\\results\\"*ex.folderName*"\\normalLengths.csv", enve.normalLengths.*spar.scalingLength,',')
     writedlm(".\\results\\"*ex.folderName*"\\normalVolume.csv", enve.normalVolume.*spar.scalingLength^3,',')
+    writedlm(".\\results\\"*ex.folderName*"\\envelope_multipliers.csv", enve.envelopeMultipliers,',')
 
 end
 

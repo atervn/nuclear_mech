@@ -332,9 +332,9 @@ function get_crosslinks!(enve, chro, simset, spar)
     end
 
     # update iLU if changes are made
-    if changesDone
-        simset.iLU = ilu(simset.frictionMatrix, τ = spar.iLUCutoff)
-    end
+    # if changesDone
+    #     simset.iLU = ilu(simset.frictionMatrix, τ = spar.iLUCutoff)
+    # end
 
 end
 
@@ -425,6 +425,7 @@ function create_replication_compartment(enve,spar,initType)
     get_voronoi_areas!(repl);
     get_shell_normals!(repl);
     get_area_unit_vectors!(repl);
+    repl.normalVolume = get_volume!(repl);
 
     # calculate the friction matrix for the replication compartment
     repl.frictionMatrix = get_repl_friction_matrix(repl,spar)
@@ -464,8 +465,13 @@ function add_repl_comp_triangles!(repl,spar,simset)
         repl.forces.chromationRepulsion = Vector{Vec{3,Float64}}(undef, length(repl.vert))
         repl.forces.envelopeRepulsion = Vector{Vec{3,Float64}}(undef, length(repl.vert))
 
+
         # set up shell data for the replication compartment
+        
+        volumeTemp = repl.normalVolume
         repl = setup_shell_data(repl,simset.initType,"repl")
+        repl.normalVolume = volumeTemp 
+        
         get_edge_vectors!(repl);
         repl.triangleAreas = get_area!(repl)
 

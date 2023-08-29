@@ -8,7 +8,7 @@ bulkModulus,5000
 chromatinBendingModulus,3e-19
 chromatinStiffness,16e-4
 ladStrength,16e-4
-crosslinkStrength,0
+crosslinkStrength,16e-4
 chromatinNormalAngle,130
 repulsionConstant,10e-4
 repulsionDistance,0.2e-6
@@ -17,14 +17,14 @@ chromatinNumber,46
 chromatinLength,256
 nSubdivisions,4
 temperature,300
-crosslinkingBindingProbability,0.0
-crosslinkingUnbindingProbability,0.
+crosslinkingBindingProbability,0.0002
+crosslinkingUnbindingProbability,0.001
 pullingForce,3e-8
 pipetteRadius,2.5e-6
 aspirationPressure,1000
 iLUCutoff,0.001
 viscosity,10e-6
-dt,0.02
+dt,0.01
 scalingLength,1e-6
 scalingTime,60
 exportStep,100
@@ -51,3 +51,4 @@ replStiffness,15e-5
 replBendingStiffness,3e-17
 outsideRepulsionMultiplier,0.5
 replPressure,100
+laminaVariabilityMultiplier,0.0

@@ -1,4 +1,4 @@
-function get_forces!(enve, chro ,spar, ext, simset)
+function get_forces!(enve::envelopeType, chro::chromatinType ,spar::scaledParametersType, ext, simset::simulationSettingsType)
 
     # calculate the forces on the envelope
     get_envelope_forces!(enve,spar,ext,simset)    
@@ -36,7 +36,7 @@ function get_forces!(enve, chro, repl, spar, ext, simset)
     
 end
 
-function get_forces!(enve, spar, ext, simset)
+function get_forces!(enve::envelopeType, spar::scaledParametersType, ext, simset::simulationSettingsType)
 
     # calculate the forces on the envelope
     get_envelope_forces!(enve,spar,ext,simset)

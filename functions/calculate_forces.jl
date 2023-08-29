@@ -25,10 +25,10 @@ function get_volume_forces!(enve,repl,spar)
     nucleusVolume = get_volume!(enve) - get_volume!(repl);
 
     # if the nucleus is smaller than the normal volume
-    if nucleusVolume < enve.normalVolume
+    if nucleusVolume < enve.normalVolume - repl.normalVolume
 
         # compute the volume pressure based on the difference between nucleus volume and normal volume
-        volPressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));
+        volPressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume - repl.normalVolume));
 
     # otherwise, set to 0
     else
@@ -127,7 +127,7 @@ function get_elastic_forces!(enve, spar)
         if enve.firstEdges[i] == 1
 
             # compute elastic force based on stiffness, edge vector norm difference, and edge unit vector
-            force = enve.envelopeMultilpiers[i]*spar.laminaStiffness*(enve.edgeVectorNorms[i] - enve.normalLengths[i])*enve.edgeUnitVectors[i];
+            force = enve.envelopeMultipliers[i]*spar.laminaStiffness*(enve.edgeVectorNorms[i] - enve.normalLengths[i])*enve.edgeUnitVectors[i];
 
             # update elastic forces for vertices
             enve.forces.elastic[enve.edges[i][1]] += force
