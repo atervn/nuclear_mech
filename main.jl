@@ -22,7 +22,7 @@ include("./functions/import_functions.jl")
 include("./functions/get_forces.jl")
 include("./functions/simulation.jl")
 
-sim = 2
+sim = 7
 
 if sim == 1 # initialize a suspended nucleus
 
@@ -82,7 +82,7 @@ elseif sim == 6
 elseif sim == 7
 
     # simulation("INIT", 1000, "INF_TEST_crosslink_0.5", "load"; importFolder = "2023-08-17_185352_adherent_nucleus_mod_5000_crosslink_0.5", replComp = true)
-    simulation("INIT", 200, "INF_TEST_crosslink_slower_dynamics", "load"; replComp = true)
+    simulation("INIT", 500, "INF_TEST_crosslink_slower_dynamics", "load"; replComp = true, adherentStatic = true)
 
 elseif sim == 10
 

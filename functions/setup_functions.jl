@@ -6,6 +6,7 @@ function setup_simulation(
     noChromatin::Bool,
     noEnveSolve::Bool,
     adherent::Bool,
+    adherentStatic::Bool,
     maxT::Number,
     newEnvelopeMultipliers::Bool)
 
@@ -29,8 +30,12 @@ function setup_simulation(
     chro = setup_chromatin(enve,spar,initType,importFolder,noChromatin)
 
     # setup simulation settings
-    simset,ext = setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,initType,maxT)
+    simset,ext = setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT)
         
+
+    simset.laminaRemodel = "tension_remodeling" 
+
+
     return enve, chro, spar, simset, ext, ipar
 
 end
@@ -712,7 +717,7 @@ function get_repl_friction_matrix(repl,spar)
 
 end
 
-function check_adhesion!(initType,spar,enve,importFolder,simset,adherent)
+function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic)
 
     # check adhesion based on the initialization type and adhesion settings
     if initType == "load"
@@ -759,6 +764,8 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent)
 
     end
 
+    simset.adh.static = adherentStatic;
+
     return simset
 
 end
@@ -775,7 +782,7 @@ function export_normal_values(enve,ex,spar)
 
 end
 
-function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,initType,maxT)
+function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT)
 
     # create a new simulation settings object
     simset = simulationSettingsType()
@@ -796,7 +803,7 @@ function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simTyp
     simset.noChromatin = noChromatin;
 
     # check for adhesion, if necessary
-    simset = check_adhesion!(initType,spar,enve,importFolder,simset,adherent)
+    simset = check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic)
 
     # setup experimental aspiration
     if simType == "MA"

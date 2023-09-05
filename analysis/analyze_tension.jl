@@ -24,7 +24,7 @@ function analyze_tension()
 
     for i = eachindex(temp)
 
-        if allFiles[i][1:4] == "enve"
+        if allFiles[i][1:5] == "enve_"
             temp[i] = 1
         end
 
@@ -39,6 +39,11 @@ function analyze_tension()
 
     means = Vector{Float64}(undef,length(enveFiles))
     stds = Vector{Float64}(undef,length(enveFiles))
+
+    mainIdx = [1, floor(length(means)/3), floor(2*length(means)/3), length(means)]
+    mainTensions = Vector{Vector{Float64}}(undef,4);
+
+    mainIdxTemp = 1;
 
     for i = 1:length(means)
 
@@ -56,6 +61,11 @@ function analyze_tension()
         means[i] = mean(values)
         stds[i] = std(values)
 
+        if any(i .== mainIdx)
+            mainTensions[mainIdxTemp] = values
+            mainIdxTemp += 1
+        end
+
     end
 
 
@@ -66,6 +76,6 @@ function analyze_tension()
     # annotate!(p,[(1,0.48, ("Telomeres: "*string(round(mean(telomereMeans[end-5:end]);digits=3)), 12, :black, :left))])
     # annotate!(p,[(1,0.44, ("Histones: "*string(round(mean(histoneMeans[end-5:end]);digits=3)), 12, :black, :left))])
     
-    return means,stds,p
+    return means,stds,mainTensions,p
 
 end

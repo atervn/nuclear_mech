@@ -248,6 +248,7 @@ Base.@kwdef mutable struct adherensType
     bottomPlane::Float64 = 0
     touchingTop::Vector{Bool} = []
     cellForcesOnPlane::Float64 = 0
+    static::Bool = false
 end
 
 Base.@kwdef mutable struct simulationSettingsType
@@ -264,6 +265,7 @@ Base.@kwdef mutable struct simulationSettingsType
     noChromatin::Bool = true
     iLU::Any = []
     adh = adherensType();
+    laminaRemodel::String = ""
 end
 Base.@kwdef mutable struct virusforcesType
     volume::Vector{Vec{3,Float64}} = []

@@ -1,7 +1,7 @@
 using NativeFileDialog, Plots, DelimitedFiles, ReadVTK, Meshes, LinearAlgebra, ProgressMeter
 
 
-function analyze_volume()
+function analyze_volume_infection()
 
     folder = pick_folder(pwd()*"\\results")
 
@@ -22,8 +22,6 @@ function analyze_volume()
     numOfDigitsInName = sum(.!isempty.([filter(isdigit, collect(s)) for s in files[nucFileIdx[1]]]))
 
     volumes = zeros(Float64,numTimePoints)
-
-    areas = zeros(Float64,numTimePoints)
 
     if isfile(folder*"\\repl_0001.vtu")
         replicationVolumes = zeros(Float64,numTimePoints)
@@ -46,6 +44,7 @@ function analyze_volume()
         timePointNumber = parse(Int64,numString)
         importNumber = lpad(timePointNumber,numOfDigitsInName,"0")
 
+        println(i)
         vtk = VTKFile(folder*"\\enve_" * importNumber * ".vtu")
 
         vert2 = get_points(vtk)
@@ -67,21 +66,12 @@ function analyze_volume()
         end
 
         volumes2 = zeros(length(tri));
-        areas2 = zeros(length(tri));
-
+       
         for j = eachindex(tri)
             volumes2[j] = 1/6*dot(vert[tri[j][1]],cross(vert[tri[j][2]],vert[tri[j][3]]))
-
-            vect1 = vert[tri[j][2]] - vert[tri[j][1]]
-            vect2 = vert[tri[j][3]] - vert[tri[j][1]]
-
-            areas2[j] = 0.5*norm(cross(vect1,vect2))  
-
         end
-
-        
+   
         volumes[i] = sum(volumes2)
-        areas[i] = sum(areas2)
 
         if repl
             
@@ -119,8 +109,9 @@ function analyze_volume()
 
     end
 
+    chromatinVolume = volumes - replicationVolumes;
 
-    p = plot([volumes[1:end-10] areas[1:end-10] replicationVolumes[1:end-10]],layout = grid(2,1), title = ["Volume (µm³)"     "Area (µm²)"],legend = false, linewidth = 5)
+    p = plot([volumes chromatinVolume  replicationVolumes], ylabel = "Volume (µm³)", xlabel = "Time", lw = 3, label = ["Nuclear volume" "Chromatin volume" "VRC volume"],legendfontsize=12)
 
     return replicationVolumes,p
 end

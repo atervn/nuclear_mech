@@ -1,6 +1,6 @@
 using NativeFileDialog, Plots, DelimitedFiles, ReadVTK
 
-function analyze_strain(yMax = 0)
+function analyze_mm_strain(yMax = 0)
 
     folder = pick_folder(pwd()*"\\results")
 

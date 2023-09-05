@@ -9,6 +9,7 @@ function simulation(
     exportData::Bool=true,
     replComp::Bool = false,
     adherent::Bool = false,
+    adherentStatic::Bool = false,
     noEnveSolve::Bool = false,
     noChromatin::Bool = false,
     returnFoldername::Bool = false,
@@ -20,7 +21,7 @@ function simulation(
     end
 
     # setup the simulation environment
-    enve, chro, spar, simset, ext, ipar = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,noEnveSolve,adherent,maxT,newEnvelopeMultipliers)
+    enve, chro, spar, simset, ext, ipar = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers)
 
     if typeof(enve) != envelopeType
         return
@@ -120,6 +121,10 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
 
             # calculate forces
             get_forces!(enve, chro, repl, spar, ext, simset)
+
+            
+            println(mean((enve.edgeVectorNorms .- enve.normalLengths)./enve.normalLengths))
+
 
             # export data
             export_data(enve, chro, repl, spar, ex, ext, intTime, simset)

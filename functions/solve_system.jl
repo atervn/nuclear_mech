@@ -96,6 +96,9 @@ function solve_system!(enve::envelopeType, chro::chromatinType, repl::replicatio
     # update the position of the adherens plane
     move_adherens_plane!(enve,simset,spar)
     
+    # remodel lamina
+    remodel_lamina!(enve,simset,spar)
+
     # perform time stepping based on the maximum movement
     time_stepping!(spar,simset,maxMovement)
 
@@ -225,7 +228,7 @@ end
 function move_adherens_plane!(enve,simset,spar)
 
     # if adherent
-    if simset.adh.adherent
+    if simset.adh.adherent && !simset.adh.static
 
         # calculate the volme forces (pressure) toward the plane (approximatng the nucleus forces)
         cellForcesOnPlane = sum(getindex.(enve.forces.volume[simset.adh.touchingTop],3))
@@ -285,5 +288,20 @@ function move_repl_vertices!(repl,replMovements)
 
     # move the replication compartment vertices
     repl.vert .+= replMovements
+
+end
+
+function remodel_lamina!(enve,simset,spar)
+
+    # if simset.laminaRemodel == "tension_remodeling"
+    #     strains = (enve.edgeVectorNorms .- enve.normalLengths)./enve.normalLengths
+    #     for i = eachindex(enve.edges)
+    #         if strains[i] > 0.2
+    #             enve.envelopeMultipliers[i] -= 0.5*spar.dt.*simset.timeStepMultiplier
+    #         end
+    #     end
+    # elseif simset.laminaRemodel == "strain remodeling"
+
+    # end
 
 end
