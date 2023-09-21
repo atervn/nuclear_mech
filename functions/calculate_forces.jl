@@ -914,3 +914,45 @@ function get_vertex_shell_interaction_shell_force(shell,forceMagnitude,unitVecto
     return forces
 
 end
+
+function get_afm_forces!(enve,ext,spar)
+
+    # initiate the plane repulsion forces
+    for i = eachindex(enve.vert)
+        enve.forces.afmRepulsion[i] = Vec(0.,0.,0.);
+    end
+
+    # initiate the vector collecting the vertices that are in contact with the top plane
+    ext.touchingIdx = zeros(Bool,length(enve.vert))
+
+    # go through the vertices
+    for i = eachindex(enve.vert)
+
+        # check if the vertex is close to the top plane
+        if norm(ext.beadPosition - enve.vert[i]) < 3.31 + spar.repulsionDistance 
+
+            # set the touchingTop to true
+            ext.touchingIdx[i] = true
+
+            # get the unit vector for the interaction
+            unitVector = (enve.vert[i]-ext.beadPosition)/norm(enve.vert[i]-ext.beadPosition)
+
+            # check if the enve vertex is above the top plane
+            if norm(enve.vert[i]-ext.beadPosition) < 3.31
+
+                # calculate the force
+                enve.forces.afmRepulsion[i] = 10*spar.planeRepulsionConstant*unitVector
+
+            # otherwise
+            else
+
+                # calculate the distance from the top plane
+                distance = norm(ext.beadPosition - enve.vert[i]) - 3.31;
+
+                # calculate the force
+                enve.forces.afmRepulsion[i] = 10*spar.repulsionConstant*(spar.repulsionDistance - distance)*unitVector
+            end
+        end
+    end
+
+end

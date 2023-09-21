@@ -7,7 +7,7 @@ function simulation(
     nameDate::Bool=true,
     parameterFile::String="./parameters/parameters.txt",
     exportData::Bool=true,
-    replComp::Bool = false,
+    vrc::Bool = false,
     adherent::Bool = false,
     adherentStatic::Bool = false,
     noEnveSolve::Bool = false,
@@ -36,7 +36,7 @@ function simulation(
     # run the simulation
     if noChromatin
         run_simulation(enve, spar, ex, ext, simset, maxT)
-    elseif replComp
+    elseif vrc
         repl = create_replication_compartment(enve,spar,simset.initType)
         run_simulation(enve, chro, repl, spar, ex, ext, simset, maxT)
     else

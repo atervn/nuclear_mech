@@ -86,6 +86,10 @@ function get_envelope_forces!(enve,spar,ext,simset)
         # calculate micromanipulation forces in micromanipulation (MM) simulation
         get_micromanipulation_forces!(enve,ext[1],spar)
 
+    elseif simset.simType == "AFM"
+       
+        get_afm_forces!(enve,ext,spar)
+
     end
 
 end
@@ -130,6 +134,10 @@ function get_envelope_forces!(enve,repl,spar,ext,simset)
         # calculate micromanipulation forces in micromanipulation (MM) simulation
         get_micromanipulation_forces!(enve,ext[1],spar)
 
+    elseif simset.simType == "AFM"
+       
+        get_afm_forces!(enve,ext,spar)
+
     end
 
 end
@@ -165,6 +173,11 @@ function get_total_envelope_forces!(enve,simset,replStatus)
         # add micromanipulation forces to the total envelope forces in micromanipulation (MM) simulation
         enve.forces.total .+= enve.forces.micromanipulation
    
+    elseif simset.simType == "AFM" 
+
+
+        enve.forces.total .+= enve.forces.afmRepulsion
+
     end
 
     # check the replication compartment status
@@ -219,10 +232,7 @@ function get_repl_forces!(enve,chro,repl,spar)
     
     # calculate replication compartment volume forces
     get_repl_comp_volume_forces!(repl,spar)
-    
-    # calculate replication compartment area forces
-    get_repl_comp_area_forces!(repl,spar)
-    
+        
     # calculate replication compartment bending forces
     get_repl_comp_bending_forces!(repl,spar)
     

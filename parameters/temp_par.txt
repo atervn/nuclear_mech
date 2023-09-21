@@ -4,7 +4,7 @@ laminaFriction,300e-5
 laminaBendingStiffness,3e-17
 osmoticPressure,100
 areaCompressionModulus,0.1e3
-bulkModulus,5000
+bulkModulus,50
 chromatinBendingModulus,3e-19
 chromatinStiffness,30e-4
 ladStrength,16e-4
@@ -23,11 +23,11 @@ pullingForce,3e-8
 pipetteRadius,2.5e-6
 aspirationPressure,1000
 iLUCutoff,0.001
-viscosity,0.1e-6
-dt,0.02
+viscosity,10e-6
+dt,0.1
 scalingLength,1e-6
 scalingTime,60
-exportStep,1
+exportStep,10
 maxMovement,0.2e-6
 minMovement,0.1e-6
 planeForce,20e-9
@@ -39,9 +39,9 @@ crosslinkFriction,0
 replFriction,20e-5
 maxChromosomeOverlap,1e-6
 maxLadDistanceMultiplier,0.3
-minLadVertexDistance,10
-minLadNumber,5
-maxLadNumber,15
+minLadVertexDistance,8
+minLadNumber,8
+maxLadNumber,13
 staticPullingForceMultiplier,10
 ladLength,0.2e-6
 crosslinkLength,0.2e-6

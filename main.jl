@@ -50,7 +50,7 @@ elseif sim == 2 # initialize adherent nucleus
     fileName2 = simulation("INIT" ,1000, "init_P2", "load"; importFolder = fileName1, parameterFile = "./parameters/parameters_init_2.txt", returnFoldername = true)
     
     # relax the whole system
-    simulation("INIT", 100, "adherent_nucleus", "load"; importFolder = fileName2, parameterFile = "./parameters/parameters_init_1.txt")
+    simulation("INIT", 100, "adherent_nucleus_mod_1000", "load"; importFolder = fileName2, parameterFile = "./parameters/parameters_init_1.txt")
     
     # remove the extra results
     rm(".\\results\\"*fileName1; recursive = true)
@@ -77,13 +77,16 @@ elseif sim == 5 # ma simulation
 
 elseif sim == 6
 
-    simulation("INIT", 200  , "adherent_nucleus_mod_5000", "load")
+    simulation("INIT", 100, "adherent_nucleus_mod_1k_op_0", "load")
+    # simulation("AFM", 20  , "afm_test", "load"; importFolder = results)
 
 elseif sim == 7
 
-    # simulation("INIT", 1000, "INF_TEST_crosslink_0.5", "load"; importFolder = "2023-08-17_185352_adherent_nucleus_mod_5000_crosslink_0.5", replComp = true)
-    simulation("INIT", 500, "INF_TEST_crosslink_slower_dynamics", "load"; replComp = true, adherentStatic = true)
+    simulation("INIT", 100, "INF_TEST_crosslink_0.5", "load"; vrc = true)
+    # simulation("INIT", 500, "INF_TEST_crosslink_slower_dynamics", "load"; replComp = true, adherentStatic = true)
+elseif sim == 8
 
+    simulation("AFM", 50  , "afm_test", "load"; adherentStatic = true)
 elseif sim == 10
 
     simulation("INIT",50,"adherent_nucleus","load")

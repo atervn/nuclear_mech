@@ -52,6 +52,18 @@ function export_data(enve::envelopeType,chro::chromatinType,spar::scaledParamete
             # export chromatin data
             export_chromatin_data(enve,chro,spar,ex,exportNumber)
 
+            if simset.simType == "AFM"
+
+                cell = [MeshCell(VTKCellTypes.VTK_VERTEX,[1]),MeshCell(VTKCellTypes.VTK_VERTEX,[2])]
+
+                points = [ext.beadPosition[1] ext.beadPosition[2] ext.beadPosition[3] ; ext.topPosition[1] ext.topPosition[2] ext.topPosition[3]]'
+
+                vtk_grid(".\\results\\"*ex.folderName*"\\afm_" * lpad(exportNumber,4,"0"), points, cell) do vtk
+                    # assign line IDs
+                    vtk["point_id"] = 1:2
+                end
+            end
+
         end
     end
 end
@@ -98,6 +110,18 @@ function export_data(enve,ex,ext,intTime,simset)
             
             # export envelope data
             export_envelope_data(enve,ex,simset,exportNumber)
+
+            if simset.simType == "AFM"
+
+                cell = [MeshCell(VTKCellTypes.VTK_VERTEX,[1]),MeshCell(VTKCellTypes.VTK_VERTEX,[2])]
+
+                points = [ext.beadPosition[1] ext.beadPosition[2] ext.beadPosition[3] ; ext.topPosition[1] ext.topPosition[2] ext.topPosition[3]]'
+
+                vtk_grid(".\\results\\"*ex.folderName*"\\afm_" * lpad(exportNumber,4,"0"), points, cell) do vtk
+                    # assign line IDs
+                    vtk["point_id"] = 1:2
+                end
+            end
         end
     end
 end
@@ -155,7 +179,7 @@ end
 function check_simulation_type(simType)
 
     # check if the given simulation type does not match any of the valid simulation types: "MA", "MM", "INIT"
-    if !any(simType .== ["MA", "MM", "INIT"])
+    if !any(simType .== ["MA", "MM", "INIT", "AFM"])
 
         # print a message indicating that the simulation type is unknown
         printstyled("Unknown simulation type"; color = :blue)
@@ -540,6 +564,7 @@ function export_envelope_data(enve,ex,simset,exportNumber)
         vtk["Bending forces", VTKPointData()] = [getindex.(enve.forces.bending,1) getindex.(enve.forces.bending,2) getindex.(enve.forces.bending,3)]'
         # export LAD forces
         vtk["LAD forces", VTKPointData()] = [getindex.(enve.forces.ladEnveForces,1) getindex.(enve.forces.ladEnveForces,2) getindex.(enve.forces.ladEnveForces,3)]'
+        vtk["AFM forces", VTKPointData()] = [getindex.(enve.forces.afmRepulsion,1) getindex.(enve.forces.afmRepulsion,2) getindex.(enve.forces.afmRepulsion,3)]'
         # export total forces
         vtk["Total forces", VTKPointData()] = [getindex.(enve.forces.total,1) getindex.(enve.forces.total,2) getindex.(enve.forces.total,3)]'
     end

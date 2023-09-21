@@ -5,7 +5,7 @@ using Meshes
 using SparseArrays
 using Dates
 
-export envelopeType, adherensType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType, replicationCompartmentType
+export envelopeType, adherensType, inputParametersType, scaledParametersType, chromatinType, pipetteType, micromanipulationType, exportSettingsType, simulationSettingsType, replicationCompartmentType, afmType
 Base.@kwdef mutable struct envelopeForcesType
     volume::Vector{Vec{3,Float64}} = []
     area::Vector{Vec{3,Float64}} = []
@@ -17,6 +17,7 @@ Base.@kwdef mutable struct envelopeForcesType
     ladEnveForces::Vector{Vec{3,Float64}} = []
     planeRepulsion::Vector{Vec{3,Float64}} = []
     pipetteRepulsion::Vector{Vec{3,Float64}} = []
+    afmRepulsion::Vector{Vec{3,Float64}} = []
     aspiration::Vector{Vec{3,Float64}} = []
     micromanipulation::Vector{Vec{3,Float64}} = []
     total::Vector{Vec{3,Float64}} = []
@@ -228,6 +229,14 @@ Base.@kwdef mutable struct micromanipulationType
     leftmostVertexPosition::Vec{3,Float64} = Vec(0.,0.,0.)
     pipettePosition::Vec{3,Float64} = Vec(0.,0.,0.)
     pipetteMovements::Array{Float64} = []
+end
+
+Base.@kwdef mutable struct afmType
+    beadPosition::Vec{3,Float64} = Vec(0.,0.,0.)
+    topPosition::Vec{3,Float64} = Vec(0.,0.,0.)
+    touchingIdx::Vector{Bool} = []
+    normDistance::Float64 = 0;
+    directionDown::Bool = true
 end
 
 Base.@kwdef mutable struct exportSettingsType

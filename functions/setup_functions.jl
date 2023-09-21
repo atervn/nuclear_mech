@@ -83,6 +83,7 @@ function setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
     enve.forces.micromanipulation = Vector{Vec{3,Float64}}(undef, length(enve.vert))
     enve.forces.planeRepulsion = Vector{Vec{3,Float64}}(undef, length(enve.vert))
     enve.forces.replRepulsion = Vector{Vec{3,Float64}}(undef, length(enve.vert))
+    enve.forces.afmRepulsion = Vector{Vec{3,Float64}}(undef, length(enve.vert))
 
     # initialize the lad forces
     for i = 1:length(enve.vert)
@@ -101,6 +102,25 @@ function setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
     printstyled("Done!\n"; color = :blue)
 
     return enve
+
+end
+
+function setup_repl(initType,enve,spar)
+
+    # initialize a replication compartment
+    repl = replicationCompartmentType()
+
+    # if simulation type is `new`, create new nuclear envelope
+    if initType == "new" # create a new vrc
+
+        create_replication_compartment(enve,spar,initType)
+
+    # if simulation type is `load`, load nuclear envelope from previous simulation
+    elseif initType == "load"
+
+
+
+    end
 
 end
 
@@ -837,6 +857,12 @@ function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simTyp
     # if no experimental effect
     elseif simType == "INIT"
         exp = ()
+    elseif simType == "AFM"
+
+        afm = setup_afm(enve,spar)
+ 
+        exp = (afm)
+
     end
 
     # create a progress bar
@@ -1024,5 +1050,19 @@ function get_pipette_mesh(spar,enve)
     pip.pipetteTree = KDTree(pip.vert)
 
     return pip
+
+end
+
+function setup_afm(enve,spar)
+
+    afm = afmType();
+
+    afm.beadPosition = Vec(0.,0.,maximum(getindex.(enve.vert,3)) + spar.repulsionDistance + 3.31)
+
+    afm.topPosition = afm.beadPosition + Vec(1e-6,1e-6,10.);
+
+    afm.normDistance = norm(afm.topPosition - afm.beadPosition);
+
+    return afm
 
 end

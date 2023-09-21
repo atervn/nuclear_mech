@@ -4,7 +4,7 @@ laminaFriction,500e-5
 laminaBendingStiffness,3e-17
 osmoticPressure,100
 areaCompressionModulus,0.1e3
-bulkModulus,5000
+bulkModulus,1000
 chromatinBendingModulus,3e-19
 chromatinStiffness,16e-4
 ladStrength,16e-4

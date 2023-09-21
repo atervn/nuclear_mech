@@ -40,6 +40,8 @@ function solve_system!(enve::envelopeType, chro::chromatinType, spar::scaledPara
     # move the micromanipulator
     move_micromanipulator!(ext, spar, simset, intTime)
 
+    move_afm!(enve,ext,spar,simset)
+
 end
 
 # REPLICATION COMPARTMENT
@@ -148,6 +150,7 @@ function solve_system!(enve, spar,simset,ext,intTime)
     # move the micromanipulator
     move_micromanipulator!(ext, spar, simset, intTime)
 
+    move_afm!(enve,ext,spar,simset)
 end
 
 function run_cg!(spar,simset,frictionMatrix,iLU,forcesX,forcesY,forcesZ)
@@ -303,5 +306,43 @@ function remodel_lamina!(enve,simset,spar)
     # elseif simset.laminaRemodel == "strain remodeling"
 
     # end
+
+end
+
+function move_afm!(enve,ext,spar,simset)
+
+    if simset.simType == "AFM"
+
+        forces = getindex.(enve.forces.total[ext.touchingIdx],3) - getindex.(enve.forces.afmRepulsion[ext.touchingIdx],3)
+
+        forces = forces[findall(forces .> 0)]
+
+        enveForcesOnBead = sum(forces)
+
+        cantilevelSpeed = 60;
+
+        friction = 0.003/spar.viscosity;
+
+        distance = norm(ext.topPosition - ext.beadPosition);
+
+        springConstant = 0.05/spar.viscosity*spar.scalingTime;
+
+        cantileverForce = springConstant*(distance - ext.normDistance)
+
+        if !ext.directionDown
+            ext.topPosition = ext.topPosition + Vec(0.,0.,cantilevelSpeed*spar.dt*simset.timeStepMultiplier)
+        elseif abs(cantileverForce) < 2e-9/spar.viscosity/spar.scalingLength*spar.scalingTime && ext.directionDown
+            ext.topPosition = ext.topPosition - Vec(0.,0.,cantilevelSpeed*spar.dt*simset.timeStepMultiplier)
+        else
+            ext.directionDown = false
+        end
+
+        forceOnBead = enveForcesOnBead + cantileverForce;
+
+        beadSpeed = (-friction*cantilevelSpeed + forceOnBead)./(1+friction)
+
+        ext.beadPosition = ext.beadPosition + Vec(0.,0.,spar.dt*simset.timeStepMultiplier*beadSpeed);
+        
+    end
 
 end
