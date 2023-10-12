@@ -1,7 +1,7 @@
-function import_envelope(enve,importFolder,ipar)
+function import_envelope(enve,importFolder,importTime,ipar)
 
     # get the import number
-    importNumber = get_import_number(importFolder)
+    importNumber = get_import_number(importFolder,importTime)
     
     # get the import name
     importName = "enve_"*importNumber
@@ -62,10 +62,10 @@ function import_envelope(enve,importFolder,ipar)
     return enve
 end
 
-function import_chromatin(chro,spar,importFolder)
+function import_chromatin(chro,spar,importFolder,importTime)
 
     # get the import number from the importFolder
-    importNumber = get_import_number(importFolder)
+    importNumber = get_import_number(importFolder,importTime)
 
     # load the VTK file
     vtk = VTKFile(importFolder*"\\chro_"*importNumber*".vtp")
@@ -128,10 +128,10 @@ function import_lads(enve,chro,spar,importFolder)
 
 end
 
-function import_crosslinks(chro,spar,importFolder)
+function import_crosslinks(chro,spar,importFolder,importTime)
 
     # get the import number from the importFolder
-    importNumber = get_import_number(importFolder)
+    importNumber = get_import_number(importFolder,importTime)
 
     # initialize the crosslinks vector
     chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
@@ -187,7 +187,7 @@ function get_import_folder(initType,importFolder)
 
 end
 
-function get_import_number(importFolder)
+function get_import_number(importFolder,importTime)
 
     # get all the files in the import folder
     files = readdir(importFolder)
@@ -224,8 +224,70 @@ function get_import_number(importFolder)
     end
 
     # get the maximum time point number
-    maxTimePointNumber = maximum(timePointNumbers)
+    if importTime == 0
+        timePointNumber = maximum(timePointNumbers)
+    else
+        timePointNumber = importTime
+    end
 
-    return lpad(maxTimePointNumber,numOfDigitsInName,"0")
+    return lpad(timePointNumber,numOfDigitsInName,"0")
+
+end
+
+function import_replication_compartment(repl,spar,importFolder,importTime)
+
+     # get the import number
+     importNumber = get_import_number(importFolder,importTime)
+    
+     # get the import name
+     importName = "repl_"*importNumber
+ 
+     # load a VTK file object
+     vtk = VTKFile(importFolder*"\\"*importName*".vtu")
+ 
+     # get the points
+     vert = get_points(vtk)
+ 
+     # create a new array to store the vertices
+     repl.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+ 
+     # iterate over the vertices
+     for i = eachindex(vert[1,:])
+ 
+         # set the vertex coordinates
+         repl.vert[i] = Vec(vert[1,i],vert[2,i],vert[3,i])
+ 
+     end
+ 
+     # get the cells
+     VTKCelldata = get_cells(vtk)
+ 
+     # get the connectivity
+     tri = VTKCelldata.connectivity
+ 
+     # convert data to the required format
+     tri = reshape(tri,(3,:))
+     tri = tri' .+ 1
+ 
+     # create a new array to store the triangles
+     repl.tri = Vector{Vector{Int64}}(undef,size(tri,1))
+ 
+     # iterate over the triangles
+     for i = eachindex(tri[:,1])
+ 
+         # set the triangle vertices
+         repl.tri[i] = tri[i,:]
+ 
+     end
+ 
+     # get the edges
+     repl = get_edges(repl)
+ 
+     # get the vertex triangles
+     repl = get_vertex_triangles(repl)
+    
+     repl.initVolume = readdlm(importFolder*"\\replInitVolume.csv")[1]/spar.scalingLength^3
+
+     return repl
 
 end

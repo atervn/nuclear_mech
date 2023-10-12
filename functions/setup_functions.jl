@@ -2,16 +2,20 @@ function setup_simulation(
     initType::String,
     simType::String,
     importFolder::String,
-    parameterFile::String,
+    parameterFiles::Tuple,
     noChromatin::Bool,
     noEnveSolve::Bool,
     adherent::Bool,
     adherentStatic::Bool,
     maxT::Number,
-    newEnvelopeMultipliers::Bool)
+    newEnvelopeMultipliers::Bool,
+    importTime::Int,
+    newTargetVolume::Float64)
 
     # read model parameters from file
-    ipar = read_parameters(parameterFile);
+    ipar = read_parameters(parameterFiles);
+
+    check_export_number(ipar,maxT,parameterFiles)
 
     # get import folder
     importFolder = get_import_folder(initType,importFolder)
@@ -21,26 +25,36 @@ function setup_simulation(
     end
 
     # setup the envelope
-    enve = setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
+    enve = setup_envelope(ipar,initType,importFolder,importTime,newEnvelopeMultipliers)
+
 
     # scale parameters
     spar = get_model_parameters(ipar,enve);
     
     # setup chromatin
-    chro = setup_chromatin(enve,spar,initType,importFolder,noChromatin)
+    chro = setup_chromatin(enve,spar,initType,importFolder,importTime,noChromatin)
 
     # setup simulation settings
-    simset,ext = setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT)
-        
+    simset,ext = setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime)
+      
+    if newTargetVolume != 0
+
+        enve.normalVolume = newTargetVolume / ipar.scalingLength^3
+
+        spar.areaCompressionStiffness = 0
+
+        simset.newVolumeSimulation = true
+
+    end
 
     simset.laminaRemodel = "tension_remodeling" 
 
 
-    return enve, chro, spar, simset, ext, ipar
+    return enve, chro, spar, simset, ext, ipar, importFolder
 
 end
 
-function setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
+function setup_envelope(ipar,initType,importFolder,importTime,newEnvelopeMultipliers)
 
     # create new `envelopeType` object
     enve = envelopeType()
@@ -67,7 +81,7 @@ function setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
         printstyled("Loading nuclear envelope..."; color = :blue)
 
         # load nuclear envelope from specified import folder
-        enve = import_envelope(enve,importFolder,ipar)
+        enve = import_envelope(enve,importFolder,importTime,ipar)
     end
 
     # init forces on envelope
@@ -98,6 +112,36 @@ function setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
     # set up shell data
     enve = setup_shell_data(enve,initType,"enve")
 
+
+    if cmp(initType,"load") == 0 && isfile(importFolder*"\\new_volume.txt")
+
+        oldAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]
+        
+        currentAreas = get_area!(enve)
+
+        for i = 1:length(enve.edges)
+
+            cA = currentAreas[enve.edgesTri[i]]
+            oA = oldAreas[enve.edgesTri[i]]./ipar.scalingLength^2
+
+            enve.normalLengths[i] *= sqrt(mean(cA./oA))
+
+        end
+                        
+        # oldLength = mean(oldLengths)/ipar.scalingLength
+
+        # newLength = mean(enve.edgeVectorNorms)
+
+        # temp = newLength/oldLength
+
+        # enve.normalLengths .*= temp
+
+
+        oldNormalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]
+
+    end
+
+
     # print message to console
     printstyled("Done!\n"; color = :blue)
 
@@ -105,22 +149,80 @@ function setup_envelope(ipar,initType,importFolder,newEnvelopeMultipliers)
 
 end
 
-function setup_repl(initType,enve,spar)
+function setup_repl(initType,enve,spar,ex,importFolder,importTime)
 
     # initialize a replication compartment
     repl = replicationCompartmentType()
 
-    # if simulation type is `new`, create new nuclear envelope
-    if initType == "new" # create a new vrc
-
-        create_replication_compartment(enve,spar,initType)
-
-    # if simulation type is `load`, load nuclear envelope from previous simulation
+    replInitType = ""
+    if initType == "new"
+        replInitType = "new"
     elseif initType == "load"
 
+        if isfile(importFolder*"\\inf.txt")
+            replInitType = "load"
+        else
+            replInitType = "new"
+        end
+    end
 
+    # if simulation type is `new`, create new nuclear envelope
+    if replInitType == "new" # create a new vrc
+
+        repl = create_replication_compartment(repl,enve,spar)
+
+        repl.initVolume = get_volume!(repl);
+
+    # if simulation type is `load`, load nuclear envelope from previous simulation
+    elseif replInitType == "load"
+
+        repl = import_replication_compartment(repl,spar,importFolder,importTime)
 
     end
+
+    # initialize various force vectors for each vertex in the replication compartment
+    repl.forces.volume = Vector{Vec{3,Float64}}(undef, length(repl.vert))
+    repl.forces.area = Vector{Vec{3,Float64}}(undef, length(repl.vert))
+    repl.forces.bending = Vector{Vec{3,Float64}}(undef, length(repl.vert))
+    repl.forces.elastic = Vector{Vec{3,Float64}}(undef, length(repl.vert))
+    repl.forces.chromationRepulsion = Vector{Vec{3,Float64}}(undef, length(repl.vert))
+    repl.forces.envelopeRepulsion = Vector{Vec{3,Float64}}(undef, length(repl.vert))
+
+    
+    tempVolume = repl.initVolume;
+
+    # set up shell data for the replication compartment
+    repl = setup_shell_data(repl,initType,"repl")
+
+    repl.initVolume = tempVolume;
+
+    # calculate various properties and vectors for the replication compartment
+    get_edge_vectors!(repl);
+    repl.triangleAreas = get_area!(repl)
+    get_voronoi_areas!(repl);
+    get_shell_normals!(repl);
+    get_area_unit_vectors!(repl);
+
+    # calculate the friction matrix for the replication compartment
+    repl.frictionMatrix = get_repl_friction_matrix(repl,spar)
+    
+    # perform iLU (incomplete LU) factorization of the friction matrix with a specified cutoff value
+    repl.iLU = ilu(repl.frictionMatrix, τ = spar.iLUCutoff)
+
+    # calculate various properties and vectors for the envelope
+    get_edge_vectors!(enve);
+    enve.triangleAreas = get_area!(enve)
+    repl.baseArea = mean(enve.triangleAreas)
+    repl.normalVolume = get_volume!(repl)
+
+    # export normal volume (initial volume)
+    writedlm(".\\results\\"*ex.folderName*"\\replInitVolume.csv", repl.normalVolume.*spar.scalingLength^3,',')
+
+    open(".\\results\\"*ex.folderName*"\\inf.txt", "w") do file
+        write(file, "infected")
+    end
+
+    return repl
 
 end
 
@@ -186,7 +288,7 @@ function setup_shell_data(shellStruct,initType,shellType)
 
 end
 
-function setup_chromatin(enve,spar,initType,importFolder,noChromatin)
+function setup_chromatin(enve,spar,initType,importFolder,importTime,noChromatin)
 
     # init new chromatin object
     chro = chromatinType()
@@ -196,7 +298,7 @@ function setup_chromatin(enve,spar,initType,importFolder,noChromatin)
 
         # if `initType` is "load", check if the chromatin file exists. If it does not exist, create a new chromatin
         if initType == "load"
-            importNumber = get_import_number(importFolder)
+            importNumber = get_import_number(importFolder,importTime)
             if !isfile(importFolder *"/chro_"*importNumber*".vtp")
                 createNew = true
             else
@@ -219,30 +321,31 @@ function setup_chromatin(enve,spar,initType,importFolder,noChromatin)
             # create all chromosomes
             chro = create_all_chromsomes(enve,chro,spar,enve.vert[ladCenterIdx])
 
+            println("b4")
             # get chromatin lad vertices
             chro = get_lad_chro_vertices(enve,chro,spar)
-
+            println("b5")
             # init crosslinks array
             chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
-
+            println("b6")
             # set the crosslink state of all lad vertices to -1 (unable to crosslink)
             for i = 1:spar.chromatinNumber
                 chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
             end
-
+            println("b7")
         elseif cmp(initType,"load") == 0
 
             # print a message to console
             printstyled("Loading chromatin..."; color = :blue)
 
             # load chromatin object from file
-            chro = import_chromatin(chro,spar,importFolder)
+            chro = import_chromatin(chro,spar,importFolder,importTime)
 
             # import lads from file
             enve,chro = import_lads(enve,chro,spar,importFolder,)
 
             # import crosslinks from file
-            chro = import_crosslinks(chro,spar,importFolder)
+            chro = import_crosslinks(chro,spar,importFolder,importTime)
 
         end
 
@@ -302,7 +405,7 @@ function setup_micromanipulation(enve,spar)
 
 end
 
-function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool,ipar)
+function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool,ipar,newTargetVolume,importFolder)
 
     # init object
     ex = exportSettingsType()
@@ -393,6 +496,24 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
             end
         end
         
+        if newTargetVolume != 0
+
+            oldNormalArea = readdlm(importFolder*"\\normalArea.csv")[1]
+            oldNormalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]
+            oldNormalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]
+            oldNormalVolume = readdlm(importFolder*"\\normalVolume.csv")[1]
+
+            writedlm(".\\results\\"*ex.folderName*"\\oldNormalArea.csv", [oldNormalArea],',')
+            writedlm(".\\results\\"*ex.folderName*"\\oldNormalTriangleAreas.csv", oldNormalTriangleAreas,',')
+            writedlm(".\\results\\"*ex.folderName*"\\oldNormalLengths.csv", oldNormalLengths,',')
+            writedlm(".\\results\\"*ex.folderName*"\\oldNormalVolume.csv", oldNormalVolume,',')
+            
+
+            open(".\\results\\"*ex.folderName*"\\new_volume.txt", "w") do file
+                write(file, "true")
+            end
+        end
+
         ex.step = spar.exportStep
     end
     
@@ -529,33 +650,36 @@ function get_friction_matrix(enve,chro,spar,noChromatin)
 
 end
 
-function read_parameters(filePath)
+function read_parameters(parameterFiles)
 
     # create a new inputParametersType object
     ipar = inputParametersType();
 
-    # open the file
-    f = open(filePath)
+    for i = 1:length(parameterFiles)
 
-    # loop over the lines in the file
-    while !eof(f)
+        # open the file
+        f = open(parameterFiles[i])
 
-        # split the line into a list of strings
-        line = split(readline(f), ',')
+        # loop over the lines in the file
+        while !eof(f)
 
-        # get the name of the parameter
-        name = Symbol(line[1])
+            # split the line into a list of strings
+            line = split(readline(f), ',')
 
-        # get the value of the parameter
-        value = parse(Float64, line[2])
+            # get the name of the parameter
+            name = Symbol(line[1])
+            println(line[1])
+            println(line[2])
+            # get the value of the parameter
+            value = parse(Float64, line[2])
 
-        # set the property of the ipar object with the given name to the given value
-        setproperty!(ipar, name, value)
+            # set the property of the ipar object with the given name to the given value
+            setproperty!(ipar, name, value)
+        end
+
+        # close the file
+        close(f)
     end
-
-    # close the file
-    close(f)
-
     return ipar
 end
 
@@ -718,6 +842,18 @@ function get_model_parameters(ipar,enve)
 
     spar.laminaVariabilityMultiplier = ipar.laminaVariabilityMultiplier
 
+    spar.replBulkModulus = ipar.replBulkModulus / ipar.viscosity * ipar.scalingTime * ipar.scalingLength
+
+    spar.cantileverSpeed = ipar.cantileverSpeed / ipar.scalingLength * ipar.scalingTime 
+
+    spar.cantileverFriction = ipar.cantileverFriction / ipar.viscosity
+
+    spar.cantileverSpring = ipar.cantileverSpring / spar.viscosity * spar.scalingTime
+
+    spar.cantileverMaxForce = ipar.cantileverMaxForce / spar.viscosity / spar.scalingLength *  spar.scalingTime
+
+    spar.nucleusHeight = ipar.nucleusHeight / ipar.scalingLength
+
     return spar
 
 end
@@ -737,7 +873,7 @@ function get_repl_friction_matrix(repl,spar)
 
 end
 
-function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic)
+function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic,importTime)
 
     # check adhesion based on the initialization type and adhesion settings
     if initType == "load"
@@ -756,7 +892,7 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
             simset.adh.adherent = true
 
             # get import file number
-            importNumber = get_import_number(folderTemp)
+            importNumber = get_import_number(folderTemp,importTime)
 
             # load the plane date
             planes = DataFrame(CSV.File(folderTemp*"\\planes_"*importNumber*".csv"))
@@ -767,6 +903,19 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
 
             # initialize touching vector
             simset.adh.touchingTop = zeros(Bool,length(enve.vert))
+
+        elseif adherent
+
+            # adherent to true
+            simset.adh.adherent = true
+
+            # define top and bottom planes
+            simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - 20
+            simset.adh.bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance
+
+            # initialize touching vector
+            simset.adh.touchingTop = zeros(Bool,length(enve.vert))
+
         end
 
     # if new simulation is adherent
@@ -802,7 +951,7 @@ function export_normal_values(enve,ex,spar)
 
 end
 
-function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT)
+function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime)
 
     # create a new simulation settings object
     simset = simulationSettingsType()
@@ -823,7 +972,7 @@ function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simTyp
     simset.noChromatin = noChromatin;
 
     # check for adhesion, if necessary
-    simset = check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic)
+    simset = check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic,importTime)
 
     # setup experimental aspiration
     if simType == "MA"
@@ -1065,4 +1214,33 @@ function setup_afm(enve,spar)
 
     return afm
 
+end
+
+function get_parameter_files(simType,nuclearMechPars,nuclearPropPars,expPars,simPars,sysPars,replPars)
+
+    if simPars == "./parameters/simulation_parameters.txt"
+
+        if simType == "MM"
+            simPars = "./parameters/simulation_parameters_mm.txt"
+        elseif simType == "MA"
+            simPars = "./parameters/simulation_parameters_ma.txt"
+        elseif simType == "AFM"
+            simPars = "./parameters/simulation_parameters_afm.txt"
+        end
+
+    end
+
+    return (nuclearMechPars,nuclearPropPars,expPars,simPars,sysPars,replPars)
+
+end
+
+function check_export_number(ipar,maxT,parameterFiles)
+
+    nExports = (round(maxT/ipar.dt)+1)/ipar.exportStep
+
+    if nExports > 1000
+        
+        println("There are $nExports exported time points in the simulation. The export step can be changed in file \""*parameterFiles[4]* "\".")
+
+    end
 end

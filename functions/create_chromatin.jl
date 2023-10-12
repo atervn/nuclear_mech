@@ -59,6 +59,9 @@ function create_all_chromsomes(enve,chro,spar,ladCenterIdx)
                 reDoAllCounter += 1
                 break
             end
+
+            println(k)
+
         end
         
         # if chromatin creating has failed, return false
@@ -67,10 +70,15 @@ function create_all_chromsomes(enve,chro,spar,ladCenterIdx)
         elseif !reDoAll
             break
         end
+        println("böb1")
     end
+
+    println("böb2")
 
     chro = initialize_chromatin_properties(chro,spar)
 
+    println("böb3")
+    
     return chro
 
 end
@@ -128,7 +136,7 @@ function get_first_vertex(enve, chro, spar, startInd, ladCenterIdx, limits, enve
 
         # check if the vertex is too close to any existing vertices
         for j = 1:startInd-1
-            if norm(vertex - chro.vert[j]) < spar.repulsionDistance
+            if norm(vertex - chro.vert[j]) < spar.repulsionDistance*0.5
                 reDoStart = true
                 break
             end
@@ -178,7 +186,7 @@ function get_other_vertices(enve, chro, spar, vert, startInd, currentInd, ladCen
 
         # check if the new vertex is too close to any other vertices (in other chromatins)
         for j = 1:startInd-1
-            if norm(newPoint - chro.vert[j]) < spar.repulsionDistance
+            if norm(newPoint - chro.vert[j]) < spar.repulsionDistance*0.5
                 reDoVert = true
                 break
             end
@@ -188,7 +196,7 @@ function get_other_vertices(enve, chro, spar, vert, startInd, currentInd, ladCen
         if !reDoVert
             # check if the new vertex is too close to any other vertices (in the same chromatin)
             for j = 1:currentInd-1
-                if norm(newPoint - vert[j]) < spar.repulsionDistance
+                if norm(newPoint - vert[j]) < spar.repulsionDistance*0.5
                     reDoVert = true
                     break
                 end
@@ -284,7 +292,7 @@ function check_if_outside_envelope(enve,envelopeTree,vertex,spar)
         return true
 
     # otherwise, if the vertex is farther than repulsion distance, return false (not outside)
-    elseif closePointDistance < spar.repulsionDistance
+    elseif closePointDistance < spar.repulsionDistance*0.5
         return true
 
     # otherwise return true (outside or too close)

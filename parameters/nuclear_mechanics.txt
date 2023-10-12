@@ -1,0 +1,15 @@
+laminaStiffness,16e-4
+laminaFriction,100e-5
+laminaBendingStiffness,10e-17
+osmoticPressure,0
+areaCompressionModulus,0.1e3
+bulkModulus,100
+chromatinBendingModulus,500e-19
+chromatinStiffness,30e-4
+ladStrength,30e-4
+crosslinkStrength,30e-4
+chromatinFriction,10e-6
+ladFriction,25e-6
+crosslinkFriction,0
+repulsionConstant,30e-4
+laminaVariabilityMultiplier,0.0

@@ -228,13 +228,13 @@ end
 function get_repl_forces!(enve,chro,repl,spar)
     
     # calculate replication compartment elastic forces
-    get_repl_comp_elastic_forces!(repl,spar)
+    get_repl_elastic_forces!(repl,spar)
     
     # calculate replication compartment volume forces
-    get_repl_comp_volume_forces!(repl,spar)
+    get_repl_volume_forces!(repl,spar)
         
     # calculate replication compartment bending forces
-    get_repl_comp_bending_forces!(repl,spar)
+    get_repl_bending_forces!(repl,spar)
     
     # calculate replication compartment envelope repulsion forces
     get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
@@ -247,6 +247,6 @@ end
 function get_total_repl_forces!(repl)
 
     # calculate the total forces within the replication compartment
-    repl.forces.total = repl.forces.elastic .+ repl.forces.volume .+ repl.forces.area .+ repl.forces.bending .+ repl.forces.chromationRepulsion .+ repl.forces.envelopeRepulsion;
+    repl.forces.total = repl.forces.elastic .+ repl.forces.volume .+ repl.forces.bending .+ repl.forces.chromationRepulsion .+ repl.forces.envelopeRepulsion;
 
 end

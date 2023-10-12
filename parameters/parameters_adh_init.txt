@@ -52,3 +52,4 @@ replBendingStiffness,3e-17
 outsideRepulsionMultiplier,0.5
 replPressure,100
 laminaVariabilityMultiplier,0.0
+replBulkModulus,100

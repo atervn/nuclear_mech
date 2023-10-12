@@ -5,7 +5,12 @@ function simulation(
     initState::String;
     importFolder::String="",
     nameDate::Bool=true,
-    parameterFile::String="./parameters/parameters.txt",
+    nuclearMechPars::String="./parameters/nuclear_mechanics.txt",
+    nuclearPropPars::String="./parameters/nuclear_properties.txt",
+    expPars::String="./parameters/experiment_parameters.txt",
+    simPars::String="./parameters/simulation_parameters.txt",
+    sysPars::String="./parameters/system_parameters.txt",
+    replPars::String="./parameters/replication_compartment_mechanics.txt",
     exportData::Bool=true,
     vrc::Bool = false,
     adherent::Bool = false,
@@ -13,7 +18,12 @@ function simulation(
     noEnveSolve::Bool = false,
     noChromatin::Bool = false,
     returnFoldername::Bool = false,
-    newEnvelopeMultipliers = false)
+    newEnvelopeMultipliers::Bool = false,
+    importTime::Int = 0,
+    newTargetVolume::Float64 = 0.0)
+
+
+    parameterFiles = get_parameter_files(simType,nuclearMechPars,nuclearPropPars,expPars,simPars,sysPars,replPars)
 
     # check if the simulation type is valid. If not, return
     if check_simulation_type(simType)
@@ -21,14 +31,14 @@ function simulation(
     end
 
     # setup the simulation environment
-    enve, chro, spar, simset, ext, ipar = setup_simulation(initState, simType, importFolder, parameterFile,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers)
+    enve, chro, spar, simset, ext, ipar, importFolder = setup_simulation(initState, simType, importFolder, parameterFiles,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers,importTime,newTargetVolume)
 
     if typeof(enve) != envelopeType
         return
     end
 
     # setup the export settings
-    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin,ipar)
+    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin,ipar,newTargetVolume,importFolder)
     
     # print a message to indicate that the simulation is starting
     printstyled("Starting simulation (" * Dates.format(now(), "YYYY-mm-dd HH:MM") * ")\n"; color=:blue)
@@ -37,7 +47,7 @@ function simulation(
     if noChromatin
         run_simulation(enve, spar, ex, ext, simset, maxT)
     elseif vrc
-        repl = create_replication_compartment(enve,spar,simset.initType)
+        repl = setup_repl(initState,enve,spar,ex,importFolder,importTime)
         run_simulation(enve, chro, repl, spar, ex, ext, simset, maxT)
     else
         run_simulation(enve, chro, spar, ex, ext, simset, maxT)
@@ -80,6 +90,8 @@ function run_simulation(enve, chro, spar, ex, ext, simset, maxT)
             # solve the system
             solve_system!(enve, chro, spar, simset, ext, intTime)
 
+            enve.normalVolume += spar.dt*simset.timeStepMultiplier*10
+
             # update the time step
             intTime = progress_time!(simset,intTime);
 
@@ -121,10 +133,6 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
 
             # calculate forces
             get_forces!(enve, chro, repl, spar, ext, simset)
-
-            
-            println(mean((enve.edgeVectorNorms .- enve.normalLengths)./enve.normalLengths))
-
 
             # export data
             export_data(enve, chro, repl, spar, ex, ext, intTime, simset)

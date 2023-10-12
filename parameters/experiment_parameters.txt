@@ -1,0 +1,8 @@
+pullingForce,3e-8
+staticPullingForceMultiplier,10
+pipetteRadius,2.5e-6
+aspirationPressure,1000
+cantileverSpeed,1e-6
+cantileverFriction,0.001
+cantileverSpring,0.05
+cantileverMaxForce,2e-9

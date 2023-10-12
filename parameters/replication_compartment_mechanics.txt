@@ -1,0 +1,5 @@
+replFriction,20e-5
+replBulkModulus,10
+replPressure,0
+replStiffness,15e-5
+replBendingStiffness,3e-17

@@ -58,9 +58,17 @@ function export_data(enve::envelopeType,chro::chromatinType,spar::scaledParamete
 
                 points = [ext.beadPosition[1] ext.beadPosition[2] ext.beadPosition[3] ; ext.topPosition[1] ext.topPosition[2] ext.topPosition[3]]'
 
+                distance = norm(ext.topPosition - ext.beadPosition);
+
+                springConstant = 0.05/spar.viscosity*spar.scalingTime;
+
+                cantileverForce = -springConstant*(distance - ext.normDistance)
+
                 vtk_grid(".\\results\\"*ex.folderName*"\\afm_" * lpad(exportNumber,4,"0"), points, cell) do vtk
                     # assign line IDs
                     vtk["point_id"] = 1:2
+                    vtk["Force on bead"] = [ext.forceOnBead, ext.forceOnBead]
+                    vtk["Spring force"] = [cantileverForce, cantileverForce]
                 end
             end
 
@@ -90,6 +98,18 @@ function export_data(enve,chro,repl,spar,ex,ext,intTime,simset)
 
             # export replication compartment data
             export_replication_compartment_data(repl,ex,exportNumber)
+
+            if simset.simType == "AFM"
+
+                cell = [MeshCell(VTKCellTypes.VTK_VERTEX,[1]),MeshCell(VTKCellTypes.VTK_VERTEX,[2])]
+
+                points = [ext.beadPosition[1] ext.beadPosition[2] ext.beadPosition[3] ; ext.topPosition[1] ext.topPosition[2] ext.topPosition[3]]'
+
+                vtk_grid(".\\results\\"*ex.folderName*"\\afm_" * lpad(exportNumber,4,"0"), points, cell) do vtk
+                    # assign line IDs
+                    vtk["point_id"] = 1:2
+                end
+            end
 
         end
     end
@@ -192,78 +212,6 @@ function check_simulation_type(simType)
     return false
 end
 
-# function get_crosslinks!(enve, chro, simset,spar)
-
-#     constant = 0.001;
-
-#     changesDone = false
-
-#     # remove crosslinks
-#     nLinked = length(chro.crosslinks)
-#     probs = rand(nLinked)
-#     for i = nLinked:-1:1
-
-#         if probs[i] < spar.crosslinkingUnbindingProbability*spar.dt*simset.timeStepMultiplier
-
-#             chro.crosslinked[chro.crosslinks[i][1]] = 0
-#             chro.crosslinked[chro.crosslinks[i][2]] = 0
-
-#             simset.frictionMatrix[length(enve.vert) + chro.crosslinks[i][1], length(enve.vert) + chro.crosslinks[i][2]] = 0
-#             simset.frictionMatrix[length(enve.vert) + chro.crosslinks[i][2], length(enve.vert) + chro.crosslinks[i][1]] = 0
-#             simset.frictionMatrix[length(enve.vert) + chro.crosslinks[i][1], length(enve.vert) + chro.crosslinks[i][1]] -= spar.laminaFriction*constant
-#             simset.frictionMatrix[length(enve.vert) + chro.crosslinks[i][2], length(enve.vert) + chro.crosslinks[i][2]] -= spar.laminaFriction*constant
-
-#             chro.crosslinks = chro.crosslinks[1:end .!= i]
-
-#             changesDone = true
-
-#         end
-#     end
-
-#     dropzeros!(simset.frictionMatrix)
-
-#     # form crosslinks
-#     notCrosslinked = findall(chro.crosslinked .== 0)
-
-#     closestVerts = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
-#     possiblyLinking =  zeros(Bool,spar.chromatinLength*spar.chromatinNumber)
-#     for i = notCrosslinked
-#         closest,distance = knn(simset.chromatinTree, chro.vert[i],1,true,j -> any(j .== chro.neighbors[i]))
-#         if length(distance) > 0
-#             if distance[1] <= 0.5
-#                 closestVerts[i] = closest[1]
-#                 possiblyLinking[i] = true
-#             end
-#         end
-#     end
-    
-#     possibleLinkingIdx = findall(possiblyLinking)
-    
-#     for i = possibleLinkingIdx
-
-#         if chro.crosslinked[i] == 0 && chro.crosslinked[closestVerts[i]] == 0
-
-#             if rand() < spar.crosslinkingBindingProbability*spar.dt*simset.timeStepMultiplier
-
-#                 push!(chro.crosslinks, [i, closestVerts[i]])
-#                 chro.crosslinked[i] = 1
-#                 chro.crosslinked[closestVerts[i]] = 1
-
-#                 simset.frictionMatrix[length(enve.vert) + i, length(enve.vert) + closestVerts[i]] -= spar.laminaFriction*constant
-#                 simset.frictionMatrix[length(enve.vert) + closestVerts[i], length(enve.vert) + i] -= spar.laminaFriction*constant
-#                 simset.frictionMatrix[length(enve.vert) + i, length(enve.vert) + i] += spar.laminaFriction*constant
-#                 simset.frictionMatrix[length(enve.vert) + closestVerts[i], length(enve.vert) + closestVerts[i]] += spar.laminaFriction*constant
-
-#                 changesDone = true
-#             end
-#         end
-#     end
-
-#     if changesDone
-#         simset.iLU = ilu(simset.frictionMatrix, τ = spar.iLUCutoff)
-#     end
-
-# end
 
 function get_crosslinks!(enve, chro, simset, spar)
 
@@ -406,10 +354,7 @@ function post_export(ex,simset,ext)
     end
 end
 
-function create_replication_compartment(enve,spar,initType)
-
-    # initialize a replication compartment
-    repl = replicationCompartmentType()
+function create_replication_compartment(repl,enve,spar)
 
     # calculate the radius as 0.1 times the free nucleus radius
     radius = spar.replSizeMultiplier*spar.freeNucleusRadius
@@ -432,36 +377,6 @@ function create_replication_compartment(enve,spar,initType)
         repl.vert[i] += Vec(0.,0.,centerZ)
     end
     
-    # initialize various force vectors for each vertex in the replication compartment
-    repl.forces.volume = Vector{Vec{3,Float64}}(undef, length(repl.vert))
-    repl.forces.area = Vector{Vec{3,Float64}}(undef, length(repl.vert))
-    repl.forces.bending = Vector{Vec{3,Float64}}(undef, length(repl.vert))
-    repl.forces.elastic = Vector{Vec{3,Float64}}(undef, length(repl.vert))
-    repl.forces.chromationRepulsion = Vector{Vec{3,Float64}}(undef, length(repl.vert))
-    repl.forces.envelopeRepulsion = Vector{Vec{3,Float64}}(undef, length(repl.vert))
-
-    # set up shell data for the replication compartment
-    repl = setup_shell_data(repl,initType,"repl")
-
-    # calculate various properties and vectors for the replication compartment
-    get_edge_vectors!(repl);
-    repl.triangleAreas = get_area!(repl)
-    get_voronoi_areas!(repl);
-    get_shell_normals!(repl);
-    get_area_unit_vectors!(repl);
-    repl.normalVolume = get_volume!(repl);
-
-    # calculate the friction matrix for the replication compartment
-    repl.frictionMatrix = get_repl_friction_matrix(repl,spar)
-    
-    # perform iLU (incomplete LU) factorization of the friction matrix with a specified cutoff value
-    repl.iLU = ilu(repl.frictionMatrix, τ = spar.iLUCutoff)
-
-    # calculate various properties and vectors for the envelope
-    get_edge_vectors!(enve);
-    enve.triangleAreas = get_area!(enve)
-    repl.baseArea = mean(enve.triangleAreas)
-
     return repl
 
 end

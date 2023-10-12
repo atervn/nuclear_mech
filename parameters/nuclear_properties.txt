@@ -1,0 +1,10 @@
+freeNucleusRadius,5e-6
+ladLength,0.2e-6
+crosslinkLength,0.2e-6
+cytoskeletonPlaneRadius,20e-6
+chromatinNormalAngle,130
+chromatinNumber,46
+chromatinLength,256
+crosslinkingBindingProbability,0.002
+crosslinkingUnbindingProbability,0.01
+nucleusHeight,5e-6

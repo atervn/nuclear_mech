@@ -114,6 +114,13 @@ Base.@kwdef mutable struct inputParametersType
     outsideRepulsionMultiplier::Float64 = 0
     replPressure::Float64 = 0
     laminaVariabilityMultiplier::Float64 = 0
+    replBulkModulus::Float64 = 0
+    cantileverSpeed::Float64 = 0
+    cantileverFriction::Float64 = 0
+    cantileverSpring::Float64 = 0
+    cantileverMaxForce::Float64 = 0
+    nucleusHeight::Float64 = 0
+
 end
 
 Base.@kwdef mutable struct scaledParametersType
@@ -174,6 +181,12 @@ Base.@kwdef mutable struct scaledParametersType
     outsideRepulsionMultiplier::Float64 = 0
     replPressure::Float64 = 0
     laminaVariabilityMultiplier::Float64 = 0
+    replBulkModulus::Float64 = 0
+    cantileverSpeed::Float64 = 0
+    cantileverFriction::Float64 = 0
+    cantileverSpring::Float64 = 0
+    cantileverMaxForce::Float64 = 0
+    nucleusHeight::Float64 = 0
 end
 
 Base.@kwdef mutable struct chromatinForceType
@@ -237,6 +250,7 @@ Base.@kwdef mutable struct afmType
     touchingIdx::Vector{Bool} = []
     normDistance::Float64 = 0;
     directionDown::Bool = true
+    forceOnBead::Float64 = 0;
 end
 
 Base.@kwdef mutable struct exportSettingsType
@@ -275,6 +289,7 @@ Base.@kwdef mutable struct simulationSettingsType
     iLU::Any = []
     adh = adherensType();
     laminaRemodel::String = ""
+    newVolumeSimulation::Bool = false
 end
 Base.@kwdef mutable struct virusforcesType
     volume::Vector{Vec{3,Float64}} = []
@@ -314,6 +329,7 @@ Base.@kwdef mutable struct replicationCompartmentType
     normalAngle::Float64 = 0
     normalLengths::Vector{Float64} = []
     normalTriangleAreas::Vector{Float64} = []
+    initVolume::Float64 = 0
     edgeThirdVertices::Vector{Vector{Int64}} = []
     forces = virusforcesType()
     triEdge1::Vector{Int64} = []

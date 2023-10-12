@@ -40,6 +40,7 @@ function solve_system!(enve::envelopeType, chro::chromatinType, spar::scaledPara
     # move the micromanipulator
     move_micromanipulator!(ext, spar, simset, intTime)
 
+    # move afm
     move_afm!(enve,ext,spar,simset)
 
 end
@@ -107,6 +108,9 @@ function solve_system!(enve::envelopeType, chro::chromatinType, repl::replicatio
     # move the micromanipulator
     move_micromanipulator!(ext, spar, simset, intTime)
 
+    # move afm
+    move_afm!(enve,ext,spar,simset)
+
 end
 
 function solve_system!(enve, spar,simset,ext,intTime)
@@ -150,6 +154,7 @@ function solve_system!(enve, spar,simset,ext,intTime)
     # move the micromanipulator
     move_micromanipulator!(ext, spar, simset, intTime)
 
+    # move afm
     move_afm!(enve,ext,spar,simset)
 end
 
@@ -233,14 +238,25 @@ function move_adherens_plane!(enve,simset,spar)
     # if adherent
     if simset.adh.adherent && !simset.adh.static
 
-        # calculate the volme forces (pressure) toward the plane (approximatng the nucleus forces)
-        cellForcesOnPlane = sum(getindex.(enve.forces.volume[simset.adh.touchingTop],3))
+        nucleusHeight = simset.adh.topPlane + 20 - simset.adh.bottomPlane - 2*spar.repulsionDistance
 
-        # calculate the different between the pushing force of the plane and the nucleus' force on the plane
-        forceDifference = (spar.planeForce - cellForcesOnPlane)/spar.planeForce
+        if abs(nucleusHeight - spar.nucleusHeight) > 0.1
+
+            if nucleusHeight > spar.nucleusHeight
+                simset.adh.topPlane -= 20*spar.dt.*simset.timeStepMultiplier
+            elseif nucleusHeight < spar.nucleusHeight
+                simset.adh.topPlane += 20*spar.dt.*simset.timeStepMultiplier
+            end
+        end
+
+        # # calculate the volme forces (pressure) toward the plane (approximatng the nucleus forces)
+        # cellForcesOnPlane = sum(getindex.(enve.forces.total[simset.adh.touchingTop],3) .- getindex.(enve.forces.planeRepulsion[simset.adh.touchingTop],3))
+
+        # # calculate the different between the pushing force of the plane and the nucleus' force on the plane
+        # forceDifference = (-spar.planeForce + cellForcesOnPlane)./50
 
         # calculate the plane force on the nucleus
-        simset.adh.topPlane -= forceDifference*spar.dt.*simset.timeStepMultiplier
+        
     end
 end
 
@@ -321,7 +337,7 @@ function move_afm!(enve,ext,spar,simset)
 
         cantilevelSpeed = 60;
 
-        friction = 0.003/spar.viscosity;
+        friction = 0.001/spar.viscosity;
 
         distance = norm(ext.topPosition - ext.beadPosition);
 
@@ -330,16 +346,18 @@ function move_afm!(enve,ext,spar,simset)
         cantileverForce = springConstant*(distance - ext.normDistance)
 
         if !ext.directionDown
-            ext.topPosition = ext.topPosition + Vec(0.,0.,cantilevelSpeed*spar.dt*simset.timeStepMultiplier)
+            # ext.topPosition = ext.topPosition + Vec(0.,0.,spar.cantileverSpeed*spar.dt*simset.timeStepMultiplier)
         elseif abs(cantileverForce) < 2e-9/spar.viscosity/spar.scalingLength*spar.scalingTime && ext.directionDown
-            ext.topPosition = ext.topPosition - Vec(0.,0.,cantilevelSpeed*spar.dt*simset.timeStepMultiplier)
+            ext.topPosition = ext.topPosition - Vec(0.,0.,spar.cantileverSpeed*spar.dt*simset.timeStepMultiplier)
         else
             ext.directionDown = false
         end
 
+        ext.forceOnBead = enveForcesOnBead
+
         forceOnBead = enveForcesOnBead + cantileverForce;
 
-        beadSpeed = (-friction*cantilevelSpeed + forceOnBead)./(1+friction)
+        beadSpeed = (-friction*spar.cantileverSpeed + forceOnBead)./(1+friction)
 
         ext.beadPosition = ext.beadPosition + Vec(0.,0.,spar.dt*simset.timeStepMultiplier*beadSpeed);
         

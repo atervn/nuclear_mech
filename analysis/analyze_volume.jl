@@ -120,7 +120,7 @@ function analyze_volume()
     end
 
 
-    p = plot([volumes[1:end-10] areas[1:end-10] replicationVolumes[1:end-10]],layout = grid(2,1), title = ["Volume (µm³)"     "Area (µm²)"],legend = false, linewidth = 5)
+    p = Plots.plot([volumes areas],layout = grid(2,1), title = ["Volume (µm³)"     "Area (µm²)"],legend = false, linewidth = 5)
 
-    return replicationVolumes,p
+    return volumes,areas,p
 end

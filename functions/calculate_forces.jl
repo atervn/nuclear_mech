@@ -295,7 +295,7 @@ function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
     for i = 1:spar.chromatinNumber
 
         # find close vertices within repulsion distance for the vertices in chromosome i
-        closeVertices = inrange(chromatinTree, chro.vert[chro.strandIdx[i]], spar.repulsionDistance, false)
+        closeVertices = inrange(chromatinTree, chro.vert[chro.strandIdx[i]], spar.repulsionDistance*1.5, false)
 
         # compute repulsion forces for each vertex in the strand
         for j = 1:spar.chromatinLength
@@ -311,7 +311,7 @@ function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
                     vectorNorm = norm(vector)
 
                     # add to the repulsion force
-                    chro.forces.strandChroRepulsion[i][j] += -spar.repulsionConstant*(vectorNorm - spar.repulsionDistance)*vector/vectorNorm
+                    chro.forces.strandChroRepulsion[i][j] += -spar.repulsionConstant*(vectorNorm - spar.repulsionDistance*1.5)*vector/vectorNorm
 
                 end
             end
@@ -522,7 +522,7 @@ function get_crosslink_forces!(chro,spar)
     end
 end
 
-function get_repl_comp_elastic_forces!(repl,spar)
+function get_repl_elastic_forces!(repl,spar)
 
     # initialize the forces
     for i = eachindex(repl.vert)
@@ -549,14 +549,22 @@ function get_repl_comp_elastic_forces!(repl,spar)
 
 end
 
-function get_repl_comp_volume_forces!(repl,spar)
+function get_repl_volume_forces!(repl,spar)
 
+    if spar.replPressure == 0
+
+        replVolume = get_volume!(repl)
+
+        volPressure = -spar.replBulkModulus*log10(replVolume/(repl.normalVolume));
+    else
+        volPressure = 0
+    end
     # calculate the volume force based on the growth pressure
-    repl.forces.volume = spar.replPressure*repl.voronoiAreas.*repl.vertexNormalUnitVectors
+    repl.forces.volume = (spar.replPressure + volPressure)*repl.voronoiAreas.*repl.vertexNormalUnitVectors
 
 end
 
-function get_repl_comp_area_forces!(repl,spar)
+function get_repl_area_forces!(repl,spar)
 
     # initialize the forces
     for i = 1:length(repl.vert)
@@ -586,7 +594,7 @@ function get_repl_comp_area_forces!(repl,spar)
     end
 end
 
-function get_repl_comp_bending_forces!(repl,spar)
+function get_repl_bending_forces!(repl,spar)
 
     # set the forces to zero
     for i = 1:length(repl.vert)
@@ -652,7 +660,7 @@ function get_repl_chromatin_repulsion_forces!(chro, repl, spar)
             chro.forces.replRepulsion[i] = forceMagnitude*unitVector
 
             # get the forces on the envelope
-            forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,100)
+            forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,10)
 
             # if the closest point in the enve is a vertex
             if length(closeVertices) == 1
@@ -941,7 +949,7 @@ function get_afm_forces!(enve,ext,spar)
             if norm(enve.vert[i]-ext.beadPosition) < 3.31
 
                 # calculate the force
-                enve.forces.afmRepulsion[i] = 10*spar.planeRepulsionConstant*unitVector
+                enve.forces.afmRepulsion[i] = 10*spar.repulsionConstant*unitVector
 
             # otherwise
             else
