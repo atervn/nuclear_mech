@@ -143,7 +143,7 @@ function get_repulsion_forces!(enve,spar,simset)
     for i = 1:length(enve.vert)
 
         # get the intra envelope interactions
-        getForce, unitVector, closePointDistance, _ = vertex_shell_interaction(enve.vert[i],enve,simset.envelopeTree,spar,[i; enve.neighbors[i]],false,false)
+        getForce, unitVector, closePointDistance, _ = vertex_shell_interaction(enve.vert[i],enve,simset.envelopeTree,spar,[i; enve.neighbors[i]],false,false,false)
 
         # check if the closest distance is within the repulsion distance
         if getForce
@@ -167,13 +167,13 @@ function get_aspiration_repulsion_forces!(enve,pip,spar)
     for i = 1:length(enve.vert)
 
         # get the interaction with the pipette
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices,tri = vertex_shell_interaction(enve.vert[i],pip,pip.pipetteTree,spar,[],true,false)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices,tri = vertex_shell_interaction(enve.vert[i],pip,pip.pipetteTree,spar,[],true,false,false)
 
         # if the repulsion is calculated
         if getForce
 
             # get the interaction force with the pipette
-            unitVector, forceMagnitude = get_vertex_shell_interaction_vertex_force(pip,unitVector,closePointDistance, closeVertices, tri, spar)
+            unitVector, forceMagnitude = get_vertex_shell_interaction_vertex_force(pip,unitVector,closePointDistance, closeVertices, tri, spar,false)
 
             # calculate the force
             enve.forces.pipetteRepulsion[i] = forceMagnitude*unitVector;
@@ -352,7 +352,7 @@ function get_envelope_chromatin_repulsion_forces!(enve,chro,spar,envelopeTree)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
 
         # get the interactions between vertex and shell
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],enve,envelopeTree,spar,[],true,false)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],enve,envelopeTree,spar,[],true,false,chro.heterochro[i])
 
         # if the repulsion is calculated
         if getForce
@@ -388,6 +388,13 @@ function get_envelope_chromatin_repulsion_forces!(enve,chro,spar,envelopeTree)
                 enve.forces.chromationRepulsion[closeVertices[3]] += forces[3]
 
             end
+
+        elseif chro.heterochro[i]
+
+            forceMagnitude = 10*(closePointDistance-spar.repulsionDistance)
+    
+            # calculate the force
+            chro.forces.enveRepulsion[i] += -forceMagnitude*unitVector;
 
         end
     end
@@ -649,7 +656,7 @@ function get_repl_chromatin_repulsion_forces!(chro, repl, spar)
     # iterate through the chromatin vertices
     for i = 1:spar.chromatinLength*spar.chromatinNumber
         
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],repl,repl.tree,spar,[],true,true)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],repl,repl.tree,spar,[],true,true,false)
 
         if getForce
             
@@ -704,7 +711,7 @@ function get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
     for i = eachindex(enve.vert)
 
         # get the interactions between vertex and shell
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(enve.vert[i],repl,repl.tree,spar,[],true,true)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(enve.vert[i],repl,repl.tree,spar,[],true,true,false)
         
         # if the repulsion is calculated
         if getForce
@@ -745,7 +752,7 @@ function get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
 
 end
 
-function vertex_shell_interaction(vertex,shell,tree,spar,neighbors,checkOutside,isRepl)
+function vertex_shell_interaction(vertex,shell,tree,spar,neighbors,checkOutside,isRepl,isHetero)
 
     # get the closest shell vertex
     if length(neighbors) == 0
@@ -758,7 +765,7 @@ function vertex_shell_interaction(vertex,shell,tree,spar,neighbors,checkOutside,
     getForce = false
 
     # check if the closest point is within a certain distance
-    if distance[1] < spar.meanLaminaLength*2
+    if distance[1] < spar.meanLaminaLength*2 || isHetero
 
         # get the number of triangles of the closest vertex
         nTri = length(shell.vertexTri[closest[1]]);
@@ -813,6 +820,7 @@ function vertex_shell_interaction(vertex,shell,tree,spar,neighbors,checkOutside,
                 getForce = true
 
             end
+
         end
 
         return getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri
@@ -962,5 +970,11 @@ function get_afm_forces!(enve,ext,spar)
             end
         end
     end
+
+end
+
+function get_heterochromatin_forces(enve,chro,spar)
+
+
 
 end

@@ -23,6 +23,7 @@ include("./functions/get_forces.jl")
 include("./functions/simulation.jl")
 
 sim = 9
+
 if sim == 1 # initialize a suspended nucleus
 
     # create the nucleus and let chromatin relax around the LADs
@@ -42,7 +43,7 @@ elseif sim == 2 # initialize adherent nucleus
 
     # simulation("INIT",400,"ADHERENT_INIT","load"; adherent = true, simPars = "./parameters/simulation_parameters_init_adh.txt")
 
-    simulation("INIT",400,"ADHERENT_INIT_4_um","load"; adherent = true)
+    simulation("INIT",400,"ADHERENT_INIT_4_um_100_Pa","load")
 
     # # load the squished nucleus, add chormatin and let chromatin relax around the LADs
     # fileName1 = simulation("INIT" ,10, "init_P1", "load"; importFolder = "2023-08-22_145359_adherend_shell", noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt", returnFoldername = true, newEnvelopeMultipliers = true)

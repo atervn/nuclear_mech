@@ -346,7 +346,7 @@ function move_afm!(enve,ext,spar,simset)
         cantileverForce = springConstant*(distance - ext.normDistance)
 
         if !ext.directionDown
-            # ext.topPosition = ext.topPosition + Vec(0.,0.,spar.cantileverSpeed*spar.dt*simset.timeStepMultiplier)
+            ext.topPosition = ext.topPosition + Vec(0.,0.,spar.cantileverSpeed*spar.dt*simset.timeStepMultiplier)
         elseif abs(cantileverForce) < 2e-9/spar.viscosity/spar.scalingLength*spar.scalingTime && ext.directionDown
             ext.topPosition = ext.topPosition - Vec(0.,0.,spar.cantileverSpeed*spar.dt*simset.timeStepMultiplier)
         else

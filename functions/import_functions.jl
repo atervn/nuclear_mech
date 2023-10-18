@@ -124,6 +124,10 @@ function import_lads(enve,chro,spar,importFolder)
 
     end
 
+    tempHetero = readdlm(importFolder*"\\heterochromatin.csv", ',', Int64, '\n')
+
+    chro.heterochro[tempHetero] .= true
+
     return enve,chro
 
 end

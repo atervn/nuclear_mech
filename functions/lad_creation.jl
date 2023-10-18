@@ -146,6 +146,8 @@ function get_lad_chro_vertices(enve,chro,spar)
     # int a vector to store chromatin lad vertices
     ladVertices = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
 
+    heteroDistance = 10;
+
     # for each lad region
     for i = 1:spar.chromatinNumber
 
@@ -214,6 +216,14 @@ function get_lad_chro_vertices(enve,chro,spar)
             # add current vertex to lad vertices for current lad region
             push!(ladVertices[i],tempVertex)
             
+            if tempVertex <= heteroDistance
+                chro.strandHeterochro[i][1:tempVertex+heteroDistance] .= true
+            elseif tempVertex >= spar.chromatinLength - heteroDistance
+                chro.strandHeterochro[i][tempVertex-heteroDistance:end] .= true
+            else
+                chro.strandHeterochro[i][tempVertex-heteroDistance:tempVertex+heteroDistance] .= true
+            end
+
         end
     end
 

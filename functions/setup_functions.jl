@@ -321,18 +321,16 @@ function setup_chromatin(enve,spar,initType,importFolder,importTime,noChromatin)
             # create all chromosomes
             chro = create_all_chromsomes(enve,chro,spar,enve.vert[ladCenterIdx])
 
-            println("b4")
             # get chromatin lad vertices
             chro = get_lad_chro_vertices(enve,chro,spar)
-            println("b5")
+
             # init crosslinks array
             chro.crosslinked = zeros(Int64,spar.chromatinLength*spar.chromatinNumber)
-            println("b6")
+
             # set the crosslink state of all lad vertices to -1 (unable to crosslink)
             for i = 1:spar.chromatinNumber
                 chro.crosslinked[chro.strandIdx[i][chro.lads[i]]] .= -1
             end
-            println("b7")
         elseif cmp(initType,"load") == 0
 
             # print a message to console
@@ -486,6 +484,8 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
             end
 
             writedlm(".\\results\\"*ex.folderName*"\\lads.csv", ladExport,',')
+
+            writedlm(".\\results\\"*ex.folderName*"\\heterochromatin.csv", findall(chro.heterochro),',')
 
         end
 
@@ -668,8 +668,7 @@ function read_parameters(parameterFiles)
 
             # get the name of the parameter
             name = Symbol(line[1])
-            println(line[1])
-            println(line[2])
+
             # get the value of the parameter
             value = parse(Float64, line[2])
 
@@ -910,7 +909,7 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
             simset.adh.adherent = true
 
             # define top and bottom planes
-            simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - 20
+            simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - 50
             simset.adh.bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance
 
             # initialize touching vector
@@ -925,7 +924,7 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
         simset.adh.adherent = true
 
         # define top and bottom planes
-        simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - 20
+        simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - 50
         simset.adh.bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance
 
         # initialize touching vector
@@ -1236,7 +1235,7 @@ end
 
 function check_export_number(ipar,maxT,parameterFiles)
 
-    nExports = (round(maxT/ipar.dt)+1)/ipar.exportStep
+    nExports = (round(maxT/ipar.dt))/ipar.exportStep+1
 
     if nExports > 1000
         

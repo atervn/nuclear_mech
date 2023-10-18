@@ -217,6 +217,8 @@ Base.@kwdef mutable struct chromatinType
     crosslinks::Vector{Vector{Int64}} = []
     crosslinked::Vector{Int64} = []
     neighbors::Vector{Vector{Int64}} = []
+    heterochro::Vector{Bool} = []
+    strandHeterochro::Vector{Any} = []
 end
 Base.@kwdef mutable struct pipetteType
     vert::Vector{Vec{3,Float64}} = []

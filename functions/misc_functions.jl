@@ -486,7 +486,7 @@ function export_envelope_data(enve,ex,simset,exportNumber)
 
     # export planes if adhesion is enabled
     if simset.adh.adherent
-        df = DataFrame(x = [0, 0], y = [0, 0], z = [simset.adh.topPlane, simset.adh.bottomPlane], rad = [20,0])
+        df = DataFrame(x = [0, 0], y = [0, 0], z = [simset.adh.topPlane, simset.adh.bottomPlane], rad = [50,0])
         CSV.write(".\\results\\"*ex.folderName*"\\planes_" * lpad(exportNumber,4,"0")*".csv",df)
     end
 end
