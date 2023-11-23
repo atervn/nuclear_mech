@@ -31,7 +31,11 @@ function import_envelope(enve,importFolder,importTime,ipar)
 
     # convert data to the required format
     tri = reshape(tri,(3,:))
-    tri = tri' .+ 1
+    if minimum(tri) == 0
+        tri = tri' .+ 1
+    else
+        tri = tri'
+    end
 
     # create a new array to store the triangles
     enve.tri = Vector{Vector{Int64}}(undef,size(tri,1))
@@ -54,8 +58,12 @@ function import_envelope(enve,importFolder,importTime,ipar)
     enve.normalArea = readdlm(importFolder*"\\normalArea.csv")[1]/ipar.scalingLength^2
     enve.normalAngle = readdlm(importFolder*"\\normalAngle.csv")[1]
     enve.normalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]./ipar.scalingLength^2
-    enve.normalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]./ipar.scalingLength
     enve.normalVolume = readdlm(importFolder*"\\normalVolume.csv")[1]/ipar.scalingLength^3
+    try
+        enve.normalLengths = readdlm(importFolder*"\\normalLengths_"* importNumber *".csv")[:,1]./ipar.scalingLength
+    catch
+        enve.normalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]./ipar.scalingLength
+    end
 
     enve.envelopeMultipliers = readdlm(importFolder*"\\envelope_multipliers.csv")[:]
 
@@ -123,10 +131,6 @@ function import_lads(enve,chro,spar,importFolder)
         chro.lads[i] = tempLads[tempIdx,3]
 
     end
-
-    tempHetero = readdlm(importFolder*"\\heterochromatin.csv", ',', Int64, '\n')
-
-    chro.heterochro[tempHetero] .= true
 
     return enve,chro
 
@@ -271,7 +275,11 @@ function import_replication_compartment(repl,spar,importFolder,importTime)
  
      # convert data to the required format
      tri = reshape(tri,(3,:))
-     tri = tri' .+ 1
+     if tri[1,1] == 0
+        tri = tri' .+ 1
+     else
+        tri = tri'
+     end
  
      # create a new array to store the triangles
      repl.tri = Vector{Vector{Int64}}(undef,size(tri,1))

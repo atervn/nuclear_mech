@@ -1,4 +1,4 @@
-pullingForce,3e-8
+pullingForce,20e-8
 staticPullingForceMultiplier,10
 pipetteRadius,2.5e-6
 aspirationPressure,1000

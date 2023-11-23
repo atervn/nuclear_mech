@@ -92,7 +92,7 @@ function get_edges(shellStruct)
     
     # init firstEdges vector
     shellStruct.firstEdges = zeros(Int64,length(shellStruct.edges));
-
+    writedlm("file.csv",[getindex.(shellStruct.edges,1) getindex.(shellStruct.edges,2)])
     # iterate through edges
     for i = eachindex(shellStruct.edges)
             

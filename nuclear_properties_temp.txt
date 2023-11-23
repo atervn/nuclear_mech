@@ -5,6 +5,5 @@ cytoskeletonPlaneRadius,20e-6
 chromatinNormalAngle,180
 chromatinNumber,46
 chromatinLength,256
-crosslinkingBindingProbability,0.02
-crosslinkingUnbindingProbability,0.1
-nucleusHeight,8e-6
+crosslinkingBindingProbability,0.01
+crosslinkingUnbindingProbability,0.01

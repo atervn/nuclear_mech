@@ -10,7 +10,9 @@ function setup_simulation(
     maxT::Number,
     newEnvelopeMultipliers::Bool,
     importTime::Int,
-    newTargetVolume::Float64)
+    newTargetVolume::Number,
+    stickyBottom::Bool,
+    restLengthRemodelling::Bool)
 
     # read model parameters from file
     ipar = read_parameters(parameterFiles);
@@ -35,15 +37,28 @@ function setup_simulation(
     chro = setup_chromatin(enve,spar,initType,importFolder,importTime,noChromatin)
 
     # setup simulation settings
-    simset,ext = setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime)
+    simset,ext = setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime,stickyBottom,restLengthRemodelling)
       
     if newTargetVolume != 0
 
-        enve.normalVolume = newTargetVolume / ipar.scalingLength^3
+        simset.newVolumeSimulation = true
+        simset.exportNormalLengths = true
+
+        enve.normalVolume = newTargetVolume*1e-18 / ipar.scalingLength^3
 
         spar.areaCompressionStiffness = 0
 
-        simset.newVolumeSimulation = true
+        spar.bulkModulus = 1000 / spar.viscosity * spar.scalingTime * spar.scalingLength
+
+        importNumber = get_import_number(importFolder,importTime)
+
+        try
+            simset.originalRestLengths = readdlm(importFolder*"\\normalLengths_"* importNumber *".csv")[:,1]./ipar.scalingLength
+        catch
+            simset.originalRestLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]./ipar.scalingLength
+        end
+
+        simset.originalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]./spar.scalingLength^2
 
     end
 
@@ -115,18 +130,18 @@ function setup_envelope(ipar,initType,importFolder,importTime,newEnvelopeMultipl
 
     if cmp(initType,"load") == 0 && isfile(importFolder*"\\new_volume.txt")
 
-        oldAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]
+        # oldAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]
         
-        currentAreas = get_area!(enve)
+        # currentAreas = get_area!(enve)
 
-        for i = 1:length(enve.edges)
+        # for i = 1:length(enve.edges)
 
-            cA = currentAreas[enve.edgesTri[i]]
-            oA = oldAreas[enve.edgesTri[i]]./ipar.scalingLength^2
+        #     cA = currentAreas[enve.edgesTri[i]]
+        #     oA = oldAreas[enve.edgesTri[i]]./ipar.scalingLength^2
 
-            enve.normalLengths[i] *= sqrt(mean(cA./oA))
+        #     enve.normalLengths[i] *= sqrt(mean(cA./oA))
 
-        end
+        # end
                         
         # oldLength = mean(oldLengths)/ipar.scalingLength
 
@@ -137,7 +152,7 @@ function setup_envelope(ipar,initType,importFolder,importTime,newEnvelopeMultipl
         # enve.normalLengths .*= temp
 
 
-        oldNormalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]
+        # oldNormalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]
 
     end
 
@@ -403,7 +418,7 @@ function setup_micromanipulation(enve,spar)
 
 end
 
-function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool,ipar,newTargetVolume,importFolder)
+function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool,ipar,newTargetVolume,importFolder,simulationDate)
 
     # init object
     ex = exportSettingsType()
@@ -414,7 +429,11 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
 
         # create a folder for exporting results with a given name and current date/time
         if nameDate
-            ex.folderName = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")*folderName
+            if simulationDate != ""
+                ex.folderName = simulationDate*folderName
+            else
+                ex.folderName = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")*folderName
+            end
         else
             ex.folderName = folderName
         end
@@ -485,8 +504,6 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
 
             writedlm(".\\results\\"*ex.folderName*"\\lads.csv", ladExport,',')
 
-            writedlm(".\\results\\"*ex.folderName*"\\heterochromatin.csv", findall(chro.heterochro),',')
-
         end
 
         # Create a file to indicate adhesion
@@ -523,7 +540,7 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
     end
 
     # export normal values
-    export_normal_values(enve,ex,spar)
+    export_normal_values(enve,ex,spar,simset)
 
     # export parameters
     export_parameters(ipar,ex)
@@ -872,7 +889,7 @@ function get_repl_friction_matrix(repl,spar)
 
 end
 
-function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic,importTime)
+function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic,importTime,stickyBottom)
 
     # check adhesion based on the initialization type and adhesion settings
     if initType == "load"
@@ -909,7 +926,7 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
             simset.adh.adherent = true
 
             # define top and bottom planes
-            simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - 50
+            simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - spar.cytoskeletonPlaneRadius
             simset.adh.bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance
 
             # initialize touching vector
@@ -924,12 +941,17 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
         simset.adh.adherent = true
 
         # define top and bottom planes
-        simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - 50
+        simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - spar.cytoskeletonPlaneRadius
         simset.adh.bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance
 
         # initialize touching vector
         simset.adh.touchingTop = zeros(Bool,length(enve.vert))
 
+    end
+
+    if stickyBottom
+        simset.adh.stickyBottom = stickyBottom
+        simset.adh.originalCoordinates = copy(enve.vert);
     end
 
     simset.adh.static = adherentStatic;
@@ -938,19 +960,21 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
 
 end
 
-function export_normal_values(enve,ex,spar)
+function export_normal_values(enve,ex,spar,simset)
 
     # export normal envelope properties
     writedlm(".\\results\\"*ex.folderName*"\\normalArea.csv", [enve.normalArea].*spar.scalingLength^2,',')
     writedlm(".\\results\\"*ex.folderName*"\\normalTriangleAreas.csv", enve.normalTriangleAreas.*spar.scalingLength^2,',')
     writedlm(".\\results\\"*ex.folderName*"\\normalAngle.csv", [enve.normalAngle],',')
-    writedlm(".\\results\\"*ex.folderName*"\\normalLengths.csv", enve.normalLengths.*spar.scalingLength,',')
     writedlm(".\\results\\"*ex.folderName*"\\normalVolume.csv", enve.normalVolume.*spar.scalingLength^3,',')
     writedlm(".\\results\\"*ex.folderName*"\\envelope_multipliers.csv", enve.envelopeMultipliers,',')
+    if !simset.newVolumeSimulation
+        writedlm(".\\results\\"*ex.folderName*"\\normalLengths.csv", enve.normalLengths.*spar.scalingLength,',')
+    end
 
 end
 
-function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime)
+function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime,stickyBottom,restLengthRemodelling)
 
     # create a new simulation settings object
     simset = simulationSettingsType()
@@ -971,7 +995,7 @@ function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simTyp
     simset.noChromatin = noChromatin;
 
     # check for adhesion, if necessary
-    simset = check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic,importTime)
+    simset = check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adherentStatic,importTime,stickyBottom)
 
     # setup experimental aspiration
     if simType == "MA"

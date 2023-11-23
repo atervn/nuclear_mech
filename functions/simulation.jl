@@ -20,7 +20,10 @@ function simulation(
     returnFoldername::Bool = false,
     newEnvelopeMultipliers::Bool = false,
     importTime::Int = 0,
-    newTargetVolume::Float64 = 0.0)
+    newTargetVolume::Number = 0,
+    stickyBottom::Bool = false,
+    simulationDate::String = "",
+    restLengthRemodelling = false)
 
 
     parameterFiles = get_parameter_files(simType,nuclearMechPars,nuclearPropPars,expPars,simPars,sysPars,replPars)
@@ -31,14 +34,14 @@ function simulation(
     end
 
     # setup the simulation environment
-    enve, chro, spar, simset, ext, ipar, importFolder = setup_simulation(initState, simType, importFolder, parameterFiles,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers,importTime,newTargetVolume)
+    enve, chro, spar, simset, ext, ipar, importFolder = setup_simulation(initState, simType, importFolder, parameterFiles,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers,importTime,newTargetVolume,stickyBottom,restLengthRemodelling)
 
     if typeof(enve) != envelopeType
         return
     end
 
     # setup the export settings
-    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin,ipar,newTargetVolume,importFolder)
+    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin,ipar,newTargetVolume,importFolder,simulationDate)
     
     # print a message to indicate that the simulation is starting
     printstyled("Starting simulation (" * Dates.format(now(), "YYYY-mm-dd HH:MM") * ")\n"; color=:blue)
@@ -76,7 +79,7 @@ function run_simulation(enve, chro, spar, ex, ext, simset, maxT)
         while intTime <= intMaxTime
 
             # get nuclear properties
-            get_nuclear_properties!(enve, chro, simset, spar)
+            get_nuclear_properties!(enve, chro, simset, spar, intTime, intMaxTime)
 
             # get crosslinks
             get_crosslinks!(enve, chro, simset, spar)
@@ -90,10 +93,13 @@ function run_simulation(enve, chro, spar, ex, ext, simset, maxT)
             # solve the system
             solve_system!(enve, chro, spar, simset, ext, intTime)
 
-            enve.normalVolume += spar.dt*simset.timeStepMultiplier*10
+
+            if simset.stopSimulation
+                break
+            end
 
             # update the time step
-            intTime = progress_time!(simset,intTime);
+            intTime = progress_time!(simset,intTime,enve);
 
         end
 
@@ -141,7 +147,7 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
             solve_system!(enve, chro, repl, spar, simset, ext, intTime)
 
             # update the time step
-            intTime = progress_time!(simset,intTime);
+            intTime = progress_time!(simset,intTime,enve);
 
         end
 

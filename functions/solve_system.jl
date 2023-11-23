@@ -238,7 +238,7 @@ function move_adherens_plane!(enve,simset,spar)
     # if adherent
     if simset.adh.adherent && !simset.adh.static
 
-        nucleusHeight = simset.adh.topPlane + 20 - simset.adh.bottomPlane - 2*spar.repulsionDistance
+        nucleusHeight = simset.adh.topPlane + spar.cytoskeletonPlaneRadius - simset.adh.bottomPlane - 2*spar.repulsionDistance
 
         if abs(nucleusHeight - spar.nucleusHeight) > 0.1
 
@@ -337,7 +337,7 @@ function move_afm!(enve,ext,spar,simset)
 
         cantilevelSpeed = 60;
 
-        friction = 0.001/spar.viscosity;
+        friction = 0.0001/spar.viscosity;
 
         distance = norm(ext.topPosition - ext.beadPosition);
 
@@ -351,6 +351,7 @@ function move_afm!(enve,ext,spar,simset)
             ext.topPosition = ext.topPosition - Vec(0.,0.,spar.cantileverSpeed*spar.dt*simset.timeStepMultiplier)
         else
             ext.directionDown = false
+            simset.stopSimulation = true
         end
 
         ext.forceOnBead = enveForcesOnBead

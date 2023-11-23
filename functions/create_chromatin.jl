@@ -59,9 +59,6 @@ function create_all_chromsomes(enve,chro,spar,ladCenterIdx)
                 reDoAllCounter += 1
                 break
             end
-
-            println(k)
-
         end
         
         # if chromatin creating has failed, return false
@@ -70,15 +67,10 @@ function create_all_chromsomes(enve,chro,spar,ladCenterIdx)
         elseif !reDoAll
             break
         end
-        println("böb1")
     end
 
-    println("böb2")
-
     chro = initialize_chromatin_properties(chro,spar)
-
-    println("böb3")
-    
+   
     return chro
 
 end
@@ -351,15 +343,12 @@ function initialize_chromatin_properties(chro,spar)
     chro.vectors = Vector{Vector{Vec{3,Float64}}}(undef,spar.chromatinNumber)
     chro.vectorNorms = Vector{Vector{Float64}}(undef,spar.chromatinNumber)
     chro.strandVert = Vector{Any}(undef,spar.chromatinNumber)
-    chro.heterochro = Vector{Bool}(undef,spar.chromatinNumber*spar.chromatinLength)
-    chro.strandHeterochro = Vector{Any}(undef,spar.chromatinNumber)
 
     # for each chromosome, set the strand vertex coordinate views and calculate the vectors and norms
     for i = 1:spar.chromatinNumber
         chro.strandVert[i] = @view chro.vert[chro.strandIdx[i]];
         chro.vectors[i] = chro.strandVert[i][2:end] .- chro.strandVert[i][1:end-1];
         chro.vectorNorms[i] = norm.(chro.vectors[i])
-        chro.strandHeterochro[i] = @view chro.heterochro[chro.strandIdx[i]];
     end
 
     # initialize chromatin force vectors

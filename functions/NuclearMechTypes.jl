@@ -55,6 +55,7 @@ Base.@kwdef mutable struct envelopeType
     triEdge2::Vector{Int64} = []
     lads::Vector{Vector{Int64}} = []
     envelopeMultipliers::Vector{Float64} = []
+    volume::Float64 = 0
 end
 
 Base.@kwdef mutable struct inputParametersType 
@@ -274,6 +275,8 @@ Base.@kwdef mutable struct adherensType
     touchingTop::Vector{Bool} = []
     cellForcesOnPlane::Float64 = 0
     static::Bool = false
+    originalCoordinates::Vector{Vec{3,Float64}} = []
+    stickyBottom::Bool = false
 end
 
 Base.@kwdef mutable struct simulationSettingsType
@@ -292,6 +295,11 @@ Base.@kwdef mutable struct simulationSettingsType
     adh = adherensType();
     laminaRemodel::String = ""
     newVolumeSimulation::Bool = false
+    stopSimulation::Bool = false
+    restLengthRemodelling::Bool = false
+    originalRestLengths::Vector{Float64} = []
+    originalTriangleAreas::Vector{Float64} = []
+    exportNormalLengths::Bool = false
 end
 Base.@kwdef mutable struct virusforcesType
     volume::Vector{Vec{3,Float64}} = []

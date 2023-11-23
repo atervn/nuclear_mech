@@ -47,7 +47,7 @@ function export_data(enve::envelopeType,chro::chromatinType,spar::scaledParamete
             exportNumber = string(Int64(intTime/ex.step+1));
             
             # export envelope data
-            export_envelope_data(enve,ex,simset,exportNumber)
+            export_envelope_data(enve,ex,simset,exportNumber,spar)
 
             # export chromatin data
             export_chromatin_data(enve,chro,spar,ex,exportNumber)
@@ -91,7 +91,7 @@ function export_data(enve,chro,repl,spar,ex,ext,intTime,simset)
             exportNumber = string(Int64(intTime/ex.step+1));
             
             # export envelope data
-            export_envelope_data(enve,ex,simset,exportNumber)
+            export_envelope_data(enve,ex,simset,exportNumber,spar)
 
             # export chromatin data
             export_chromatin_data(enve,chro,spar,ex,exportNumber)
@@ -105,9 +105,17 @@ function export_data(enve,chro,repl,spar,ex,ext,intTime,simset)
 
                 points = [ext.beadPosition[1] ext.beadPosition[2] ext.beadPosition[3] ; ext.topPosition[1] ext.topPosition[2] ext.topPosition[3]]'
 
+                distance = norm(ext.topPosition - ext.beadPosition);
+
+                springConstant = 0.05/spar.viscosity*spar.scalingTime;
+
+                cantileverForce = -springConstant*(distance - ext.normDistance)
+
                 vtk_grid(".\\results\\"*ex.folderName*"\\afm_" * lpad(exportNumber,4,"0"), points, cell) do vtk
                     # assign line IDs
                     vtk["point_id"] = 1:2
+                    vtk["Force on bead"] = [ext.forceOnBead, ext.forceOnBead]
+                    vtk["Spring force"] = [cantileverForce, cantileverForce]
                 end
             end
 
@@ -129,7 +137,7 @@ function export_data(enve,ex,ext,intTime,simset)
             exportNumber = string(Int64(intTime/ex.step+1));
             
             # export envelope data
-            export_envelope_data(enve,ex,simset,exportNumber)
+            export_envelope_data(enve,ex,simset,exportNumber,spar)
 
             if simset.simType == "AFM"
 
@@ -146,7 +154,7 @@ function export_data(enve,ex,ext,intTime,simset)
     end
 end
 
-function get_nuclear_properties!(enve, chro, simset, spar)
+function get_nuclear_properties!(enve, chro, simset, spar, intTime, intMaxTime)
    
     # form the trees for the vertex distance search
     simset.envelopeTree = KDTree(enve.vert);
@@ -159,6 +167,39 @@ function get_nuclear_properties!(enve, chro, simset, spar)
     get_voronoi_areas!(enve);
     get_shell_normals!(enve);
     get_area_unit_vectors!(enve);
+
+    if simset.newVolumeSimulation
+
+        oA = sum(simset.originalTriangleAreas)
+        cA = sum(enve.triangleAreas)
+
+        for i = 1:length(enve.edges)
+
+            enve.normalLengths[i] = simset.originalRestLengths[i]*sqrt(cA./oA)
+
+        end
+                        
+        limitTime = Int64(floor(50/(spar.dt*spar.scalingTime)))
+
+        if intTime == limitTime
+
+            iparTemp = read_parameters((".\\parameters\\nuclear_mechanics.txt",))
+
+            spar.bulkModulus = iparTemp.bulkModulus / spar.viscosity * spar.scalingTime * spar.scalingLength
+        
+        elseif intTime > limitTime
+
+            newVolume = get_volume!(enve)
+
+            if newVolume > enve.volume
+                simset.newVolumeSimulation = false
+            end
+
+        end
+
+    end
+
+    enve.volume = get_volume!(enve)
 
 end
 
@@ -310,7 +351,7 @@ function get_crosslinks!(enve, chro, simset, spar)
 
 end
 
-function progress_time!(simset,intTime)
+function progress_time!(simset,intTime,enve)
     
     # checks if the time step progress is 0, indicating the beginning of a new time step
     if simset.timeStepProgress == 0
@@ -318,8 +359,10 @@ function progress_time!(simset,intTime)
         # calculates the duration of the previous time step by subtracting the current time from the time at the start of the time step
         stepTime = now() - simset.timeStepTiming
         
+        nucleusVolume = get_volume!(enve)
+
         # updates the progress bar by displaying the duration of the previous time step
-        next!(simset.prog, showvalues = [(:stepTime,stepTime)])
+        next!(simset.prog, showvalues = [(:stepTime,stepTime), (:volume,round(nucleusVolume,digits=2))])
         
         # increments the internal time counter by 1
         intTime += 1
@@ -450,7 +493,7 @@ function export_parameters(ipar,ex)
 
 end
 
-function export_envelope_data(enve,ex,simset,exportNumber)
+function export_envelope_data(enve,ex,simset,exportNumber,spar)
 
     # export envelope data
     vtk_grid(".\\results\\"*ex.folderName*"\\enve_" * lpad(exportNumber,4,"0"), [getindex.(enve.vert,1) getindex.(enve.vert,2) getindex.(enve.vert,3)]', ex.enveCells) do vtk
@@ -480,15 +523,21 @@ function export_envelope_data(enve,ex,simset,exportNumber)
         # export LAD forces
         vtk["LAD forces", VTKPointData()] = [getindex.(enve.forces.ladEnveForces,1) getindex.(enve.forces.ladEnveForces,2) getindex.(enve.forces.ladEnveForces,3)]'
         vtk["AFM forces", VTKPointData()] = [getindex.(enve.forces.afmRepulsion,1) getindex.(enve.forces.afmRepulsion,2) getindex.(enve.forces.afmRepulsion,3)]'
+        vtk["Cytoskeleton forces", VTKPointData()] = [getindex.(enve.forces.planeRepulsion,1) getindex.(enve.forces.planeRepulsion,2) getindex.(enve.forces.planeRepulsion,3)]'
         # export total forces
         vtk["Total forces", VTKPointData()] = [getindex.(enve.forces.total,1) getindex.(enve.forces.total,2) getindex.(enve.forces.total,3)]'
     end
 
     # export planes if adhesion is enabled
     if simset.adh.adherent
-        df = DataFrame(x = [0, 0], y = [0, 0], z = [simset.adh.topPlane, simset.adh.bottomPlane], rad = [50,0])
+        df = DataFrame(x = [0, 0], y = [0, 0], z = [simset.adh.topPlane, simset.adh.bottomPlane], rad = [spar.cytoskeletonPlaneRadius,0])
         CSV.write(".\\results\\"*ex.folderName*"\\planes_" * lpad(exportNumber,4,"0")*".csv",df)
     end
+
+    if simset.exportNormalLengths
+        writedlm(".\\results\\"*ex.folderName*"\\normalLengths_" * lpad(exportNumber,4,"0") *".csv", enve.normalLengths.*spar.scalingLength,',')
+    end
+
 end
 
 function export_chromatin_data(enve,chro,spar,ex,exportNumber)

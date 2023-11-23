@@ -4,7 +4,7 @@
 			"path": "functions/setup_functions.jl",
 			"bookmarks": [
 				{
-					"line": 108,
+					"line": 121,
 					"column": 12,
 					"label": "get back to this (envelope heterogeneity)"
 				}
@@ -14,7 +14,7 @@
 			"path": "functions/calculate_forces.jl",
 			"bookmarks": [
 				{
-					"line": 596,
+					"line": 588,
 					"column": 21,
 					"label": "is this force then needed or what?"
 				}

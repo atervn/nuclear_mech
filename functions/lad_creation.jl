@@ -146,8 +146,6 @@ function get_lad_chro_vertices(enve,chro,spar)
     # int a vector to store chromatin lad vertices
     ladVertices = Vector{Vector{Int64}}(undef, spar.chromatinNumber);
 
-    heteroDistance = 10;
-
     # for each lad region
     for i = 1:spar.chromatinNumber
 
@@ -180,50 +178,65 @@ function get_lad_chro_vertices(enve,chro,spar)
             end
         end
 
-        # initialize lad vertices for current lad region to be empty
-        ladVertices[i] = [];
+        allGood = true
+        
+        while true
 
-        # for each lad in current lad region
-        for j = 1:nLads
+            # initialize lad vertices for current lad region to be empty
+            ladVertices[i] = [];
 
-            # if current lad is the first lad, then randomly select a vertex from possible lad vertices
-            if j == 1
-                tempVertex = rand(possibleLadVertices[j])
-            
-            # otherwise, randomly select a vertex from possible lad vertices until the distance between
-            # the current vertex and the previous vertex is greater than 8
-            else
-                while true
+            # for each lad in current lad region
+            for j = 1:nLads
+                
+                tryCounter = 0
 
-                    tempVertex = rand(possibleLadVertices[j])
+                if allGood
+
+                    # if current lad is the first lad, then randomly select a vertex from possible lad vertices
+                    if j == 1
+                        tempVertex = rand(possibleLadVertices[j])
                     
-                    if tempVertex - ladVertices[i][end] >= spar.minLadVertexDistance
+                    # otherwise, randomly select a vertex from possible lad vertices until the distance between
+                    # the current vertex and the previous vertex is greater than 8
+                    else
+                        while true
 
-                        # calculate distance between current vertex and previous vertex in envelope
-                        distanceEnve = norm(enve.vert[enve.lads[i][j]] - enve.vert[enve.lads[i][j-1]])
+                            tempVertex = rand(possibleLadVertices[j])
+                            
+                            if tempVertex - ladVertices[i][end] >= spar.minLadVertexDistance
 
-                        # calculate distance between current vertex and previous vertex in chromatin
-                        distanceChro = (tempVertex - ladVertices[i][end])*spar.chroVertexDistance
+                                # calculate distance between current vertex and previous vertex in envelope
+                                distanceEnve = norm(enve.vert[enve.lads[i][j]] - enve.vert[enve.lads[i][j-1]])
 
-                        # if distance in chromatin is greater than distance in envelope, then break out of loop
-                        if distanceChro > distanceEnve
-                            break
+                                # calculate distance between current vertex and previous vertex in chromatin
+                                distanceChro = (tempVertex - ladVertices[i][end])*spar.chroVertexDistance
+
+                                # if distance in chromatin is greater than distance in envelope, then break out of loop
+                                if distanceChro > distanceEnve
+                                    break
+                                end
+                            end
+
+                            tryCounter += 1
+
+                            if tryCounter > 20
+                                allGood = false
+                                break
+                            end
                         end
                     end
+
                 end
+
+                # add current vertex to lad vertices for current lad region
+                push!(ladVertices[i],tempVertex)
             end
 
-            # add current vertex to lad vertices for current lad region
-            push!(ladVertices[i],tempVertex)
-            
-            if tempVertex <= heteroDistance
-                chro.strandHeterochro[i][1:tempVertex+heteroDistance] .= true
-            elseif tempVertex >= spar.chromatinLength - heteroDistance
-                chro.strandHeterochro[i][tempVertex-heteroDistance:end] .= true
+            if allGood
+                break
             else
-                chro.strandHeterochro[i][tempVertex-heteroDistance:tempVertex+heteroDistance] .= true
+                allGood = true
             end
-
         end
     end
 
