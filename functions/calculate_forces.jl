@@ -1,10 +1,10 @@
-function get_volume_forces!(enve,spar)
+function get_volume_forces!(enve::envelopeType,spar::scaledParametersType,simset::simulationSettingsType)
 
     # compute the volume of the nucleus
     nucleusVolume = get_volume!(enve);
 
     # if the nucleus is smaller than the normal volume
-    if nucleusVolume < enve.normalVolume
+    if nucleusVolume < enve.normalVolume || simset.newVolumeSimulation
 
         # compute the volume pressure based on the difference between nucleus volume and normal volume
         volPressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));
@@ -19,7 +19,7 @@ function get_volume_forces!(enve,spar)
 
 end
 
-function get_volume_forces!(enve,repl,spar)
+function get_volume_forces!(enve,repl::replicationCompartmentType,spar)
 
     # compute the volume as the different between the nuclear volume the replication compartment volume
     nucleusVolume = get_volume!(enve) - get_volume!(repl);
@@ -173,7 +173,7 @@ function get_aspiration_repulsion_forces!(enve,pip,spar)
         if getForce
 
             # get the interaction force with the pipette
-            unitVector, forceMagnitude = get_vertex_shell_interaction_vertex_force(pip,unitVector,closePointDistance, closeVertices, tri, spar,false)
+            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(pip,unitVector,closePointDistance, closeVertices, tri, spar,false)
 
             # calculate the force
             enve.forces.pipetteRepulsion[i] = forceMagnitude*unitVector;
@@ -295,7 +295,7 @@ function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
     for i = 1:spar.chromatinNumber
 
         # find close vertices within repulsion distance for the vertices in chromosome i
-        closeVertices = inrange(chromatinTree, chro.vert[chro.strandIdx[i]], spar.repulsionDistance*1.5, false)
+        closeVertices = inrange(chromatinTree, chro.vert[chro.strandIdx[i]], spar.repulsionDistance, false)
 
         # compute repulsion forces for each vertex in the strand
         for j = 1:spar.chromatinLength
@@ -311,7 +311,7 @@ function get_chromation_chromation_repulsion_forces!(chro,spar,chromatinTree)
                     vectorNorm = norm(vector)
 
                     # add to the repulsion force
-                    chro.forces.strandChroRepulsion[i][j] += -spar.repulsionConstant*(vectorNorm - spar.repulsionDistance*1.5)*vector/vectorNorm
+                    chro.forces.strandChroRepulsion[i][j] += -spar.repulsionConstant*(vectorNorm - spar.repulsionDistance)*vector/vectorNorm
 
                 end
             end
@@ -358,35 +358,38 @@ function get_envelope_chromatin_repulsion_forces!(enve,chro,spar,envelopeTree)
         if getForce
 
             # get the envelope interaction
-            unitVector, forceMagnitude = get_vertex_shell_interaction_vertex_force(enve,unitVector,closePointDistance, closeVertices, tri, spar,false)
+            unitVector, forceMagnitude, acrossBoundary = get_vertex_shell_interaction_vertex_force(enve,unitVector,closePointDistance, closeVertices, tri, spar,false)
 
             # calculate the force
             chro.forces.enveRepulsion[i] = forceMagnitude*unitVector;
 
-            # get the forces on the envelope
-            forces = get_vertex_shell_interaction_shell_force(enve,forceMagnitude,unitVector,closeVertices,closeCoords,1)
+            if !acrossBoundary
 
-            # if the closest point in the enve is a vertex
-            if length(closeVertices) == 1
+                # get the forces on the envelope
+                forces = get_vertex_shell_interaction_shell_force(enve,forceMagnitude,unitVector,closeVertices,closeCoords,1)
 
-                # assign force
-                enve.forces.chromationRepulsion[closeVertices[1]] += forces[1]
+                # if the closest point in the enve is a vertex
+                if length(closeVertices) == 1
 
-            # if the closest point is on an edge 
-            elseif length(closeVertices) == 2
+                    # assign force
+                    enve.forces.chromationRepulsion[closeVertices[1]] += forces[1]
 
-                # assign forces
-                enve.forces.chromationRepulsion[closeVertices[1]] += forces[1]
-                enve.forces.chromationRepulsion[closeVertices[2]] += forces[2]
+                # if the closest point is on an edge 
+                elseif length(closeVertices) == 2
 
-            # if the closest is on the triangle
-            else
+                    # assign forces
+                    enve.forces.chromationRepulsion[closeVertices[1]] += forces[1]
+                    enve.forces.chromationRepulsion[closeVertices[2]] += forces[2]
 
-                # assign forces
-                enve.forces.chromationRepulsion[closeVertices[1]] += forces[1]
-                enve.forces.chromationRepulsion[closeVertices[2]] += forces[2]
-                enve.forces.chromationRepulsion[closeVertices[3]] += forces[3]
+                # if the closest is on the triangle
+                else
 
+                    # assign forces
+                    enve.forces.chromationRepulsion[closeVertices[1]] += forces[1]
+                    enve.forces.chromationRepulsion[closeVertices[2]] += forces[2]
+                    enve.forces.chromationRepulsion[closeVertices[3]] += forces[3]
+
+                end
             end
         end
     end
@@ -558,17 +561,30 @@ function get_repl_elastic_forces!(repl,spar)
 end
 
 function get_repl_volume_forces!(repl,spar)
+    
+    replVolume = get_volume!(repl)
 
-    if spar.replPressure == 0
+    if spar.replPressure != 0
 
-        replVolume = get_volume!(repl)
-
-        volPressure = -spar.replBulkModulus*log10(replVolume/(repl.normalVolume));
+        if replVolume < spar.replTargetVolume
+            try
+                volPressure = -spar.replBulkModulus*log10(replVolume/(repl.normalVolume));
+            catch
+                volPressure = -spar.replBulkModulus*1e-10;
+            end
+        else    
+            volPressure = 0
+        end
     else
         volPressure = 0
     end
-    # calculate the volume force based on the growth pressure
-    repl.forces.volume = (spar.replPressure + volPressure)*repl.voronoiAreas.*repl.vertexNormalUnitVectors
+
+    if replVolume < spar.replTargetVolume
+        # calculate the volume force based on the growth pressure
+        repl.forces.volume = (spar.replPressure + volPressure)*repl.voronoiAreas.*repl.vertexNormalUnitVectors
+    else
+        repl.forces.volume = volPressure*repl.voronoiAreas.*repl.vertexNormalUnitVectors
+    end
 
 end
 
@@ -657,40 +673,43 @@ function get_repl_chromatin_repulsion_forces!(chro, repl, spar)
     # iterate through the chromatin vertices
     for i = 1:spar.chromatinLength*spar.chromatinNumber
         
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],repl,repl.tree,spar,[],true,true,false)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],repl,repl.tree,spar,[],true,true)
 
         if getForce
             
             # get the repl interaction forces
-            unitVector, forceMagnitude = get_vertex_shell_interaction_vertex_force(repl,unitVector,closePointDistance, closeVertices, tri, spar,true)
+            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(repl,unitVector,closePointDistance, closeVertices, tri, spar,true)
 
             # calculate the force
             chro.forces.replRepulsion[i] = forceMagnitude*unitVector
 
-            # get the forces on the envelope
-            forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,10)
+            if !acrossBoundary
 
-            # if the closest point in the enve is a vertex
-            if length(closeVertices) == 1
+                # get the forces on the envelope
+                forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,5)
 
-                # assign force
-                repl.forces.chromationRepulsion[closeVertices[1]] += forces[1]
+                # if the closest point in the enve is a vertex
+                if length(closeVertices) == 1
 
-            # if the closest point is on an edge    
-            elseif length(closeVertices) == 2
+                    # assign force
+                    repl.forces.chromationRepulsion[closeVertices[1]] += forces[1]
 
-                # assign forces
-                repl.forces.chromationRepulsion[closeVertices[1]] += forces[1]
-                repl.forces.chromationRepulsion[closeVertices[2]] += forces[2]
+                # if the closest point is on an edge    
+                elseif length(closeVertices) == 2
 
-            # if the closest is on the triangle
-            else
+                    # assign forces
+                    repl.forces.chromationRepulsion[closeVertices[1]] += forces[1]
+                    repl.forces.chromationRepulsion[closeVertices[2]] += forces[2]
 
-                # assign forces
-                repl.forces.chromationRepulsion[closeVertices[1]] += forces[1]
-                repl.forces.chromationRepulsion[closeVertices[2]] += forces[2]
-                repl.forces.chromationRepulsion[closeVertices[3]] += forces[3]
+                # if the closest is on the triangle
+                else
 
+                    # assign forces
+                    repl.forces.chromationRepulsion[closeVertices[1]] += forces[1]
+                    repl.forces.chromationRepulsion[closeVertices[2]] += forces[2]
+                    repl.forces.chromationRepulsion[closeVertices[3]] += forces[3]
+
+                end
             end
         end
     end
@@ -712,39 +731,42 @@ function get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
     for i = eachindex(enve.vert)
 
         # get the interactions between vertex and shell
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(enve.vert[i],repl,repl.tree,spar,[],true,true,false)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(enve.vert[i],repl,repl.tree,spar,[],true,true)
         
         # if the repulsion is calculated
         if getForce
 
             # get the repl interaction
-            unitVector, forceMagnitude = get_vertex_shell_interaction_vertex_force(repl,unitVector,closePointDistance, closeVertices,tri,spar,true)
+            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(repl,unitVector,closePointDistance, closeVertices,tri,spar,true)
             # calculate the force   
             enve.forces.replRepulsion[i] = forceMagnitude*unitVector;
 
-            # get the forces on the repl
-            forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,1)
+            if !acrossBoundary
 
-            # if the closest point in the enve is a vertex
-            if length(closeVertices) == 1
+                # get the forces on the repl
+                forces = get_vertex_shell_interaction_shell_force(repl,forceMagnitude,unitVector,closeVertices,closeCoords,1)
 
-                # assign force
-                repl.forces.envelopeRepulsion[closeVertices[1]] += forces[1]
+                # if the closest point in the enve is a vertex
+                if length(closeVertices) == 1
 
-            # if the closest point is on an edge 
-            elseif length(closeVertices) == 2
+                    # assign force
+                    repl.forces.envelopeRepulsion[closeVertices[1]] += forces[1]
 
-                # assign forces
-                repl.forces.envelopeRepulsion[closeVertices[1]] += forces[1]
-                repl.forces.envelopeRepulsion[closeVertices[2]] += forces[2]
+                # if the closest point is on an edge 
+                elseif length(closeVertices) == 2
 
-            # if the closest is on the triangle
-            else
-                # assign forces
-                repl.forces.envelopeRepulsion[closeVertices[1]] += forces[1]
-                repl.forces.envelopeRepulsion[closeVertices[2]] += forces[2]
-                repl.forces.envelopeRepulsion[closeVertices[3]] += forces[3]
+                    # assign forces
+                    repl.forces.envelopeRepulsion[closeVertices[1]] += forces[1]
+                    repl.forces.envelopeRepulsion[closeVertices[2]] += forces[2]
 
+                # if the closest is on the triangle
+                else
+                    # assign forces
+                    repl.forces.envelopeRepulsion[closeVertices[1]] += forces[1]
+                    repl.forces.envelopeRepulsion[closeVertices[2]] += forces[2]
+                    repl.forces.envelopeRepulsion[closeVertices[3]] += forces[3]
+
+                end
             end
         end
     end
@@ -865,16 +887,18 @@ function get_vertex_shell_interaction_vertex_force(shell,unitVector,closePointDi
         # set the unit vector and force magnitude
         unitVector = -unitVector
         forceMagnitude = spar.outsideRepulsionMultiplier*spar.repulsionConstant
+        acrossBoundary = true
 
     # outside the pipette surface
     else
 
         # get the magnitude
         forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closePointDistance)
+        acrossBoundary = false
 
     end
 
-    return unitVector, forceMagnitude
+    return unitVector, forceMagnitude, acrossBoundary
 
 end
 

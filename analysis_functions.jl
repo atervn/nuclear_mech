@@ -24,6 +24,9 @@ function analyze_volume(;n = 1, sameName = true)
 
     areas = zeros(Float64,0)
 
+
+    padding = 0;
+
     for i = 1:n
 
 
@@ -37,12 +40,17 @@ function analyze_volume(;n = 1, sameName = true)
 
             if sameName
 
-                folderBase = folder[1:end-1]
+                subStrings = split(folder, '_')
+
+                padding = length(subStrings[end])
+
+
+                folderBase = folder[1:end-padding]
 
             end
         else
 
-            folder = folderBase*string(i)
+            folder = folderBase*lpad(i,padding,'0')
 
         end
 
@@ -222,7 +230,7 @@ Analyze AFM results.
 syntax: force, depth = analyze_afm(folder)
 if no folder is given, it will ask for one
 """
-function analyze_afm(folder)
+function analyze_afm(;folder = "")
 
     if folder == ""
         folder = pick_folder(pwd()*"\\results")

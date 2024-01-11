@@ -870,6 +870,8 @@ function get_model_parameters(ipar,enve)
 
     spar.nucleusHeight = ipar.nucleusHeight / ipar.scalingLength
 
+    spar.replTargetVolume = ipar.replTargetVolume / ipar.scalingLength^3
+
     return spar
 
 end
@@ -926,8 +928,8 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
             simset.adh.adherent = true
 
             # define top and bottom planes
-            simset.adh.topPlane = spar.freeNucleusRadius + spar.repulsionDistance - spar.cytoskeletonPlaneRadius
-            simset.adh.bottomPlane = -spar.freeNucleusRadius - spar.repulsionDistance
+            simset.adh.topPlane = maximum(getindex.(enve.vert,3)) + spar.repulsionDistance - spar.cytoskeletonPlaneRadius
+            simset.adh.bottomPlane = minimum(getindex.(enve.vert,3)) - spar.repulsionDistance
 
             # initialize touching vector
             simset.adh.touchingTop = zeros(Bool,length(enve.vert))

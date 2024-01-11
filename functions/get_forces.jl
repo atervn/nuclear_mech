@@ -49,7 +49,7 @@ end
 function get_envelope_forces!(enve,spar,ext,simset)
 
     # calculate volume forces on the envelope
-    get_volume_forces!(enve,spar);
+    get_volume_forces!(enve,spar,simset);
      
     # calculate area forces on the envelope
     get_area_forces!(enve,spar);

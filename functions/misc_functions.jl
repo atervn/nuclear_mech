@@ -123,7 +123,7 @@ function export_data(enve,chro,repl,spar,ex,ext,intTime,simset)
     end
 end
 
-function export_data(enve,ex,ext,intTime,simset)
+function export_data(enve,spar,ex,ext,intTime,simset)
 
     # check if data export is enabled
     if ex.exportData
@@ -182,13 +182,13 @@ function get_nuclear_properties!(enve, chro, simset, spar, intTime, intMaxTime)
         limitTime = Int64(floor(50/(spar.dt*spar.scalingTime)))
 
         if intTime == limitTime
-
+            println("heeeeeeeeeeeeeee")
             iparTemp = read_parameters((".\\parameters\\nuclear_mechanics.txt",))
 
             spar.bulkModulus = iparTemp.bulkModulus / spar.viscosity * spar.scalingTime * spar.scalingLength
         
         elseif intTime > limitTime
-
+            println("heeeee")
             newVolume = get_volume!(enve)
 
             if newVolume > enve.volume

@@ -121,7 +121,7 @@ Base.@kwdef mutable struct inputParametersType
     cantileverSpring::Float64 = 0
     cantileverMaxForce::Float64 = 0
     nucleusHeight::Float64 = 0
-
+    replTargetVolume::Float64 = 0
 end
 
 Base.@kwdef mutable struct scaledParametersType
@@ -188,6 +188,7 @@ Base.@kwdef mutable struct scaledParametersType
     cantileverSpring::Float64 = 0
     cantileverMaxForce::Float64 = 0
     nucleusHeight::Float64 = 0
+    replTargetVolume::Float64 = 0
 end
 
 Base.@kwdef mutable struct chromatinForceType

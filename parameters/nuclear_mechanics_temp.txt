@@ -1,4 +1,4 @@
-laminaStiffness,20e-4
+laminaStiffness,35e-4
 laminaFriction,100e-5
 laminaBendingStiffness,20e-17
 osmoticPressure,100

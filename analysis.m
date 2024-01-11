@@ -1,5 +1,5 @@
 
-nSims = 108;
+nSims = 12;
 nCases = 12;
 
 values = {};
@@ -8,12 +8,12 @@ means = [];
 stds = [];
 
 ind = 1;
-figure(2);
+figure(4);
 hold on
 tempValues = [];
 for i = 1:nSims
         
-    a = dlmread(append(".\afm_fit_results_w\afm_sim_finalw_",num2str(i),".csv"));
+    a = dlmread(append(".\inf_12hpi_afm_",sprintf('%0*d', 2, i),".csv"));
     
     if length(a(:,1)) > 10
     

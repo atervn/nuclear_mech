@@ -146,6 +146,10 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
             # solve the system
             solve_system!(enve, chro, repl, spar, simset, ext, intTime)
 
+            if simset.stopSimulation
+                break
+            end
+
             # update the time step
             intTime = progress_time!(simset,intTime,enve);
 
@@ -186,13 +190,13 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
             get_forces!(enve, spar, ext, simset)
 
             # export data
-            export_data(enve, ex, ext, intTime, simset)
+            export_data(enve, spar, ex, ext, intTime, simset)
 
             # solve the system
             solve_system!(enve, spar, simset, ext, intTime)
 
             # update the time step
-            intTime = progress_time!(simset,intTime);
+            intTime = progress_time!(simset,intTime,enve);
 
         end
 
@@ -202,6 +206,8 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
         print_error(error)
 
     end
+
+    println(mean(enve.normalLengths))
 
     # perform post-simulation export operations
     post_export(ex,simset,ext)

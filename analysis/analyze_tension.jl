@@ -1,4 +1,4 @@
-using DelimitedFiles, Plots, Statistics, NativeFileDialog, ReadVTK
+using DelimitedFiles, Statistics, NativeFileDialog, ReadVTK
 # theme(:ggplot2)
 
 include("../functions/setup_functions.jl")
@@ -15,8 +15,6 @@ function analyze_tension()
     if folder == ""
         return
     end
-
-    ipar = read_parameters(folder*"\\parameters.txt")
 
     allFiles = readdir(folder)
     
@@ -50,7 +48,7 @@ function analyze_tension()
         vtk = VTKFile(folder*"\\"*enveFiles[i])
         
         point_data = get_point_data(vtk)
-        data =  get_data(point_data["Elastic forces"])
+        data =  get_data(point_data["Volume forces"])
 
         values = zeros(size(data)[2])
 
@@ -69,13 +67,30 @@ function analyze_tension()
     end
 
 
-    times = 0:ipar.dt*ipar.exportStep:(length(means)-1)*ipar.dt*ipar.exportStep
+    times = 1:length(means)
 
-    p = plot(times,means,ribbon=stds,alpha=0.8;linewidth = 4, legend=false)
-    # plot!(p,times,histoneMeans,ribbon=telomereStds,alpha=0.8;linewidth = 4)
-    # annotate!(p,[(1,0.48, ("Telomeres: "*string(round(mean(telomereMeans[end-5:end]);digits=3)), 12, :black, :left))])
-    # annotate!(p,[(1,0.44, ("Histones: "*string(round(mean(histoneMeans[end-5:end]);digits=3)), 12, :black, :left))])
-    
+traces=[
+    scatter(
+        x=times,
+        y=means,
+        line=attr(color="rgb(255,0,0)"),
+        mode="lines"
+    ),
+
+    scatter(
+        x=vcat(times, reverse(times)), # x, then x reversed
+        y=vcat(means.+stds, reverse(means.-stds)), # upper, then lower reversed
+        fill="toself",
+        fillcolor="rgba(255,0,0,0.2)",
+        line=attr(color="rgba(255,255,255,0)"),
+        hoverinfo="skip",
+        showlegend=false
+    )
+]
+
+
+    p = plot(traces)
+
     return means,stds,mainTensions,p
 
 end

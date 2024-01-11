@@ -7,4 +7,4 @@ chromatinNumber,46
 chromatinLength,256
 crosslinkingBindingProbability,0.02
 crosslinkingUnbindingProbability,0.1
-nucleusHeight,8.7e-6
+nucleusHeight,11.7e-6
