@@ -170,32 +170,17 @@ function get_nuclear_properties!(enve, chro, simset, spar, intTime, intMaxTime)
 
     if simset.newVolumeSimulation
 
-        oA = sum(simset.originalTriangleAreas)
-        cA = sum(enve.triangleAreas)
+        volume = get_volume!(enve);
 
-        for i = 1:length(enve.edges)
-
-            enve.normalLengths[i] = simset.originalRestLengths[i]*sqrt(cA./oA)
-
+        if volume >= enve.targetVolume
+            direction = -1
+        else
+            direction = 1
         end
-                        
-        limitTime = Int64(floor(50/(spar.dt*spar.scalingTime)))
 
-        if intTime == limitTime
-            println("heeeeeeeeeeeeeee")
-            iparTemp = read_parameters((".\\parameters\\nuclear_mechanics.txt",))
+        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.01*spar.dt*simset.timeStepMultiplier)
 
-            spar.bulkModulus = iparTemp.bulkModulus / spar.viscosity * spar.scalingTime * spar.scalingLength
-        
-        elseif intTime > limitTime
-            println("heeeee")
-            newVolume = get_volume!(enve)
-
-            if newVolume > enve.volume
-                simset.newVolumeSimulation = false
-            end
-
-        end
+        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.01*2.1*spar.dt*simset.timeStepMultiplier)
 
     end
 
@@ -203,7 +188,7 @@ function get_nuclear_properties!(enve, chro, simset, spar, intTime, intMaxTime)
 
 end
 
-function get_nuclear_properties!(enve, chro, repl, simset, spar)
+function get_nuclear_properties!(enve, chro, repl::replicationCompartmentType, simset, spar, intTime)
    
     # form the trees for the vertex distance search
     simset.envelopeTree = KDTree(enve.vert);
@@ -221,9 +206,42 @@ function get_nuclear_properties!(enve, chro, repl, simset, spar)
     add_repl_comp_triangles!(repl,spar,simset)
     repl.tree = KDTree(repl.vert);
 
+    if simset.newVolumeSimulation
+
+        volume = get_volume!(enve);
+
+        if volume >= enve.targetVolume
+            direction = -1
+        else
+            direction = 1
+        end
+
+        if abs(volume - enve.targetVolume) < 1
+            enve.targetVolumeReached = true
+        end
+
+        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.01*spar.dt*simset.timeStepMultiplier)
+
+        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.01*2.1*spar.dt*simset.timeStepMultiplier)
+
+        replVolume = get_volume!(repl)
+
+        if replVolume - spar.replTargetVolume > -1
+            repl.growthDone = true
+        end
+        
+        if  enve.targetVolumeReached && repl.growthDone
+            simset.stopSimulation = true
+        end
+
+    end
+
+    enve.volume = get_volume!(enve)
+
+
 end
 
-function get_nuclear_properties!(enve, simset)
+function get_nuclear_properties!(enve, simset, spar)
    
     # form the trees for the vertex distance search
     simset.envelopeTree = KDTree(enve.vert);
@@ -234,6 +252,22 @@ function get_nuclear_properties!(enve, simset)
     get_voronoi_areas!(enve);
     get_shell_normals!(enve);
     get_area_unit_vectors!(enve);
+
+    if simset.newVolumeSimulation
+
+        volume = get_volume!(enve);
+
+        if volume >= enve.targetVolume
+            direction = -1
+        else
+            direction = 1
+        end
+
+        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.01*spar.dt*simset.timeStepMultiplier)
+
+        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.01*2.1*spar.dt*simset.timeStepMultiplier)
+
+    end
 
 end
 

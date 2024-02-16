@@ -288,14 +288,6 @@ function analyze_afm(;folder = "")
 
         beadPositions[i] = vert1[3,1]
         topPositions[i] = vert1[3,2]
-        # println(i)
-        # point_data = get_point_data(vtk)
-        # println(point_data)
-        # println(point_data["Force on bead"])
-        # temp = get_data(point_data["Force on bead"])
-        # println(temp)
-        # forces2[i] = temp[1]
-
 
         try
             vtk2 = VTKFile(folder*"\\enve_"*importNumber*".vtu")

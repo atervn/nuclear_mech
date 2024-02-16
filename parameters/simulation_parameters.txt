@@ -1,4 +1,4 @@
 viscosity,100e-6
-dt,0.05
-exportStep,100
+dt,0.1
+exportStep,50
 temperature,300

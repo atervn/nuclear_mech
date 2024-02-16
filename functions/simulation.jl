@@ -13,6 +13,7 @@ function simulation(
     replPars::String="./parameters/replication_compartment_mechanics.txt",
     exportData::Bool=true,
     vrc::Bool = false,
+    vrcGrowth::Bool = true,
     adherent::Bool = false,
     adherentStatic::Bool = false,
     noEnveSolve::Bool = false,
@@ -23,7 +24,8 @@ function simulation(
     newTargetVolume::Number = 0,
     stickyBottom::Bool = false,
     simulationDate::String = "",
-    restLengthRemodelling = false)
+    restLengthRemodelling = false,
+    laminaDisintegration::Float64 = 0.0)
 
 
     parameterFiles = get_parameter_files(simType,nuclearMechPars,nuclearPropPars,expPars,simPars,sysPars,replPars)
@@ -34,7 +36,7 @@ function simulation(
     end
 
     # setup the simulation environment
-    enve, chro, spar, simset, ext, ipar, importFolder = setup_simulation(initState, simType, importFolder, parameterFiles,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers,importTime,newTargetVolume,stickyBottom,restLengthRemodelling)
+    enve, chro, spar, simset, ext, ipar, importFolder = setup_simulation(initState, simType, importFolder, parameterFiles,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers,importTime,newTargetVolume,stickyBottom,restLengthRemodelling,laminaDisintegration)
 
     if typeof(enve) != envelopeType
         return
@@ -50,7 +52,7 @@ function simulation(
     if noChromatin
         run_simulation(enve, spar, ex, ext, simset, maxT)
     elseif vrc
-        repl = setup_repl(initState,enve,spar,ex,importFolder,importTime)
+        repl = setup_repl(initState,enve,spar,ex,importFolder,importTime, vrcGrowth)
         run_simulation(enve, chro, repl, spar, ex, ext, simset, maxT)
     else
         run_simulation(enve, chro, spar, ex, ext, simset, maxT)
@@ -132,7 +134,7 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
         while intTime <= intMaxTime
 
             # get nuclear properties
-            get_nuclear_properties!(enve, chro, repl, simset, spar)
+            get_nuclear_properties!(enve, chro, repl, simset, spar, intTime)
 
             # get crosslinks
             get_crosslinks!(enve, chro, simset, spar)
@@ -184,7 +186,7 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
         while intTime <= intMaxTime
 
             # get nuclear properties
-            get_nuclear_properties!(enve, simset)
+            get_nuclear_properties!(enve, simset, spar)
 
             # calculate forces
             get_forces!(enve, spar, ext, simset)
@@ -206,8 +208,6 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
         print_error(error)
 
     end
-
-    println(mean(enve.normalLengths))
 
     # perform post-simulation export operations
     post_export(ex,simset,ext)

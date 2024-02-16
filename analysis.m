@@ -13,9 +13,9 @@ hold on
 tempValues = [];
 for i = 1:nSims
         
-    a = dlmread(append(".\inf_12hpi_afm_",sprintf('%0*d', 2, i),".csv"));
+    a = dlmread(append(".\NI_AFM_",sprintf('%0*d', 2, i),".csv"));
     
-    if length(a(:,1)) > 10
+    if length(a(:,1)) > 5
     
         plot(a(:,1),a(:,2),'-k')
         hold on

@@ -56,6 +56,9 @@ Base.@kwdef mutable struct envelopeType
     lads::Vector{Vector{Int64}} = []
     envelopeMultipliers::Vector{Float64} = []
     volume::Float64 = 0
+    laminaDisintegrationMultipliers::Vector{Float64} = []
+    targetVolume::Float64 = 0
+    targetVolumeReached::Bool = false
 end
 
 Base.@kwdef mutable struct inputParametersType 
@@ -349,7 +352,8 @@ Base.@kwdef mutable struct replicationCompartmentType
     iLU::Any = []
     baseArea::Float64 = 0;
     tree::Any = []
-    
+    growth::Bool = true
+    growthDone::Bool = false
 end
 
 end

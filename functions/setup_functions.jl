@@ -12,7 +12,8 @@ function setup_simulation(
     importTime::Int,
     newTargetVolume::Number,
     stickyBottom::Bool,
-    restLengthRemodelling::Bool)
+    restLengthRemodelling::Bool,
+    laminaDisintegration::Float64)
 
     # read model parameters from file
     ipar = read_parameters(parameterFiles);
@@ -44,26 +45,13 @@ function setup_simulation(
         simset.newVolumeSimulation = true
         simset.exportNormalLengths = true
 
-        enve.normalVolume = newTargetVolume*1e-18 / ipar.scalingLength^3
-
-        spar.areaCompressionStiffness = 0
-
-        spar.bulkModulus = 1000 / spar.viscosity * spar.scalingTime * spar.scalingLength
-
-        importNumber = get_import_number(importFolder,importTime)
-
-        try
-            simset.originalRestLengths = readdlm(importFolder*"\\normalLengths_"* importNumber *".csv")[:,1]./ipar.scalingLength
-        catch
-            simset.originalRestLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]./ipar.scalingLength
-        end
-
-        simset.originalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]./spar.scalingLength^2
+        enve.targetVolume = newTargetVolume*1e-18 / ipar.scalingLength^3
 
     end
 
     simset.laminaRemodel = "tension_remodeling" 
 
+    enve = setup_lamina_disintegration(enve, laminaDisintegration)
 
     return enve, chro, spar, simset, ext, ipar, importFolder
 
@@ -127,36 +115,6 @@ function setup_envelope(ipar,initType,importFolder,importTime,newEnvelopeMultipl
     # set up shell data
     enve = setup_shell_data(enve,initType,"enve")
 
-
-    if cmp(initType,"load") == 0 && isfile(importFolder*"\\new_volume.txt")
-
-        # oldAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]
-        
-        # currentAreas = get_area!(enve)
-
-        # for i = 1:length(enve.edges)
-
-        #     cA = currentAreas[enve.edgesTri[i]]
-        #     oA = oldAreas[enve.edgesTri[i]]./ipar.scalingLength^2
-
-        #     enve.normalLengths[i] *= sqrt(mean(cA./oA))
-
-        # end
-                        
-        # oldLength = mean(oldLengths)/ipar.scalingLength
-
-        # newLength = mean(enve.edgeVectorNorms)
-
-        # temp = newLength/oldLength
-
-        # enve.normalLengths .*= temp
-
-
-        # oldNormalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]
-
-    end
-
-
     # print message to console
     printstyled("Done!\n"; color = :blue)
 
@@ -164,7 +122,7 @@ function setup_envelope(ipar,initType,importFolder,importTime,newEnvelopeMultipl
 
 end
 
-function setup_repl(initType,enve,spar,ex,importFolder,importTime)
+function setup_repl(initType,enve,spar,ex,importFolder,importTime,vrcGrowth)
 
     # initialize a replication compartment
     repl = replicationCompartmentType()
@@ -236,6 +194,8 @@ function setup_repl(initType,enve,spar,ex,importFolder,importTime)
     open(".\\results\\"*ex.folderName*"\\inf.txt", "w") do file
         write(file, "infected")
     end
+
+    repl.growth = vrcGrowth
 
     return repl
 
@@ -513,24 +473,6 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
             end
         end
         
-        if newTargetVolume != 0
-
-            oldNormalArea = readdlm(importFolder*"\\normalArea.csv")[1]
-            oldNormalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]
-            oldNormalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]
-            oldNormalVolume = readdlm(importFolder*"\\normalVolume.csv")[1]
-
-            writedlm(".\\results\\"*ex.folderName*"\\oldNormalArea.csv", [oldNormalArea],',')
-            writedlm(".\\results\\"*ex.folderName*"\\oldNormalTriangleAreas.csv", oldNormalTriangleAreas,',')
-            writedlm(".\\results\\"*ex.folderName*"\\oldNormalLengths.csv", oldNormalLengths,',')
-            writedlm(".\\results\\"*ex.folderName*"\\oldNormalVolume.csv", oldNormalVolume,',')
-            
-
-            open(".\\results\\"*ex.folderName*"\\new_volume.txt", "w") do file
-                write(file, "true")
-            end
-        end
-
         ex.step = spar.exportStep
     end
     
@@ -1268,4 +1210,24 @@ function check_export_number(ipar,maxT,parameterFiles)
         println("There are $nExports exported time points in the simulation. The export step can be changed in file \""*parameterFiles[4]* "\".")
 
     end
+end
+
+function setup_lamina_disintegration(enve, laminaDisintegration)
+   
+    firstEdgeIdx = findall(enve.firstEdges .== 1)
+    
+    nEdges = length(firstEdgeIdx);
+
+    nDisintegrationSites = round(Int64,nEdges*laminaDisintegration)
+
+    disintegrationSites = firstEdgeIdx[randperm(nEdges)[1:nDisintegrationSites]]
+
+    laminaDisintegrationMultipliers = zeros(size(enve.firstEdges))
+    laminaDisintegrationMultipliers[firstEdgeIdx] .= 1
+    laminaDisintegrationMultipliers[disintegrationSites] .= 0.0001
+
+    enve.laminaDisintegrationMultipliers = laminaDisintegrationMultipliers;
+
+    return enve
+
 end

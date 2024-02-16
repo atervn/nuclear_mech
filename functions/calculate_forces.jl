@@ -19,16 +19,16 @@ function get_volume_forces!(enve::envelopeType,spar::scaledParametersType,simset
 
 end
 
-function get_volume_forces!(enve,repl::replicationCompartmentType,spar)
+function get_volume_forces!(enve,repl::replicationCompartmentType,spar,simset::simulationSettingsType)
 
     # compute the volume as the different between the nuclear volume the replication compartment volume
-    nucleusVolume = get_volume!(enve) - get_volume!(repl);
+    nucleusVolume = get_volume!(enve);# - get_volume!(repl);
 
     # if the nucleus is smaller than the normal volume
-    if nucleusVolume < enve.normalVolume - repl.normalVolume
+    if nucleusVolume < enve.normalVolume  || simset.newVolumeSimulation # - repl.normalVolume
 
         # compute the volume pressure based on the difference between nucleus volume and normal volume
-        volPressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume - repl.normalVolume));
+        volPressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));# - repl.normalVolume));
 
     # otherwise, set to 0
     else
@@ -84,7 +84,7 @@ function get_bending_forces!(enve,spar)
     angles = get_triangle_angles(enve);
 
     # compute bending moments based on difference between angles and normal angles
-    moments = spar.laminaBendingStiffness*(angles .- enve.normalAngle);
+    moments = spar.laminaBendingStiffness*enve.laminaDisintegrationMultipliers.*(angles .- enve.normalAngle);
 
     # for each edge
     for i = eachindex(enve.edges)
@@ -127,7 +127,7 @@ function get_elastic_forces!(enve, spar)
         if enve.firstEdges[i] == 1
 
             # compute elastic force based on stiffness, edge vector norm difference, and edge unit vector
-            force = enve.envelopeMultipliers[i]*spar.laminaStiffness*(enve.edgeVectorNorms[i] - enve.normalLengths[i])*enve.edgeUnitVectors[i];
+            force = enve.laminaDisintegrationMultipliers[i]*enve.envelopeMultipliers[i]*spar.laminaStiffness*(enve.edgeVectorNorms[i] - enve.normalLengths[i])*enve.edgeUnitVectors[i];
 
             # update elastic forces for vertices
             enve.forces.elastic[enve.edges[i][1]] += force
@@ -564,7 +564,7 @@ function get_repl_volume_forces!(repl,spar)
     
     replVolume = get_volume!(repl)
 
-    if spar.replPressure != 0
+    if spar.replPressure != 0 && !repl.growth
 
         if replVolume < spar.replTargetVolume
             try
@@ -579,7 +579,7 @@ function get_repl_volume_forces!(repl,spar)
         volPressure = 0
     end
 
-    if replVolume < spar.replTargetVolume
+    if replVolume < spar.replTargetVolume && repl.growth
         # calculate the volume force based on the growth pressure
         repl.forces.volume = (spar.replPressure + volPressure)*repl.voronoiAreas.*repl.vertexNormalUnitVectors
     else
@@ -770,8 +770,6 @@ function get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
             end
         end
     end
-
-    # println(maximum(abs.(getindex.(repl.forces.chromationRepulsion,3))))
 
 end
 

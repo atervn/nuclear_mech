@@ -22,13 +22,13 @@ include("./functions/import_functions.jl")
 include("./functions/get_forces.jl")
 include("./functions/simulation.jl")
 
-sim = 36
+sim = 31
 
 if sim == 1 # initialize a suspended nucleus
 
     simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
 
-    Threads.@threads for i = 1:2
+    for i = 1:2
 
         # create the nucleus and let chromatin relax around the LADs
         fileName1 = simulation("INIT" ,5, "init_P1_"*string(i), "new"; noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt",
@@ -100,7 +100,7 @@ elseif sim == 8
 
 elseif sim == 10
 
-    simulation("INIT",50,"adherent_nucleus","load")
+    simulation("INIT" ,5, "test", "new"; laminaDisintegration = 0.001)
 elseif sim == 11
     simulation("INIT" ,5000, "adherent_nucleus_mod_100_klam_20", "load")
 elseif sim == 13
@@ -158,8 +158,7 @@ elseif sim == 31 # initialize 8 hpi nucleus
 
     simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
 
-    #Threads.@threads for i = 1:4
-        Threads.@threads for i = 1:12
+    Threads.@threads for i = 1:4
         # create the nucleus and let chromatin relax around the LADs
         fileName1 = simulation("INIT" ,5, "init_P1_"*string(i), "new"; noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt",
                         returnFoldername = true, noChromatin = true)
@@ -190,9 +189,102 @@ elseif sim == 31 # initialize 8 hpi nucleus
         rm(".\\results\\"*fileName4; recursive = true)
         rm(".\\results\\"*fileName5; recursive = true)
 
-        simulation("INIT",250,"INF_8hpi_"*lpad(i,2,"0"),"load"; importFolder = fileName6, adherent = true, nuclearPropPars = "./parameters/nuclear_properties_8hpi.txt",simulationDate = simulationDate,newTargetVolume = 650)
+        fileName7 = simulation("INIT",250,"INF_12hpi_"*lpad(i,2,"0"),"load"; returnFoldername = true, importFolder = fileName6, adherent = true, nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",simulationDate = simulationDate,newTargetVolume = 1025, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt")
  
         rm(".\\results\\"*fileName6; recursive = true)
+
+        fileName8 = simulation("INIT",250,"INF_12hpi_VRC_"*lpad(i,2,"0"),"load"; vrc = true, returnFoldername = true, importFolder = fileName7, adherent = true, nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",simulationDate = simulationDate, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt",replPars = "./parameters/replication_compartment_mechanics_12hpi.txt")
+
+        simulation("AFM", 5  , "INF_12hpi_AFM_lam_deg_0.2_0.0001_"*lpad(i,2,"0"), "load"; vrc = true, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt", nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",
+                    replPars = "./parameters/replication_compartment_mechanics_12hpi.txt", adherentStatic = true, stickyBottom = true, importFolder = fileName8, simulationDate = simulationDate, laminaDisintegration = 0.20);
+
+    end
+
+    simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
+
+    Threads.@threads for i = 1:4
+        # create the nucleus and let chromatin relax around the LADs
+        fileName1 = simulation("INIT" ,5, "init_P1_"*string(i), "new"; noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt",
+                        returnFoldername = true, noChromatin = true)
+                    
+        # relax the whole system
+        fileName2 = simulation("INIT", 20, "NEW_INIT_100_Pa_"*string(i), "load"; importFolder = fileName1, simPars = "./parameters/simulation_parameters_init_1.txt",
+                        returnFoldername = true,simulationDate = simulationDate, noChromatin = true)
+        
+        # remove the extra results
+        rm(".\\results\\"*fileName1; recursive = true)
+
+        fileName3 = simulation("INIT",40,"ADHERENT_INIT_8_um_100_Pa_"*string(i),"load"; adherent = true,importFolder = fileName2, returnFoldername = true, simulationDate = simulationDate, noChromatin = true)
+
+        fileName4 = simulation("INIT" ,5, "init_P1_"*string(i), "load"; adherent = true, importFolder = fileName3, noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt",
+        returnFoldername = true)
+
+        # create the crosslinks
+        fileName5 = simulation("INIT" ,1000, "init_P2_"*string(i), "load"; adherent = true, noEnveSolve = true, importFolder = fileName4, simPars = "./parameters/simulation_parameters_init_2.txt",
+                    returnFoldername = true)
+
+        # relax the whole system
+        fileName6 = simulation("INIT", 20, "INIT_NI_"*string(i), "load"; adherent = true, importFolder = fileName5,
+            returnFoldername = true,simulationDate = simulationDate)
+
+
+        rm(".\\results\\"*fileName2; recursive = true)
+        rm(".\\results\\"*fileName3; recursive = true)
+        rm(".\\results\\"*fileName4; recursive = true)
+        rm(".\\results\\"*fileName5; recursive = true)
+
+        fileName7 = simulation("INIT",250,"INF_12hpi_"*lpad(i,2,"0"),"load"; returnFoldername = true, importFolder = fileName6, adherent = true, nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",simulationDate = simulationDate,newTargetVolume = 1025, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt")
+ 
+        rm(".\\results\\"*fileName6; recursive = true)
+
+        fileName8 = simulation("INIT",250,"INF_12hpi_VRC_"*lpad(i,2,"0"),"load"; vrc = true, returnFoldername = true, importFolder = fileName7, adherent = true, nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",simulationDate = simulationDate, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt",replPars = "./parameters/replication_compartment_mechanics_12hpi.txt")
+
+        simulation("AFM", 5  , "INF_12hpi_AFM_lam_deg_0.5_0.0001_"*lpad(i,2,"0"), "load"; vrc = true, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt", nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",
+                    replPars = "./parameters/replication_compartment_mechanics_12hpi.txt", adherentStatic = true, stickyBottom = true, importFolder = fileName8, simulationDate = simulationDate, laminaDisintegration = 0.50);
+
+    end
+
+    simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
+
+    Threads.@threads for i = 1:4
+        # create the nucleus and let chromatin relax around the LADs
+        fileName1 = simulation("INIT" ,5, "init_P1_"*string(i), "new"; noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt",
+                        returnFoldername = true, noChromatin = true)
+                    
+        # relax the whole system
+        fileName2 = simulation("INIT", 20, "NEW_INIT_100_Pa_"*string(i), "load"; importFolder = fileName1, simPars = "./parameters/simulation_parameters_init_1.txt",
+                        returnFoldername = true,simulationDate = simulationDate, noChromatin = true)
+        
+        # remove the extra results
+        rm(".\\results\\"*fileName1; recursive = true)
+
+        fileName3 = simulation("INIT",40,"ADHERENT_INIT_8_um_100_Pa_"*string(i),"load"; adherent = true,importFolder = fileName2, returnFoldername = true, simulationDate = simulationDate, noChromatin = true)
+
+        fileName4 = simulation("INIT" ,5, "init_P1_"*string(i), "load"; adherent = true, importFolder = fileName3, noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt",
+        returnFoldername = true)
+
+        # create the crosslinks
+        fileName5 = simulation("INIT" ,1000, "init_P2_"*string(i), "load"; adherent = true, noEnveSolve = true, importFolder = fileName4, simPars = "./parameters/simulation_parameters_init_2.txt",
+                    returnFoldername = true)
+
+        # relax the whole system
+        fileName6 = simulation("INIT", 20, "INIT_NI_"*string(i), "load"; adherent = true, importFolder = fileName5,
+            returnFoldername = true,simulationDate = simulationDate)
+
+
+        rm(".\\results\\"*fileName2; recursive = true)
+        rm(".\\results\\"*fileName3; recursive = true)
+        rm(".\\results\\"*fileName4; recursive = true)
+        rm(".\\results\\"*fileName5; recursive = true)
+
+        fileName7 = simulation("INIT",250,"INF_12hpi_"*lpad(i,2,"0"),"load"; returnFoldername = true, importFolder = fileName6, adherent = true, nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",simulationDate = simulationDate,newTargetVolume = 1025, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt")
+ 
+        rm(".\\results\\"*fileName6; recursive = true)
+
+        fileName8 = simulation("INIT",250,"INF_12hpi_VRC_"*lpad(i,2,"0"),"load"; vrc = true, returnFoldername = true, importFolder = fileName7, adherent = true, nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",simulationDate = simulationDate, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt",replPars = "./parameters/replication_compartment_mechanics_12hpi.txt")
+
+        simulation("AFM", 5  , "INF_12hpi_AFM_lam_deg_0.8_0.0001_"*lpad(i,2,"0"), "load"; vrc = true, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt", nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt",
+                    replPars = "./parameters/replication_compartment_mechanics_12hpi.txt", adherentStatic = true, stickyBottom = true, importFolder = fileName8, simulationDate = simulationDate, laminaDisintegration = 0.80);
 
     end
 
@@ -257,15 +349,19 @@ elseif sim == 35
 
     simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
 
-    Threads.@threads for i = 1:12
-        simulation("AFM", 5  , "NI_AFM_"*lpad(i,2,"0"), "load"; adherentStatic = true, stickyBottom = true,importFolder = "2024-01-08_105449_NI_"*string(i),simulationDate = simulationDate);
+    # Threads.@threads for i = 1:4
+    #     simulation("INIT", 50  , "NI_relax_"*lpad(i,2,"0"), "load"; adherentStatic = true, stickyBottom = true,importFolder = "2024-01-08_105449_NI_"*string(i),simulationDate = simulationDate,laminaDisintegration = 0.6);
+    # end
+
+    # Threads.@threads for i = 1:4
+    #     simulation("AFM", 5  , "NI_AFM_"*lpad(i,2,"0"), "load"; adherentStatic = true, stickyBottom = true,importFolder = "2024-01-08_105449_NI_"*string(i),simulationDate = simulationDate,laminaDisintegration = 0.6);
+    # end
+    Threads.@threads for i = 1:4
+        simulation("AFM", 5  , "INF_8hpi_AFM_lam_dis_0.95_0.0001_"*lpad(i,2,"0"), "load"; vrc = true, nuclearMechPars = "./parameters/nuclear_mechanics_temp.txt", nuclearPropPars = "./parameters/nuclear_properties_8hpi.txt", replPars = "./parameters/replication_compartment_mechanics_8hpi.txt", adherentStatic = true, stickyBottom = true,importFolder = "2024-01-08_142634_INF_8hpi_"*lpad(i,2,"0"),simulationDate = simulationDate,laminaDisintegration = 0.95);
     end
-    Threads.@threads for i = 1:12
-        simulation("AFM", 5  , "INF_8hpi_AFM_"*lpad(i,2,"0"), "load"; vrc = true, nuclearPropPars = "./parameters/nuclear_properties_8hpi.txt", replPars = "./parameters/replication_compartment_mechanics_8hpi.txt", adherentStatic = true, stickyBottom = true,importFolder = "2024-01-08_142634_INF_8hpi_"*lpad(i,2,"0"),simulationDate = simulationDate);
-    end
-    Threads.@threads for i = 1:12
-        simulation("AFM", 5  , "INF_12hpi_AFM_"*lpad(i,2,"0"), "load"; vrc = true, nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt", replPars = "./parameters/replication_compartment_mechanics_12hpi.txt", adherentStatic = true, stickyBottom = true,importFolder = "2024-01-08_152833_INF_12hpi_"*lpad(i,2,"0"),simulationDate = simulationDate);
-    end
+    # Threads.@threads for i = 1:12
+    #     simulation("AFM", 5  , "INF_12hpi_AFM_"*lpad(i,2,"0"), "load"; vrc = true, nuclearPropPars = "./parameters/nuclear_properties_12hpi.txt", replPars = "./parameters/replication_compartment_mechanics_12hpi.txt", adherentStatic = true, stickyBottom = true,importFolder = "2024-01-08_152833_INF_12hpi_"*lpad(i,2,"0"),simulationDate = simulationDate);
+    # end
 
 elseif sim == 36
     simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
