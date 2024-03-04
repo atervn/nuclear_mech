@@ -1,7 +1,7 @@
 using Statistics, LinearAlgebra, IterativeSolvers, SparseArrays,
 ProgressMeter, Meshes, FileIO, MeshIO, NearestNeighbors, WriteVTK,
 DelimitedFiles, Dates, StatsBase, ReadVTK, NativeFileDialog, Random,
-IncompleteLU,CSV,DataFrames
+IncompleteLU,CSV,DataFrames,ZipFile
 
 # include.(filter(contains(r".jl$"), readdir(dir; join=true)))
 if !(@isdefined envelopeType)
@@ -21,65 +21,83 @@ include("./functions/solve_system.jl")
 include("./functions/import_functions.jl")
 include("./functions/get_forces.jl")
 include("./functions/simulation.jl")
-include("analysis_functions.jl")
 
-sim = 32
+sim = 2
 
-if sim == 31 # initialize 8 hpi nucleus
+#####################################################################################################
+# initialize NI nuclei
+#####################################################################################################
+
+if sim == 1 
 
     simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
 
-	ii = 0;
+	fileName1 = simulation("INIT",80,"ADHERENT_SHELL","new"; adherent = true, returnFoldername = true, simulationDate = simulationDate, noChromatin = true, newTargetVolume = 720)
+
 	# Threads.@threads 
-	Threads.@threads for i = 1:4
+	Threads.@threads for i = 1:32
 
-		fileName2 = simulation("INIT",80,"ADHERENT_INIT_8_um_100_Pa_"*string(i),"new"; adherent = true, returnFoldername = true, simulationDate = simulationDate, noChromatin = true)
 
-		fileName3 = simulation("INIT" ,5, "init_P1_"*string(i), "load"; adherent = true, importFolder = fileName2, noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt",
-		returnFoldername = true)
+		fileName2 = simulation("INIT" ,5, "init_P1_"*string(i), "load"; adherent = true, adherentStatic = true,  importFolder = fileName1, noEnveSolve = true, simPars = "./parameters/simulation_parameters_init_1.txt",
+		returnFoldername = true, simulationDate = simulationDate)
 
 		# create the crosslinks
-		fileName4 = simulation("INIT" ,1000, "init_P2_"*string(i), "load"; adherent = true, noEnveSolve = true, importFolder = fileName3, simPars = "./parameters/simulation_parameters_init_2.txt",
-					returnFoldername = true)
+		fileName3 = simulation("INIT" ,1000, "init_P2_"*string(i), "load"; adherent = true, adherentStatic = true,  noEnveSolve = true, importFolder = fileName2, simPars = "./parameters/simulation_parameters_init_2.txt",
+					returnFoldername = true, simulationDate = simulationDate)
 
 		# relax the whole system
-		fileName5= simulation("INIT", 20, "INIT_NI_"*string(i), "load"; adherent = true, importFolder = fileName4,
-			returnFoldername = true,simulationDate = simulationDate)
+		simulation("INIT", 20, "INIT_NI_"*string(i), "load"; adherent = true, adherentStatic = true, importFolder = fileName3, simulationDate = simulationDate)
 
 		rm(".\\results\\"*fileName2; recursive = true)
 		rm(".\\results\\"*fileName3; recursive = true)
-		rm(".\\results\\"*fileName4; recursive = true)
-
-		# simulation("AFM", 5  , "NI_AFM_"*lpad(i,2,"0"), "load"; adherentStatic = true, stickyBottom = true, importFolder = fileName5, simulationDate = simulationDate)
-	
-		# rm(".\\results\\"*fileName5; recursive = true)
 
     end
 
-elseif sim == 32 # initialize 8 hpi nucleus
+	rm(".\\results\\"*fileName1; recursive = true)
+
+
+#####################################################################################################
+# 8 hpi test
+#####################################################################################################
+
+elseif sim == 2 # initialize 8 hpi nucleus
 
 	simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
-	
-		
-	# Threads.@threads 
-	for i = 1
 
-		fileName6 = simulation("INIT",300,"INF_8hpi_"*lpad(i,2,"0"),"load"; vrc = true, returnFoldername = true, importFolder = "2024-02-14_210117_INIT_NI_"*lpad(i,1,"0"), adherent = true, replPars = "./parameters/replication_compartment_mechanics_8hpi.txt", nuclearPropPars = "./parameters/nuclear_properties_8hpi.txt", simulationDate = simulationDate, newTargetVolume = 720)
+	numCases = 6
 
-		simulation("AFM", 5  , "NI_AFM_"*lpad(i,2,"0"), "load"; vrc = true, vrcGrowth = false, adherentStatic = true, stickyBottom = true, importFolder = fileName6, simulationDate = simulationDate)
-	
-		# rm(".\\results\\"*fileName5; recursive = true)
+	simPerCase = 12
 
+	numInitSims = 32;
+
+	local cases = []
+
+	for i = 1:numCases
+		cases = vcat(cases, randperm(numInitSims)[1:simPerCase])
 	end
 
-elseif sim == 33
+	# Threads.@threads 
+	Threads.@threads for i = 70:numCases*simPerCase
 
-	simulationDate = Dates.format(Dates.now(), "yyyy-mm-dd_HHMMSS_")
+		if any(i .== 1:12)
+			dis = 0.10
+		elseif any(i .== 13:24)
+			dis = 0.20
+		elseif any(i .== 25:36)
+			dis = 0.30
+		elseif any(i .== 37:48)
+			dis = 0.40
+		elseif any(i .== 49:60)
+			dis = 0.50
+		elseif any(i .== 61:72)
+			dis = 0.60
+		end
 
-	fileName2 = simulation("INIT",80,"ADHERENT_INIT_8_um_100_Pa","new"; adherent = true, returnFoldername = true, simulationDate = simulationDate, noChromatin = true)
 
-	fileName6 = simulation("INIT",100,"INF_8hpi","load"; importFolder = fileName2,  returnFoldername = true, adherent = true, simulationDate = simulationDate, newTargetVolume = 720, noChromatin = true)
+		fileName1 = simulation("INIT",10000,"INIT_8hpi_lamina_disintegration_"*lpad(i,2,"0"),"load"; vrc = true, returnFoldername = true, importFolder = "2024-02-25_185915_INIT_NI_"*lpad(cases[i],2,"0"), adherent = true, replPars = "./parameters/replication_compartment_mechanics_8hpi.txt", nuclearPropPars = "./parameters/nuclear_properties_8hpi.txt", simulationDate = simulationDate, newTargetVolume = 720, laminaDisintegration = dis)
 
-	fileName2 = simulation("INIT",80,"ADHERENT_test","load"; importFolder = fileName6, adherent = true, returnFoldername = true, simulationDate = simulationDate, noChromatin = true)
+		simulation("AFM", 5  , "AFM_8hpi_lamina_disintegration_"*lpad(i,2,"0"), "load"; adherentStatic = true, stickyBottom = true, importFolder = fileName1, replPars = "./parameters/replication_compartment_mechanics_8hpi.txt",nuclearPropPars = "./parameters/nuclear_properties_8hpi.txt", simulationDate = simulationDate, laminaDisintegration = dis)
+	
+	end
 
 end

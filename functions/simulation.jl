@@ -43,7 +43,7 @@ function simulation(
     end
 
     # setup the export settings
-    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin,ipar,newTargetVolume,importFolder,simulationDate)
+    ex = setup_export(simType,folderName, enve, chro, ext, spar, simset, nameDate,exportData,noChromatin,ipar,newTargetVolume,importFolder,simulationDate,laminaDisintegration)
     
     # print a message to indicate that the simulation is starting
     printstyled("Starting simulation (" * Dates.format(now(), "YYYY-mm-dd HH:MM") * ")\n"; color=:blue)

@@ -1,6 +1,6 @@
 
-nSims = 12;
-nCases = 12;
+nSims = 48;
+nPerCases = 12;
 
 values = {};
 
@@ -13,9 +13,9 @@ hold on
 tempValues = [];
 for i = 1:nSims
         
-    a = dlmread(append(".\NI_AFM_",sprintf('%0*d', 2, i),".csv"));
+    a = dlmread(append(".\AFM_8hpi_lamina_disintegration_",sprintf('%0*d', 2, i),".csv"));
     
-    if length(a(:,1)) > 5
+    if length(a(:,1)) > 1
     
         plot(a(:,1),a(:,2),'-k')
         hold on
@@ -26,7 +26,7 @@ for i = 1:nSims
 
         ind = ind + 1;
 
-        if ind == nCases+1
+        if ind == nPerCases+1
 
             values = [values {tempValues}];
 

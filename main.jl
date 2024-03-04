@@ -1,7 +1,7 @@
 using Statistics, LinearAlgebra, IterativeSolvers, SparseArrays,
 ProgressMeter, Meshes, FileIO, MeshIO, NearestNeighbors, WriteVTK,
 DelimitedFiles, Dates, StatsBase, ReadVTK, NativeFileDialog, Random,
-IncompleteLU,CSV,DataFrames
+IncompleteLU,CSV,DataFrames,ZipFile
 
 # include.(filter(contains(r".jl$"), readdir(dir; join=true)))
 if !(@isdefined envelopeType)

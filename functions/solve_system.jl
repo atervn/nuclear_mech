@@ -248,14 +248,6 @@ function move_adherens_plane!(enve,simset,spar)
                 simset.adh.topPlane += 20*spar.dt.*simset.timeStepMultiplier
             end
         end
-
-        # # calculate the volme forces (pressure) toward the plane (approximatng the nucleus forces)
-        # cellForcesOnPlane = sum(getindex.(enve.forces.total[simset.adh.touchingTop],3) .- getindex.(enve.forces.planeRepulsion[simset.adh.touchingTop],3))
-
-        # # calculate the different between the pushing force of the plane and the nucleus' force on the plane
-        # forceDifference = (-spar.planeForce + cellForcesOnPlane)./50
-
-        # calculate the plane force on the nucleus
         
     end
 end

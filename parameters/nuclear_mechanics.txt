@@ -1,8 +1,8 @@
 laminaStiffness,15e-4
 laminaFriction,10e-5
-laminaBendingStiffness,5e-17
+laminaBendingStiffness,3e-17
 osmoticPressure,100
-areaCompressionModulus,1e-3
+areaCompressionModulus,2e-3
 bulkModulus,100
 chromatinBendingModulus,10e-19
 chromatinStiffness,15e-4

@@ -15,7 +15,7 @@ function get_volume_forces!(enve::envelopeType,spar::scaledParametersType,simset
     end
 
     # compute the volume forces on envelope vertices
-    enve.forces.volume = (spar.osmoticPressure + volPressure)*enve.voronoiAreas.*enve.vertexNormalUnitVectors
+    enve.forces.volume = (spar.osmoticPressure + volPressure)*mean(enve.voronoiAreas).*enve.vertexNormalUnitVectors
 
 end
 
@@ -38,7 +38,7 @@ function get_volume_forces!(enve,repl::replicationCompartmentType,spar,simset::s
     end
 
     # compute the volume forces on envelope vertices
-    enve.forces.volume = (spar.osmoticPressure + volPressure)*enve.voronoiAreas.*enve.vertexNormalUnitVectors
+    enve.forces.volume = (spar.osmoticPressure + volPressure)*mean(enve.voronoiAreas).*enve.vertexNormalUnitVectors
 
 end
 
@@ -58,7 +58,7 @@ function get_area_forces!(enve, spar)
 
         # get the force magnitude
         magnitude = spar.areaCompressionStiffness*(enve.triangleAreas[i] - enve.normalTriangleAreas[i])/(enve.normalTriangleAreas[i]);
-        
+
         # for each triangle vertex
         for j = 1:3
 

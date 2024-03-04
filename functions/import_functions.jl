@@ -146,8 +146,12 @@ function import_crosslinks(chro,spar,importFolder,importTime)
 
     # try to read the crosslinks CSV file
     tempCrosslinks = []
+
     try
-        tempCrosslinks = readdlm(importFolder*"\\crosslinks_" * importNumber * ".csv", ',', Int64, '\n')
+        vtk = VTKFile(importFolder*"\\crosslinks_" * importNumber * ".vtp")
+        a = get_point_data(vtk)
+        aa = get_data(a["crosslink ID"])
+        tempCrosslinks = [aa[1:Int(length(aa)/2)] aa[Int(length(aa)/2)+1:end]]
     catch
     end
     

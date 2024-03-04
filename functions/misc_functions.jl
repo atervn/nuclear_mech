@@ -178,9 +178,9 @@ function get_nuclear_properties!(enve, chro, simset, spar, intTime, intMaxTime)
             direction = 1
         end
 
-        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.01*spar.dt*simset.timeStepMultiplier)
+        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.05*spar.dt*simset.timeStepMultiplier)
 
-        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.01*2.1*spar.dt*simset.timeStepMultiplier)
+        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.05*2.1*spar.dt*simset.timeStepMultiplier)
 
     end
 
@@ -220,13 +220,13 @@ function get_nuclear_properties!(enve, chro, repl::replicationCompartmentType, s
             enve.targetVolumeReached = true
         end
 
-        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.01*spar.dt*simset.timeStepMultiplier)
+        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.05*spar.dt*simset.timeStepMultiplier)
 
-        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.01*2.1*spar.dt*simset.timeStepMultiplier)
+        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.05*2.1*spar.dt*simset.timeStepMultiplier)
 
         replVolume = get_volume!(repl)
 
-        if replVolume - spar.replTargetVolume > -1
+        if replVolume - spar.replTargetVolume > -1 && intTime > 50
             repl.growthDone = true
         end
         
@@ -263,9 +263,9 @@ function get_nuclear_properties!(enve, simset, spar)
             direction = 1
         end
 
-        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.01*spar.dt*simset.timeStepMultiplier)
+        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.05*spar.dt*simset.timeStepMultiplier)
 
-        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.01*2.1*spar.dt*simset.timeStepMultiplier)
+        enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.05*2.1*spar.dt*simset.timeStepMultiplier)
 
     end
 
@@ -563,7 +563,7 @@ function export_envelope_data(enve,ex,simset,exportNumber,spar)
     end
 
     # export planes if adhesion is enabled
-    if simset.adh.adherent
+    if simset.adh.adherent && !simset.adh.static
         df = DataFrame(x = [0, 0], y = [0, 0], z = [simset.adh.topPlane, simset.adh.bottomPlane], rad = [spar.cytoskeletonPlaneRadius,0])
         CSV.write(".\\results\\"*ex.folderName*"\\planes_" * lpad(exportNumber,4,"0")*".csv",df)
     end
@@ -608,11 +608,13 @@ function export_chromatin_data(enve,chro,spar,ex,exportNumber)
         crossLinkCells[i] = MeshCell(PolyData.Lines(), [i, length(chro.crosslinks)+i]);
     end
     tempVert = [chro.vert[getindex.(chro.crosslinks,1)] ; chro.vert[getindex.(chro.crosslinks,2)]];
+
     vtk_grid(".\\results\\"*ex.folderName*"\\crosslinks_" * lpad(exportNumber,4,"0"), [getindex.(tempVert,1) getindex.(tempVert,2) getindex.(tempVert,3)]', crossLinkCells) do vtk
+        vtk["crosslink ID"] = [getindex.(chro.crosslinks,1); getindex.(chro.crosslinks,2)]
     end
 
     # write crosslinks to CSV
-    writedlm(".\\results\\"*ex.folderName*"\\crosslinks_" * lpad(exportNumber,4,"0") * ".csv", [getindex.(chro.crosslinks,1) getindex.(chro.crosslinks,2)],',')
+    # writedlm(".\\results\\"*ex.folderName*"\\crosslinks_" * lpad(exportNumber,4,"0") * ".csv", [getindex.(chro.crosslinks,1) getindex.(chro.crosslinks,2)],',')
 
 end
 

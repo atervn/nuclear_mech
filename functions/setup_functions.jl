@@ -51,7 +51,7 @@ function setup_simulation(
 
     simset.laminaRemodel = "tension_remodeling" 
 
-    enve = setup_lamina_disintegration(enve, laminaDisintegration)
+    enve = setup_lamina_disintegration(enve, laminaDisintegration, importFolder)
 
     return enve, chro, spar, simset, ext, ipar, importFolder
 
@@ -378,7 +378,7 @@ function setup_micromanipulation(enve,spar)
 
 end
 
-function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool,ipar,newTargetVolume,importFolder,simulationDate)
+function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameDate::Bool,exportData::Bool,noChromatin::Bool,ipar,newTargetVolume,importFolder,simulationDate,laminaDisintegration)
 
     # init object
     ex = exportSettingsType()
@@ -466,6 +466,10 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
 
         end
 
+        if laminaDisintegration > 0
+            writedlm(".\\results\\"*ex.folderName*"\\lamina_disintegration_multipliers.csv", enve.laminaDisintegrationMultipliers,',')
+        end
+
         # Create a file to indicate adhesion
         if simset.adh.adherent
             open(".\\results\\"*ex.folderName*"\\adh.txt", "w") do file
@@ -486,6 +490,11 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
 
     # export parameters
     export_parameters(ipar,ex)
+
+    if simset.adh.adherent && simset.adh.static
+        df = DataFrame(x = [0, 0], y = [0, 0], z = [simset.adh.topPlane, simset.adh.bottomPlane], rad = [spar.cytoskeletonPlaneRadius,0])
+        CSV.write(".\\results\\"*ex.folderName*"\\planes.csv",df)
+    end
 
     return ex
 
@@ -855,7 +864,11 @@ function check_adhesion!(initType,spar,enve,importFolder,simset,adherent,adheren
             importNumber = get_import_number(folderTemp,importTime)
 
             # load the plane date
-            planes = DataFrame(CSV.File(folderTemp*"\\planes_"*importNumber*".csv"))
+            if isfile(folderTemp*"\\planes_"*importNumber*".csv")
+                planes = DataFrame(CSV.File(folderTemp*"\\planes_"*importNumber*".csv"))
+            else
+                planes = DataFrame(CSV.File(folderTemp*"\\planes.csv"))
+            end
 
             # load top and bottom planes
             simset.adh.topPlane = planes[1,3]
@@ -1212,22 +1225,27 @@ function check_export_number(ipar,maxT,parameterFiles)
     end
 end
 
-function setup_lamina_disintegration(enve, laminaDisintegration)
+function setup_lamina_disintegration(enve, laminaDisintegration,importFolder)
    
-    firstEdgeIdx = findall(enve.firstEdges .== 1)
+    if isfile(importFolder*"\\lamina_disintegration_multipliers.csv")
+
+        enve.laminaDisintegrationMultipliers = readdlm(importFolder*"\\lamina_disintegration_multipliers.csv")[:]
     
-    nEdges = length(firstEdgeIdx);
+    else
+        firstEdgeIdx = findall(enve.firstEdges .== 1)
+        
+        nEdges = length(firstEdgeIdx);
 
-    nDisintegrationSites = round(Int64,nEdges*laminaDisintegration)
+        nDisintegrationSites = round(Int64,nEdges*laminaDisintegration)
 
-    disintegrationSites = firstEdgeIdx[randperm(nEdges)[1:nDisintegrationSites]]
+        disintegrationSites = firstEdgeIdx[randperm(nEdges)[1:nDisintegrationSites]]
 
-    laminaDisintegrationMultipliers = zeros(size(enve.firstEdges))
-    laminaDisintegrationMultipliers[firstEdgeIdx] .= 1
-    laminaDisintegrationMultipliers[disintegrationSites] .= 0.0001
+        laminaDisintegrationMultipliers = zeros(size(enve.firstEdges))
+        laminaDisintegrationMultipliers[firstEdgeIdx] .= 1
+        laminaDisintegrationMultipliers[disintegrationSites] .= 0.0001
 
-    enve.laminaDisintegrationMultipliers = laminaDisintegrationMultipliers;
-
+        enve.laminaDisintegrationMultipliers = laminaDisintegrationMultipliers;
+    end
     return enve
 
 end
