@@ -1,6 +1,6 @@
-replFriction,20e-5
+replFriction,10e-5
 replBulkModulus,10
-replPressure,100
+replPressure,300
 replStiffness,15e-5
 replBendingStiffness,3e-17
-replTargetVolume,375e-18
+replTargetVolume,400e-18

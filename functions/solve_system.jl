@@ -14,7 +14,7 @@ function solve_system!(enve::envelopeType, chro::chromatinType, spar::scaledPara
         
         # compute total forces on envelope and chromatin
         totalEnve = enve.forces.total .+ enveluctuation;
-        totalChro = chro.forces.total .+ chroFluctuation;
+        totalChro = 1/spar.chromatinViscosityMultiplier.*(chro.forces.total .+ chroFluctuation);
 
         # solve the linear system of equations using conjugate gradient method
         movements,maxMovement = run_cg!(spar,simset,simset.frictionMatrix,simset.iLU,[getindex.(totalEnve,1);getindex.(totalChro,1)],[getindex.(totalEnve,2);getindex.(totalChro,2)],[getindex.(totalEnve,3);getindex.(totalChro,3)])
@@ -30,6 +30,8 @@ function solve_system!(enve::envelopeType, chro::chromatinType, spar::scaledPara
 
     # move vertices of envelope and chromatin based on the computed movements
     move_vertices!(enve,chro,movements,simset)
+
+    simset.totalEnvelopeSpeed = sum(norm.(movements[1:length(enve.vert)]))/(spar.dt.*simset.timeStepMultiplier)
 
     # update the position of the adherens plane
     move_adherens_plane!(enve,simset,spar)
@@ -243,9 +245,9 @@ function move_adherens_plane!(enve,simset,spar)
         if abs(nucleusHeight - spar.nucleusHeight) > 0.1
 
             if nucleusHeight > spar.nucleusHeight
-                simset.adh.topPlane -= 20*spar.dt.*simset.timeStepMultiplier
+                simset.adh.topPlane -= 5*spar.dt.*simset.timeStepMultiplier
             elseif nucleusHeight < spar.nucleusHeight
-                simset.adh.topPlane += 20*spar.dt.*simset.timeStepMultiplier
+                simset.adh.topPlane += 5*spar.dt.*simset.timeStepMultiplier
             end
         end
         
@@ -327,8 +329,6 @@ function move_afm!(enve,ext,spar,simset)
 
         enveForcesOnBead = sum(forces)
 
-        cantilevelSpeed = 60;
-
         friction = 0.0001/spar.viscosity;
 
         distance = norm(ext.topPosition - ext.beadPosition);
@@ -348,8 +348,32 @@ function move_afm!(enve,ext,spar,simset)
 
         ext.forceOnBead = enveForcesOnBead
 
-        forceOnBead = enveForcesOnBead + cantileverForce;
+        areaForceOnBead = getindex.(enve.forces.area[ext.touchingIdx],3)
+        volumeForceOnBead = getindex.(enve.forces.volume[ext.touchingIdx],3)
+        bendingForceOnBead = getindex.(enve.forces.bending[ext.touchingIdx],3)
+        elasticForceOnBead = getindex.(enve.forces.elastic[ext.touchingIdx],3)
+        chroRepulsionForceOnBead = getindex.(enve.forces.chromationRepulsion[ext.touchingIdx],3)
+        ladForceOnBead = getindex.(enve.forces.ladEnveForces[ext.touchingIdx],3)
+        cytoskeletonForceOnBead = getindex.(enve.forces.afmRepulsion[ext.touchingIdx],3)
 
+        ext.areaForceOnBead = sum(areaForceOnBead[findall(areaForceOnBead  .> 0)])
+        ext.volumeForceOnBead = sum(volumeForceOnBead[findall(volumeForceOnBead .> 0)])
+        ext.bendingForceOnBead = sum(bendingForceOnBead[findall(bendingForceOnBead .> 0)])
+        ext.elasticForceOnBead = sum(elasticForceOnBead[findall(elasticForceOnBead .> 0)])
+        ext.chroRepulsionForceOnBead = sum(chroRepulsionForceOnBead[findall(chroRepulsionForceOnBead .> 0)])
+        ext.ladForceOnBead = sum(ladForceOnBead[findall(ladForceOnBead .> 0)])
+        ext.cytoskeletonForceOnBead = sum(cytoskeletonForceOnBead)
+
+        ext.negareaForceOnBead = sum(areaForceOnBead[findall(areaForceOnBead  .< 0)])
+        ext.negvolumeForceOnBead = sum(volumeForceOnBead[findall(volumeForceOnBead .< 0)])
+        ext.negbendingForceOnBead = sum(bendingForceOnBead[findall(bendingForceOnBead .< 0)])
+        ext.negelasticForceOnBead = sum(elasticForceOnBead[findall(elasticForceOnBead .< 0)])
+        ext.negchroRepulsionForceOnBead = sum(chroRepulsionForceOnBead[findall(chroRepulsionForceOnBead .< 0)])
+        ext.negladForceOnBead = sum(ladForceOnBead[findall(ladForceOnBead .< 0)])
+        ext.negcytoskeletonForceOnBead = sum(cytoskeletonForceOnBead)
+
+        forceOnBead = enveForcesOnBead + cantileverForce;
+        # minus cantileverSpeed, since it is moving downward
         beadSpeed = (-friction*spar.cantileverSpeed + forceOnBead)./(1+friction)
 
         ext.beadPosition = ext.beadPosition + Vec(0.,0.,spar.dt*simset.timeStepMultiplier*beadSpeed);

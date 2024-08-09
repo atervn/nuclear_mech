@@ -110,16 +110,15 @@ function get_edges(shellStruct)
     end
     
     # init vertexEdges vector
-    shellStruct.vertexEdges = fill(Int[], length(shellStruct.vert));
+    shellStruct.vertexEdges = Vector{Vector{Int64}}(undef,length(shellStruct.vert));
 
     # iterate through vertices
     for i = 1:length(shellStruct.vert)
 
         # get indices of edges that are connected to vertex i
-        shellStruct.vertexEdges[i] = findall(getindex(shellStruct.edges,1) .== i);
+        shellStruct.vertexEdges[i] = findall(getindex.(shellStruct.edges,1) .== i);
 
     end
-
 
     bufferedDoubleTriMatrix = [triMatrix[:,3] triMatrix triMatrix[:,1]]
 

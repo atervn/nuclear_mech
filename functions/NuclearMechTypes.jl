@@ -1,7 +1,7 @@
 module NuclearMechTypes
 
 using WriteVTK
-using Meshes
+using GeometryBasics
 using SparseArrays
 using Dates
 
@@ -67,7 +67,7 @@ Base.@kwdef mutable struct inputParametersType
     laminaFriction::Float64 = 0;
     laminaBendingStiffness::Float64 = 0;
     osmoticPressure::Float64 = 0;
-    areaCompressionModulus::Float64 = 0;
+    areaCompressionStiffness::Float64 = 0;
     poissonsRatio::Float64 = 0;
     bulkModulus::Float64 = 0;
     chromatinBendingModulus::Float64 = 0;
@@ -125,6 +125,7 @@ Base.@kwdef mutable struct inputParametersType
     cantileverMaxForce::Float64 = 0
     nucleusHeight::Float64 = 0
     replTargetVolume::Float64 = 0
+    chromatinViscosityMultiplier::Float64 = 1.0
 end
 
 Base.@kwdef mutable struct scaledParametersType
@@ -192,6 +193,7 @@ Base.@kwdef mutable struct scaledParametersType
     cantileverMaxForce::Float64 = 0
     nucleusHeight::Float64 = 0
     replTargetVolume::Float64 = 0
+    chromatinViscosityMultiplier::Float64 = 1.0
 end
 
 Base.@kwdef mutable struct chromatinForceType
@@ -258,6 +260,21 @@ Base.@kwdef mutable struct afmType
     normDistance::Float64 = 0;
     directionDown::Bool = true
     forceOnBead::Float64 = 0;
+    areaForceOnBead::Float64 = 0;
+    volumeForceOnBead::Float64 = 0;
+    bendingForceOnBead::Float64 = 0;
+    elasticForceOnBead::Float64 = 0;
+    chroRepulsionForceOnBead::Float64 = 0;
+    ladForceOnBead::Float64 = 0;
+    cytoskeletonForceOnBead::Float64 = 0;
+    negforceOnBead::Float64 = 0;
+    negareaForceOnBead::Float64 = 0;
+    negvolumeForceOnBead::Float64 = 0;
+    negbendingForceOnBead::Float64 = 0;
+    negelasticForceOnBead::Float64 = 0;
+    negchroRepulsionForceOnBead::Float64 = 0;
+    negladForceOnBead::Float64 = 0;
+    negcytoskeletonForceOnBead::Float64 = 0;
 end
 
 Base.@kwdef mutable struct exportSettingsType
@@ -304,6 +321,12 @@ Base.@kwdef mutable struct simulationSettingsType
     originalRestLengths::Vector{Float64} = []
     originalTriangleAreas::Vector{Float64} = []
     exportNormalLengths::Bool = false
+    osmoticPressureChange::Bool = false
+    oldOsmoticPressure::Float64 = 0
+    newOsmoticPressure::Float64 = 0
+    targetPressureReached::Bool = false
+    totalEnvelopeSpeed::Float64 = 0
+    resetVertexDistancesTime::Float64 = 0
 end
 Base.@kwdef mutable struct virusforcesType
     volume::Vector{Vec{3,Float64}} = []

@@ -20,7 +20,7 @@ for i1 = lamStiff
         for i3 = bulk
             for i4 = chroStiff
                 ipar.laminaStiffness = i1;
-                ipar.areaCompressionModulus = i2;
+                ipar.areaCompressionStiffness = i2;
                 ipar.bulkModulus = i3;
                 ipar.chromatinStiffness = i4;
 

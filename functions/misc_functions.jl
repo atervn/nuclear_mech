@@ -69,6 +69,20 @@ function export_data(enve::envelopeType,chro::chromatinType,spar::scaledParamete
                     vtk["point_id"] = 1:2
                     vtk["Force on bead"] = [ext.forceOnBead, ext.forceOnBead]
                     vtk["Spring force"] = [cantileverForce, cantileverForce]
+                    vtk["Area force on bed"] = [ext.areaForceOnBead, ext.areaForceOnBead]
+                    vtk["Volume force on bed"] = [ext.volumeForceOnBead, ext.volumeForceOnBead]
+                    vtk["Bending force on bed"] = [ext.bendingForceOnBead, ext.bendingForceOnBead]
+                    vtk["Elastic force on bed"] = [ext.elasticForceOnBead, ext.elasticForceOnBead]
+                    vtk["chroRepulsion force on bed"] = [ext.chroRepulsionForceOnBead, ext.chroRepulsionForceOnBead]
+                    vtk["LAD force on bed"] = [ext.ladForceOnBead, ext.ladForceOnBead]
+                    vtk["afm force on cell"] = [ext.cytoskeletonForceOnBead, ext.cytoskeletonForceOnBead]
+                    vtk["Negative Area force on bed"] = [ext.negareaForceOnBead, ext.negareaForceOnBead]
+                    vtk["Negative Volume force on bed"] = [ext.negvolumeForceOnBead, ext.negvolumeForceOnBead]
+                    vtk["Negative Bending force on bed"] = [ext.negbendingForceOnBead, ext.negbendingForceOnBead]
+                    vtk["Negative Elastic force on bed"] = [ext.negelasticForceOnBead, ext.negelasticForceOnBead]
+                    vtk["Negative chroRepulsion force on bed"] = [ext.negchroRepulsionForceOnBead, ext.negchroRepulsionForceOnBead]
+                    vtk["Negative LAD force on bed"] = [ext.negladForceOnBead, ext.negladForceOnBead]
+                    vtk["Negative afm force on cell"] = [ext.negcytoskeletonForceOnBead, ext.negcytoskeletonForceOnBead]
                 end
             end
 
@@ -116,6 +130,20 @@ function export_data(enve,chro,repl,spar,ex,ext,intTime,simset)
                     vtk["point_id"] = 1:2
                     vtk["Force on bead"] = [ext.forceOnBead, ext.forceOnBead]
                     vtk["Spring force"] = [cantileverForce, cantileverForce]
+                    vtk["Area force on bed"] = [ext.areaForceOnBead, ext.areaForceOnBead]
+                    vtk["Volume force on bed"] = [ext.volumeForceOnBead, ext.volumeForceOnBead]
+                    vtk["Bending force on bed"] = [ext.bendingForceOnBead, ext.bendingForceOnBead]
+                    vtk["Elastic force on bed"] = [ext.elasticForceOnBead, ext.elasticForceOnBead]
+                    vtk["chroRepulsion force on bed"] = [ext.chroRepulsionForceOnBead, ext.chroRepulsionForceOnBead]
+                    vtk["LAD force on bed"] = [ext.ladForceOnBead, ext.ladForceOnBead]
+                    vtk["afm force on cell"] = [ext.cytoskeletonForceOnBead, ext.cytoskeletonForceOnBead]
+                    vtk["Negative Area force on bed"] = [ext.negareaForceOnBead, ext.negareaForceOnBead]
+                    vtk["Negative Volume force on bed"] = [ext.negvolumeForceOnBead, ext.negvolumeForceOnBead]
+                    vtk["Negative Bending force on bed"] = [ext.negbendingForceOnBead, ext.negbendingForceOnBead]
+                    vtk["Negative Elastic force on bed"] = [ext.negelasticForceOnBead, ext.negelasticForceOnBead]
+                    vtk["Negative chroRepulsion force on bed"] = [ext.negchroRepulsionForceOnBead, ext.negchroRepulsionForceOnBead]
+                    vtk["Negative LAD force on bed"] = [ext.negladForceOnBead, ext.negladForceOnBead]
+                    vtk["Negative afm force on cell"] = [ext.negcytoskeletonForceOnBead, ext.negcytoskeletonForceOnBead]
                 end
             end
 
@@ -145,9 +173,31 @@ function export_data(enve,spar,ex,ext,intTime,simset)
 
                 points = [ext.beadPosition[1] ext.beadPosition[2] ext.beadPosition[3] ; ext.topPosition[1] ext.topPosition[2] ext.topPosition[3]]'
 
+                distance = norm(ext.topPosition - ext.beadPosition);
+
+                springConstant = 0.05/spar.viscosity*spar.scalingTime;
+
+                cantileverForce = -springConstant*(distance - ext.normDistance)
+
                 vtk_grid(".\\results\\"*ex.folderName*"\\afm_" * lpad(exportNumber,4,"0"), points, cell) do vtk
                     # assign line IDs
                     vtk["point_id"] = 1:2
+                    vtk["Force on bead"] = [ext.forceOnBead, ext.forceOnBead]
+                    vtk["Spring force"] = [cantileverForce, cantileverForce]
+                    vtk["Area force on bed"] = [ext.areaForceOnBead, ext.areaForceOnBead]
+                    vtk["Volume force on bed"] = [ext.volumeForceOnBead, ext.volumeForceOnBead]
+                    vtk["Bending force on bed"] = [ext.bendingForceOnBead, ext.bendingForceOnBead]
+                    vtk["Elastic force on bed"] = [ext.elasticForceOnBead, ext.elasticForceOnBead]
+                    vtk["chroRepulsion force on bed"] = [ext.chroRepulsionForceOnBead, ext.chroRepulsionForceOnBead]
+                    vtk["LAD force on bed"] = [ext.ladForceOnBead, ext.ladForceOnBead]
+                    vtk["afm force on cell"] = [ext.cytoskeletonForceOnBead, ext.cytoskeletonForceOnBead]
+                    vtk["Negative Area force on bed"] = [ext.negareaForceOnBead, ext.negareaForceOnBead]
+                    vtk["Negative Volume force on bed"] = [ext.negvolumeForceOnBead, ext.negvolumeForceOnBead]
+                    vtk["Negative Bending force on bed"] = [ext.negbendingForceOnBead, ext.negbendingForceOnBead]
+                    vtk["Negative Elastic force on bed"] = [ext.negelasticForceOnBead, ext.negelasticForceOnBead]
+                    vtk["Negative chroRepulsion force on bed"] = [ext.negchroRepulsionForceOnBead, ext.negchroRepulsionForceOnBead]
+                    vtk["Negative LAD force on bed"] = [ext.negladForceOnBead, ext.negladForceOnBead]
+                    vtk["Negative afm force on cell"] = [ext.negcytoskeletonForceOnBead, ext.negcytoskeletonForceOnBead]
                 end
             end
         end
@@ -168,6 +218,21 @@ function get_nuclear_properties!(enve, chro, simset, spar, intTime, intMaxTime)
     get_shell_normals!(enve);
     get_area_unit_vectors!(enve);
 
+    if simset.osmoticPressureChange
+
+        if spar.osmoticPressure > simset.newOsmoticPressure
+            direction = -1
+        else
+            direction = 1
+        end
+
+        if abs(spar.osmoticPressure - simset.newOsmoticPressure) > 0.1
+
+            spar.osmoticPressure = spar.osmoticPressure + direction*10*spar.dt*simset.timeStepMultiplier
+
+        end
+    end
+
     if simset.newVolumeSimulation
 
         volume = get_volume!(enve);
@@ -178,10 +243,24 @@ function get_nuclear_properties!(enve, chro, simset, spar, intTime, intMaxTime)
             direction = 1
         end
 
+        if abs(volume - enve.targetVolume) < 1
+            enve.targetVolumeReached = true
+        elseif enve.targetVolumeReached && abs(volume - enve.targetVolume) > 1
+            enve.targetVolumeReached = false
+        end
+
         enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.05*spar.dt*simset.timeStepMultiplier)
 
         enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.05*2.1*spar.dt*simset.timeStepMultiplier)
 
+        enve.normalArea = sum(enve.normalTriangleAreas)
+
+        if  enve.targetVolumeReached && simset.totalEnvelopeSpeed < 4000 && simset.totalEnvelopeSpeed > 0
+
+            simset.stopSimulation = true
+
+        end
+        
     end
 
     enve.volume = get_volume!(enve)
@@ -206,6 +285,23 @@ function get_nuclear_properties!(enve, chro, repl::replicationCompartmentType, s
     add_repl_comp_triangles!(repl,spar,simset)
     repl.tree = KDTree(repl.vert);
 
+    if simset.osmoticPressureChange
+
+        if spar.osmoticPressure > simset.newOsmoticPressure
+            direction = -1
+        else
+            direction = 1
+        end
+
+        if abs(spar.osmoticPressure - simset.newOsmoticPressure) > 0.1
+
+            spar.osmoticPressure = spar.osmoticPressure + direction*10*spar.dt*simset.timeStepMultiplier
+
+        else
+            simset.targetPressureReached = true
+        end
+    end
+
     if simset.newVolumeSimulation
 
         volume = get_volume!(enve);
@@ -220,9 +316,11 @@ function get_nuclear_properties!(enve, chro, repl::replicationCompartmentType, s
             enve.targetVolumeReached = true
         end
 
-        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.05*spar.dt*simset.timeStepMultiplier)
+        enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.05*2*spar.dt*simset.timeStepMultiplier)
 
         enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.05*2.1*spar.dt*simset.timeStepMultiplier)
+
+        enve.normalArea = sum(enve.normalTriangleAreas)
 
         replVolume = get_volume!(repl)
 
@@ -231,7 +329,13 @@ function get_nuclear_properties!(enve, chro, repl::replicationCompartmentType, s
         end
         
         if  enve.targetVolumeReached && repl.growthDone
-            simset.stopSimulation = true
+            if simset.osmoticPressureChange 
+                if simset.targetPressureReached
+                    simset.stopSimulation = true
+                end
+            else
+                simset.stopSimulation = true
+            end
         end
 
     end
@@ -241,7 +345,7 @@ function get_nuclear_properties!(enve, chro, repl::replicationCompartmentType, s
 
 end
 
-function get_nuclear_properties!(enve, simset, spar)
+function get_nuclear_properties!(enve, simset, spar,intTime)
    
     # form the trees for the vertex distance search
     simset.envelopeTree = KDTree(enve.vert);
@@ -252,6 +356,30 @@ function get_nuclear_properties!(enve, simset, spar)
     get_voronoi_areas!(enve);
     get_shell_normals!(enve);
     get_area_unit_vectors!(enve);
+    get_local_curvatures!(enve)
+
+    if Int64(floor(simset.resetVertexDistancesTime/(spar.dt*spar.scalingTime))) > 0
+        if Int64(floor(simset.resetVertexDistancesTime/(spar.dt*spar.scalingTime))) == intTime
+            enve.normalLengths = enve.edgeVectorNorms;
+            enve.normalTriangleAreas = get_area!(enve);
+            simset.resetVertexDistancesTime = -1
+        end
+    end
+
+    if simset.osmoticPressureChange
+
+        if spar.osmoticPressure > simset.newOsmoticPressure
+            direction = -1
+        else
+            direction = 1
+        end
+
+        if abs(spar.osmoticPressure - simset.newOsmoticPressure) > 0.1
+
+            spar.osmoticPressure = spar.osmoticPressure + direction*10*spar.dt*simset.timeStepMultiplier
+
+        end
+    end
 
     if simset.newVolumeSimulation
 
@@ -266,6 +394,8 @@ function get_nuclear_properties!(enve, simset, spar)
         enve.normalLengths = enve.normalLengths.*(1 .+ direction*0.05*spar.dt*simset.timeStepMultiplier)
 
         enve.normalTriangleAreas = enve.normalTriangleAreas.*(1 .+ direction*0.05*2.1*spar.dt*simset.timeStepMultiplier)
+
+        enve.normalArea = sum(enve.normalTriangleAreas)
 
     end
 
@@ -385,7 +515,7 @@ function get_crosslinks!(enve, chro, simset, spar)
 
 end
 
-function progress_time!(simset,intTime,enve)
+function progress_time!(simset,intTime,enve,spar)
     
     # checks if the time step progress is 0, indicating the beginning of a new time step
     if simset.timeStepProgress == 0
@@ -396,7 +526,7 @@ function progress_time!(simset,intTime,enve)
         nucleusVolume = get_volume!(enve)
 
         # updates the progress bar by displaying the duration of the previous time step
-        next!(simset.prog, showvalues = [(:stepTime,stepTime), (:volume,round(nucleusVolume,digits=2))])
+        next!(simset.prog, showvalues = [(:stepTime,stepTime), (:volume,round(nucleusVolume,digits=2)), (:osmoticPressure,round(spar.osmoticPressure,digits=2)), (:envelopeMovement,round(simset.totalEnvelopeSpeed,digits=4))])
         
         # increments the internal time counter by 1
         intTime += 1
@@ -408,7 +538,7 @@ function progress_time!(simset,intTime,enve)
 
 end
 
-function post_export(ex,simset,ext)
+function post_export(ex,simset,ext,intTime)
 
     # checks if data export is enabled in the export settings
     if ex.exportData
@@ -560,6 +690,18 @@ function export_envelope_data(enve,ex,simset,exportNumber,spar)
         vtk["Cytoskeleton forces", VTKPointData()] = [getindex.(enve.forces.planeRepulsion,1) getindex.(enve.forces.planeRepulsion,2) getindex.(enve.forces.planeRepulsion,3)]'
         # export total forces
         vtk["Total forces", VTKPointData()] = [getindex.(enve.forces.total,1) getindex.(enve.forces.total,2) getindex.(enve.forces.total,3)]'
+        vtk["Area difference", VTKCellData()] = (get_area!(enve) - enve.normalTriangleAreas)'
+        if false
+            vtk["Local curvature", VTKPointData()] = enve.curvatures
+        end
+    end
+
+    enve2Cells = Vector{MeshCell{PolyData.Lines, Vector{Int64}}}(undef,sum(enve.firstEdges))
+
+    ind = 1
+    for i = findall(enve.firstEdges .== 1)
+        enve2Cells[ind] = MeshCell(PolyData.Lines(), enve.edges[i]);
+        ind += 1
     end
 
     # export planes if adhesion is enabled
@@ -570,6 +712,8 @@ function export_envelope_data(enve,ex,simset,exportNumber,spar)
 
     if simset.exportNormalLengths
         writedlm(".\\results\\"*ex.folderName*"\\normalLengths_" * lpad(exportNumber,4,"0") *".csv", enve.normalLengths.*spar.scalingLength,',')
+        writedlm(".\\results\\"*ex.folderName*"\\normalTriangleAreas_" * lpad(exportNumber,4,"0") *".csv", enve.normalTriangleAreas.*spar.scalingLength.^2,',')
+        writedlm(".\\results\\"*ex.folderName*"\\normalArea_" * lpad(exportNumber,4,"0") *".csv", enve.normalArea*spar.scalingLength^2,',')
     end
 
 end

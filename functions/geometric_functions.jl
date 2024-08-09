@@ -98,7 +98,7 @@ function get_local_curvatures!(shellStruct)
 
             # Compute the sum of cotangent weights multiplied by edge vectors to approximate the Laplace-Beltrami operator.
             cotangentSum .+= (cotd(angles1[j]) + cotd(angles2[j])).*shellStruct.edgeVectors[j]
-
+            
         end
 
         # Compute the curvatures using the Laplace-Beltrami operator
@@ -109,6 +109,7 @@ function get_local_curvatures!(shellStruct)
         shellStruct.curvatures[i] = LaplaceBeltramiNorm/2;
 
     end
+
 end
 
 function get_voronoi_areas!(shellStruct)

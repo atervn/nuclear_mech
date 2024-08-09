@@ -1,7 +1,7 @@
 freeNucleusRadius,6.1e-6
 ladLength,0.3e-6
 crosslinkLength,0.3e-6
-cytoskeletonPlaneRadius,30e-6
+cytoskeletonPlaneRadius,15e-6
 chromatinNormalAngle,180
 chromatinNumber,46
 chromatinLength,256

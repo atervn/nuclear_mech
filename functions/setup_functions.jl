@@ -13,7 +13,8 @@ function setup_simulation(
     newTargetVolume::Number,
     stickyBottom::Bool,
     restLengthRemodelling::Bool,
-    laminaDisintegration::Float64)
+    laminaDisintegration::Float64,
+    resetVertexDistancesTime::Float64)
 
     # read model parameters from file
     ipar = read_parameters(parameterFiles);
@@ -30,7 +31,6 @@ function setup_simulation(
     # setup the envelope
     enve = setup_envelope(ipar,initType,importFolder,importTime,newEnvelopeMultipliers)
 
-
     # scale parameters
     spar = get_model_parameters(ipar,enve);
     
@@ -38,7 +38,7 @@ function setup_simulation(
     chro = setup_chromatin(enve,spar,initType,importFolder,importTime,noChromatin)
 
     # setup simulation settings
-    simset,ext = setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime,stickyBottom,restLengthRemodelling)
+    simset,ext = setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime,stickyBottom,restLengthRemodelling,ipar)
       
     if newTargetVolume != 0
 
@@ -52,6 +52,9 @@ function setup_simulation(
     simset.laminaRemodel = "tension_remodeling" 
 
     enve = setup_lamina_disintegration(enve, laminaDisintegration, importFolder)
+
+    simset.resetVertexDistancesTime = resetVertexDistancesTime
+
 
     return enve, chro, spar, simset, ext, ipar, importFolder
 
@@ -85,6 +88,7 @@ function setup_envelope(ipar,initType,importFolder,importTime,newEnvelopeMultipl
 
         # load nuclear envelope from specified import folder
         enve = import_envelope(enve,importFolder,importTime,ipar)
+
     end
 
     # init forces on envelope
@@ -477,6 +481,12 @@ function setup_export(simType,folderName::String,enve,chro,ext,spar,simset,nameD
             end
         end
         
+        open(".\\results\\"*ex.folderName*"\\osmotic_pressure.txt", "w") do file
+            write(file, string(ipar.osmoticPressure))
+        end
+
+
+
         ex.step = spar.exportStep
     end
     
@@ -662,7 +672,7 @@ function get_model_parameters(ipar,enve)
     spar.laminaFriction = ipar.laminaFriction / ipar.viscosity
 
     # set area compression stiffness
-    spar.areaCompressionStiffness = ipar.areaCompressionModulus / ipar.viscosity * ipar.scalingTime * ipar.scalingLength
+    spar.areaCompressionStiffness = ipar.areaCompressionStiffness / ipar.viscosity * ipar.scalingTime;
 
     # set bending stiffness
     spar.laminaBendingStiffness = ipar.laminaBendingStiffness / ipar.viscosity * ipar.scalingTime / ipar.scalingLength^2
@@ -823,6 +833,8 @@ function get_model_parameters(ipar,enve)
 
     spar.replTargetVolume = ipar.replTargetVolume / ipar.scalingLength^3
 
+    spar.chromatinViscosityMultiplier = ipar.chromatinViscosityMultiplier;
+
     return spar
 
 end
@@ -931,7 +943,7 @@ function export_normal_values(enve,ex,spar,simset)
 
 end
 
-function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime,stickyBottom,restLengthRemodelling)
+function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simType,importFolder,adherent,adherentStatic,initType,maxT,importTime,stickyBottom,restLengthRemodelling,ipar)
 
     # create a new simulation settings object
     simset = simulationSettingsType()
@@ -994,6 +1006,16 @@ function setup_simulation_settings(enve,chro,spar,noChromatin,noEnveSolve,simTyp
 
     end
 
+    if cmp(initType,"load") == 0
+        oldOsmoticPressure = readdlm(importFolder*"\\osmotic_pressure.txt")[1] 
+            
+        if oldOsmoticPressure != ipar.osmoticPressure
+            simset.osmoticPressureChange = true
+            simset.oldOsmoticPressure = oldOsmoticPressure / spar.viscosity * spar.scalingTime * spar.scalingLength
+            simset.newOsmoticPressure = spar.osmoticPressure
+            spar.osmoticPressure = simset.oldOsmoticPressure
+        end
+    end
     # create a progress bar
     simset.prog = Progress(Int64(round(maxT/(spar.scalingTime*spar.dt))), 0.1, "Simulating...", 100)
 
@@ -1216,7 +1238,7 @@ end
 
 function check_export_number(ipar,maxT,parameterFiles)
 
-    nExports = (round(maxT/ipar.dt))/ipar.exportStep+1
+    nExports = round(Int,(round(maxT/ipar.dt))/ipar.exportStep+1)
 
     if nExports > 1000
         
@@ -1242,7 +1264,7 @@ function setup_lamina_disintegration(enve, laminaDisintegration,importFolder)
 
         laminaDisintegrationMultipliers = zeros(size(enve.firstEdges))
         laminaDisintegrationMultipliers[firstEdgeIdx] .= 1
-        laminaDisintegrationMultipliers[disintegrationSites] .= 0.0001
+        laminaDisintegrationMultipliers[disintegrationSites] .= 0.01
 
         enve.laminaDisintegrationMultipliers = laminaDisintegrationMultipliers;
     end

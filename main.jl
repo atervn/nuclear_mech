@@ -21,6 +21,7 @@ include("./functions/solve_system.jl")
 include("./functions/import_functions.jl")
 include("./functions/get_forces.jl")
 include("./functions/simulation.jl")
+include("./analysis/analysis_functions.jl")
 
 sim = 31
 

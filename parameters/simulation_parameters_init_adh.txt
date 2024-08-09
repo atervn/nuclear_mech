@@ -1,4 +1,0 @@
-viscosity,50e-6
-dt,0.1
-exportStep,10
-temperature,300

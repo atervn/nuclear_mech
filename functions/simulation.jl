@@ -25,7 +25,8 @@ function simulation(
     stickyBottom::Bool = false,
     simulationDate::String = "",
     restLengthRemodelling = false,
-    laminaDisintegration::Float64 = 0.0)
+    laminaDisintegration::Float64 = 0.0,
+    resetVertexDistancesTime::Float64 = 0.0)
 
 
     parameterFiles = get_parameter_files(simType,nuclearMechPars,nuclearPropPars,expPars,simPars,sysPars,replPars)
@@ -36,7 +37,7 @@ function simulation(
     end
 
     # setup the simulation environment
-    enve, chro, spar, simset, ext, ipar, importFolder = setup_simulation(initState, simType, importFolder, parameterFiles,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers,importTime,newTargetVolume,stickyBottom,restLengthRemodelling,laminaDisintegration)
+    enve, chro, spar, simset, ext, ipar, importFolder = setup_simulation(initState, simType, importFolder, parameterFiles,noChromatin,noEnveSolve,adherent,adherentStatic,maxT,newEnvelopeMultipliers,importTime,newTargetVolume,stickyBottom,restLengthRemodelling,laminaDisintegration,resetVertexDistancesTime)
 
     if typeof(enve) != envelopeType
         return
@@ -101,7 +102,7 @@ function run_simulation(enve, chro, spar, ex, ext, simset, maxT)
             end
 
             # update the time step
-            intTime = progress_time!(simset,intTime,enve);
+            intTime = progress_time!(simset,intTime,enve,spar);
 
         end
 
@@ -113,7 +114,7 @@ function run_simulation(enve, chro, spar, ex, ext, simset, maxT)
     end
 
     # perform post-simulation export operations
-    post_export(ex,simset,ext)
+    post_export(ex,simset,ext,intTime)
 
 end
 
@@ -153,7 +154,7 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
             end
 
             # update the time step
-            intTime = progress_time!(simset,intTime,enve);
+            intTime = progress_time!(simset,intTime,enve,spar);
 
         end
 
@@ -165,7 +166,7 @@ function run_simulation(enve::envelopeType, chro::chromatinType, repl::replicati
     end
 
     # perform post-simulation export operations
-    post_export(ex,simset,ext)
+    post_export(ex,simset,ext,intTime)
 
 end
 
@@ -186,7 +187,7 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
         while intTime <= intMaxTime
 
             # get nuclear properties
-            get_nuclear_properties!(enve, simset, spar)
+            get_nuclear_properties!(enve, simset, spar,intTime)
 
             # calculate forces
             get_forces!(enve, spar, ext, simset)
@@ -197,8 +198,12 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
             # solve the system
             solve_system!(enve, spar, simset, ext, intTime)
 
+            if simset.stopSimulation
+                break
+            end
+
             # update the time step
-            intTime = progress_time!(simset,intTime,enve);
+            intTime = progress_time!(simset,intTime,enve,spar);
 
         end
 
@@ -210,6 +215,6 @@ function run_simulation(enve, spar, ex, ext, simset, maxT)
     end
 
     # perform post-simulation export operations
-    post_export(ex,simset,ext)
+    post_export(ex,simset,ext,intTime)
     
 end

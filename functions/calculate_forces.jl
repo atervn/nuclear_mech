@@ -15,7 +15,7 @@ function get_volume_forces!(enve::envelopeType,spar::scaledParametersType,simset
     end
 
     # compute the volume forces on envelope vertices
-    enve.forces.volume = (spar.osmoticPressure + volPressure)*mean(enve.voronoiAreas).*enve.vertexNormalUnitVectors
+    enve.forces.volume = (spar.osmoticPressure + volPressure)*enve.voronoiAreas.*enve.vertexNormalUnitVectors
 
 end
 
@@ -25,10 +25,10 @@ function get_volume_forces!(enve,repl::replicationCompartmentType,spar,simset::s
     nucleusVolume = get_volume!(enve);# - get_volume!(repl);
 
     # if the nucleus is smaller than the normal volume
-    if nucleusVolume < enve.normalVolume  || simset.newVolumeSimulation # - repl.normalVolume
+    if nucleusVolume < enve.normalVolume  #|| simset.newVolumeSimulation # - repl.normalVolume
 
         # compute the volume pressure based on the difference between nucleus volume and normal volume
-        volPressure = -spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));# - repl.normalVolume));
+        volPressure = 0*-spar.bulkModulus*log10(nucleusVolume/(enve.normalVolume));# - repl.normalVolume));
 
     # otherwise, set to 0
     else
@@ -38,7 +38,7 @@ function get_volume_forces!(enve,repl::replicationCompartmentType,spar,simset::s
     end
 
     # compute the volume forces on envelope vertices
-    enve.forces.volume = (spar.osmoticPressure + volPressure)*mean(enve.voronoiAreas).*enve.vertexNormalUnitVectors
+    enve.forces.volume = (spar.osmoticPressure + volPressure)*enve.voronoiAreas.*enve.vertexNormalUnitVectors
 
 end
 
@@ -50,24 +50,34 @@ function get_area_forces!(enve, spar)
 
     end
 
+    nucleusArea = sum(enve.triangleAreas);
+
+    globalMagnitude = 10e-4/spar.viscosity*spar.scalingTime*(nucleusArea - enve.normalArea)/enve.normalArea;
+
     # compute area forces for each triangle
     for i = eachindex(enve.tri)
 
         # get the baryocenter
-        baryocenter = mean(enve.vert[enve.tri[i]]);
+        centroid = mean(enve.vert[enve.tri[i]]);
+
+        vectors = Vector{Any}(undef, 3)
+
+        vectors[1] = centroid - enve.vert[enve.tri[i][1]]
+        vectors[2] = centroid - enve.vert[enve.tri[i][2]]
+        vectors[3] = centroid - enve.vert[enve.tri[i][3]]
+
+        vectorSum = norm(vectors[1])^2 + norm(vectors[2])^2 + norm(vectors[3])^2
 
         # get the force magnitude
-        magnitude = spar.areaCompressionStiffness*(enve.triangleAreas[i] - enve.normalTriangleAreas[i])/(enve.normalTriangleAreas[i]);
+        localMagnitude = spar.areaCompressionStiffness*(enve.triangleAreas[i] - enve.normalTriangleAreas[i])/vectorSum
+
+        globalMagnitudeTemp = globalMagnitude*enve.triangleAreas[i]/vectorSum
 
         # for each triangle vertex
         for j = 1:3
 
-            # get the unit vector between the vertex and the baryocenter
-            vector = enve.vert[enve.tri[i][j]] - baryocenter;
-            unitVector = vector/norm(vector)
-
             # calculate the force on the vertex
-            enve.forces.area[enve.tri[i][j]] -= magnitude*unitVector
+            enve.forces.area[enve.tri[i][j]] += localMagnitude*vectors[j] + globalMagnitudeTemp*vectors[j]
 
         end
     end
@@ -143,7 +153,7 @@ function get_repulsion_forces!(enve,spar,simset)
     for i = 1:length(enve.vert)
 
         # get the intra envelope interactions
-        getForce, unitVector, closePointDistance, _ = vertex_shell_interaction(enve.vert[i],enve,simset.envelopeTree,spar,[i; enve.neighbors[i]],false,false)
+        getForce, unitVector, closePointDistance, _ = vertex_shell_interaction(enve.vert[i],enve,simset.envelopeTree,spar,[i; enve.neighbors[i]],false,false,spar.repulsionDistance)
 
         # check if the closest distance is within the repulsion distance
         if getForce
@@ -167,13 +177,13 @@ function get_aspiration_repulsion_forces!(enve,pip,spar)
     for i = 1:length(enve.vert)
 
         # get the interaction with the pipette
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices,tri = vertex_shell_interaction(enve.vert[i],pip,pip.pipetteTree,spar,[],true,false)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices,tri = vertex_shell_interaction(enve.vert[i],pip,pip.pipetteTree,spar,[],true,false,spar.repulsionDistance)
 
         # if the repulsion is calculated
         if getForce
 
             # get the interaction force with the pipette
-            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(pip,unitVector,closePointDistance, closeVertices, tri, spar,false)
+            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(pip,unitVector,closePointDistance, closeVertices, tri, spar,false,spar.repulsionDistance)
 
             # calculate the force
             enve.forces.pipetteRepulsion[i] = forceMagnitude*unitVector;
@@ -352,13 +362,13 @@ function get_envelope_chromatin_repulsion_forces!(enve,chro,spar,envelopeTree)
     for i = 1:spar.chromatinLength*spar.chromatinNumber
 
         # get the interactions between vertex and shell
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],enve,envelopeTree,spar,[],true,false)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],enve,envelopeTree,spar,[],true,false,spar.repulsionDistance)
 
         # if the repulsion is calculated
         if getForce
 
             # get the envelope interaction
-            unitVector, forceMagnitude, acrossBoundary = get_vertex_shell_interaction_vertex_force(enve,unitVector,closePointDistance, closeVertices, tri, spar,false)
+            unitVector, forceMagnitude, acrossBoundary = get_vertex_shell_interaction_vertex_force(enve,unitVector,closePointDistance, closeVertices, tri, spar,false,spar.repulsionDistance)
 
             # calculate the force
             chro.forces.enveRepulsion[i] = forceMagnitude*unitVector;
@@ -673,12 +683,12 @@ function get_repl_chromatin_repulsion_forces!(chro, repl, spar)
     # iterate through the chromatin vertices
     for i = 1:spar.chromatinLength*spar.chromatinNumber
         
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],repl,repl.tree,spar,[],true,true)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(chro.vert[i],repl,repl.tree,spar,[],true,true,spar.repulsionDistance)
 
         if getForce
             
             # get the repl interaction forces
-            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(repl,unitVector,closePointDistance, closeVertices, tri, spar,true)
+            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(repl,unitVector,closePointDistance, closeVertices, tri, spar,true,spar.repulsionDistance)
 
             # calculate the force
             chro.forces.replRepulsion[i] = forceMagnitude*unitVector
@@ -731,15 +741,15 @@ function get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
     for i = eachindex(enve.vert)
 
         # get the interactions between vertex and shell
-        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(enve.vert[i],repl,repl.tree,spar,[],true,true)
+        getForce, unitVector, closePointDistance, closeCoords, closeVertices, tri = vertex_shell_interaction(enve.vert[i],repl,repl.tree,spar,[],true,true,spar.repulsionDistance*3)
         
         # if the repulsion is calculated
         if getForce
 
             # get the repl interaction
-            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(repl,unitVector,closePointDistance, closeVertices,tri,spar,true)
+            unitVector, forceMagnitude,acrossBoundary = get_vertex_shell_interaction_vertex_force(repl,unitVector,closePointDistance, closeVertices,tri,spar,true,spar.repulsionDistance*3)
             # calculate the force   
-            enve.forces.replRepulsion[i] = forceMagnitude*unitVector;
+            # enve.forces.replRepulsion[i] = forceMagnitude*unitVector;
 
             if !acrossBoundary
 
@@ -773,7 +783,7 @@ function get_repl_comp_enve_repulsion_forces!(enve, repl, spar)
 
 end
 
-function vertex_shell_interaction(vertex,shell,tree,spar,neighbors,checkOutside,isRepl)
+function vertex_shell_interaction(vertex,shell,tree,spar,neighbors,checkOutside,isRepl,repulsionDistance)
 
     # get the closest shell vertex
     if length(neighbors) == 0
@@ -819,7 +829,7 @@ function vertex_shell_interaction(vertex,shell,tree,spar,neighbors,checkOutside,
         unitVector = (vertex - closeCoords)/closePointDistance;
 
         # if the closest point is within the repulsion distance
-        if closePointDistance < spar.repulsionDistance
+        if closePointDistance < repulsionDistance
 
             # calculate the force
             getForce = true
@@ -852,7 +862,7 @@ function vertex_shell_interaction(vertex,shell,tree,spar,neighbors,checkOutside,
 
 end
 
-function get_vertex_shell_interaction_vertex_force(shell,unitVector,closePointDistance, closeVertices, tri, spar, isRepl)
+function get_vertex_shell_interaction_vertex_force(shell,unitVector,closePointDistance, closeVertices, tri, spar, isRepl, repulsionDistance)
 
     # if the closest point in the enve is a vertex
     if length(closeVertices) == 1
@@ -891,7 +901,7 @@ function get_vertex_shell_interaction_vertex_force(shell,unitVector,closePointDi
     else
 
         # get the magnitude
-        forceMagnitude = spar.repulsionConstant*(spar.repulsionDistance - closePointDistance)
+        forceMagnitude = spar.repulsionConstant*(repulsionDistance - closePointDistance)
         acrossBoundary = false
 
     end

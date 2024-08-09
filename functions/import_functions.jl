@@ -13,7 +13,7 @@ function import_envelope(enve,importFolder,importTime,ipar)
     vert = get_points(vtk)
 
     # create a new array to store the vertices
-    enve.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+    enve.vert = Vector{Vec{3,Float64}}(undef,size(vert)[2])
 
     # iterate over the vertices
     for i = eachindex(vert[1,:])
@@ -61,8 +61,12 @@ function import_envelope(enve,importFolder,importTime,ipar)
     enve.normalVolume = readdlm(importFolder*"\\normalVolume.csv")[1]/ipar.scalingLength^3
     try
         enve.normalLengths = readdlm(importFolder*"\\normalLengths_"* importNumber *".csv")[:,1]./ipar.scalingLength
+        enve.normalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas_"* importNumber *".csv")[:,1]./ipar.scalingLength^2
+        enve.normalArea = readdlm(importFolder*"\\normalArea_"* importNumber *".csv")[1]/ipar.scalingLength^2
     catch
         enve.normalLengths = readdlm(importFolder*"\\normalLengths.csv")[:,1]./ipar.scalingLength
+        enve.normalTriangleAreas = readdlm(importFolder*"\\normalTriangleAreas.csv")[:,1]./ipar.scalingLength^2
+        enve.normalArea = readdlm(importFolder*"\\normalArea.csv")[1]/ipar.scalingLength^2
     end
 
     enve.envelopeMultipliers = readdlm(importFolder*"\\envelope_multipliers.csv")[:]
@@ -82,7 +86,7 @@ function import_chromatin(chro,spar,importFolder,importTime)
     vert = get_points(vtk)
 
     # create a vector to store the vertex coordinates
-    chro.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+    chro.vert = Vector{Vec{3,Float64}}(undef,size(vert)[2])
 
     # iterate over the vertex coordinates and add them to the chro.vert vector
     for i = eachindex(vert[1,:])
@@ -261,7 +265,7 @@ function import_replication_compartment(repl,spar,importFolder,importTime)
      vert = get_points(vtk)
  
      # create a new array to store the vertices
-     repl.vert = Vector{Vec{Float64,3}}(undef,size(vert)[2])
+     repl.vert = Vector{Vec{3,Float64}}(undef,size(vert)[2])
  
      # iterate over the vertices
      for i = eachindex(vert[1,:])
