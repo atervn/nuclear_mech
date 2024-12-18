@@ -1,4 +1,4 @@
-using NativeFileDialog, PlotlyJS, DelimitedFiles, ReadVTK, Meshes, LinearAlgebra, ProgressMeter, Statistics
+using NativeFileDialog, PlotlyJS, DelimitedFiles, ReadVTK, LinearAlgebra, ProgressMeter, Statistics
 
 include("../functions/setup_functions.jl")
 

@@ -1,4 +1,4 @@
-using NativeFileDialog, Plots, DelimitedFiles, ReadVTK, Meshes, LinearAlgebra, ProgressMeter, Statistics
+using NativeFileDialog, Plots, DelimitedFiles, ReadVTK, LinearAlgebra, ProgressMeter, Statistics
 
 
 function analyze_strains()

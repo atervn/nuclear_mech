@@ -1,9 +1,9 @@
 using NativeFileDialog, Plots, DelimitedFiles, ReadVTK, LaTeXStrings, CurveFit
 
-include("setup_functions.jl")
+include("../functions/setup_functions.jl")
 
 if !(@isdefined envelopeType)
-    include("NuclearMechTypes.jl")
+    include("../functions/NuclearMechTypes.jl")
     using .NuclearMechTypes
 end
 
@@ -57,7 +57,7 @@ function analyze_aspiration(case)
     end
 
     ipar = inputParametersType();
-    read_parameters(ipar,folder*"\\parameters.txt")
+    read_parameters(ipar,folder*"/parameters.txt")
 
     pipettePosition = ipar.pipetteRadius*tan(acos(ipar.pipetteRadius/(ipar.freeNucleusRadius + ipar.repulsionDistance)));
 
